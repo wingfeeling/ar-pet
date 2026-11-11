@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>AR 寵物召喚｜實境擴增場域座標系統 v0.3</title>
+<style>
+  :root{--accent:#f2994a;--accent2:#e0832f;--ink:#2b2118;--bg:#fff8f0;--card:#fff;--line:#eddcc8;--mute:#8a6a4c}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  canvas{position:fixed;inset:0;display:none;touch-action:none}
+  .screen{max-width:520px;margin:0 auto;padding:34px 20px 60px;line-height:1.65;display:none}
+  .screen.show{display:block}
+  h1{font-size:1.6rem;margin:.2em 0 .05em}
+  h2{font-size:1.15rem;margin:1.6em 0 .6em}
+  .sub{color:var(--mute);margin:0 0 1.4em}
+  .logo{font-size:3.6rem;line-height:1}
+  label{display:block;font-weight:700;margin:.8em 0 .3em}
+  input[type=text]{width:100%;font-size:1.1rem;padding:13px 14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  .big{display:block;width:100%;font-size:1.12rem;font-weight:700;padding:15px;border:0;border-radius:14px;margin:12px 0;cursor:pointer}
+  .primary{background:var(--accent);color:#fff}
+  .primary:disabled{background:#d9cbbd}
+  .ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+  .note{font-size:.88rem;color:var(--mute)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .topbar h1{font-size:1.35rem}
+  .link{background:none;border:0;color:var(--mute);font-size:.95rem;text-decoration:underline;cursor:pointer;padding:6px}
+  #petList{list-style:none;padding:0;margin:0}
+  .pet{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}
+  .ava{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:1.8rem;flex:none;border:2px solid rgba(0,0,0,.06)}
+  .pinfo{flex:1;min-width:0}
+  .pname{font-weight:700;font-size:1.1rem;word-break:break-all}
+  .pkind{font-size:.85rem;color:var(--mute)}
+  .pinfo input{padding:8px 10px;font-size:1rem}
+  .pact{display:flex;gap:6px;flex:none}
+  .pact button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-size:.95rem;cursor:pointer;color:var(--ink)}
+  .pact button.ok{background:var(--accent);border-color:var(--accent);color:#fff}
+  .err{color:#c0392b;font-size:.85rem;margin-top:4px}
+  .addbox{background:var(--card);border:1px dashed #e2c6a6;border-radius:16px;padding:6px 14px 4px}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:.98rem;cursor:pointer;color:var(--ink)}
+  .seg button.on{border-color:var(--accent);background:#fff1e3;font-weight:700}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;font-size:.95rem;margin:10px 0}
+  .row button{flex:none;border:0;border-radius:10px;padding:8px 12px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer}
+  ul.tips{padding-left:1.2em;font-size:.93rem;color:#5b4a3a}
+  #overlay{display:none;position:fixed;inset:0;z-index:10;color:#fff;font-size:15px}
+  #touch{position:absolute;inset:0;touch-action:none}
+  #hint{position:absolute;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:92%;
+        background:rgba(0,0,0,.55);padding:10px 16px;border-radius:999px;text-align:center;pointer-events:none;line-height:1.45}
+  #speech{position:absolute;bottom:calc(112px + env(safe-area-inset-bottom));left:8px;right:8px;text-align:center;pointer-events:none;text-shadow:0 1px 3px #000;font-size:14px}
+  #dbg{position:absolute;bottom:calc(88px + env(safe-area-inset-bottom));left:10px;font-size:11px;opacity:.75;pointer-events:none;text-shadow:0 1px 2px #000}
+  #bar{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center;padding:0 10px}
+  #bar button{border:0;border-radius:16px;font-size:16px;font-weight:700;padding:14px 12px;background:rgba(255,255,255,.92);color:var(--ink);min-width:58px;touch-action:none;user-select:none;-webkit-user-select:none}
+  #mic{flex:1;max-width:190px}
+  #mic.on{background:#e74c3c!important;color:#fff!important}
+  #summon{background:var(--accent)!important;color:#fff!important}
+  #picker{display:none;position:absolute;left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);color:var(--ink);
+          border-radius:18px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+  #picker.show{display:block}
+  #picker .t{font-size:.9rem;color:var(--mute);margin:0 4px 8px}
+  #picker .grid{display:flex;flex-wrap:wrap;gap:8px}
+  #picker button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:10px 14px;font-size:1rem;font-weight:700;color:var(--ink)}
+  #picker button.clear{border-color:#f0c8c0;color:#b0453a}
+</style>
+</head>
+<body>
+
+<!-- ============ 登入 ============ -->
+<section id="loginScr" class="screen">
+  <div class="logo">🐱🐶</div>
+  <h1>AR 寵物召喚</h1>
+  <p class="sub">實境擴增場域座標系統・第三版</p>
+  <label for="nick">你的暱稱</label>
+  <input id="nick" type="text" maxlength="16" placeholder="例如：小明" autocomplete="nickname">
+  <button id="loginBtn" class="big primary">登入</button>
+  <p class="note">目前帳號和寵物資料都存在<b>這支手機的瀏覽器</b>裡，不需要密碼。換手機或清除瀏覽器資料後，資料就不會在了。</p>
+</section>
+
+<!-- ============ 我的寵物 ============ -->
+<section id="homeScr" class="screen">
+  <div class="topbar">
+    <h1 id="hello">嗨！</h1>
+    <button id="logout" class="link">登出</button>
+  </div>
+
+  <h2>我的寵物</h2>
+  <ul id="petList"></ul>
+
+  <div class="addbox">
+    <label>新增寵物</label>
+    <div class="seg" id="addSpecies">
+      <button data-v="cat" class="on">🐱 貓咪</button>
+      <button data-v="dog">🐶 小狗</button>
+    </div>
+    <label>毛色</label>
+    <div class="seg" id="addColor"></div>
+    <label for="addName">名字</label>
+    <input id="addName" type="text" maxlength="10" placeholder="取個 2～3 個字的名字，語音最好認">
+    <div id="addErr" class="err"></div>
+    <button id="addBtn" class="big ghost">＋ 新增</button>
+  </div>
+
+  <h2>開始召喚</h2>
+  <div class="row" id="micRow"><span id="micState">🎤 麥克風：檢查中…</span><button id="micBtn">允許麥克風</button></div>
+  <div class="row" id="support"><span>檢查手機是否支援 AR…</span></div>
+  <button id="arBtn" class="big primary" disabled>開始 AR</button>
+  <button id="pvBtn" class="big ghost">先看預覽（不開鏡頭）</button>
+  <ul class="tips">
+    <li>請用 <b>Android 手機的 Chrome</b> 開啟。</li>
+    <li>進入後慢慢移動手機，<b>掃過整個桌面</b>，等中間出現綠色圓圈。</li>
+    <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按 🐾 選。說「收回」會讓牠們回家。</li>
+    <li>點牠＝打招呼；在牠身上慢慢來回滑＝摸摸；從牠身上快速一甩＝推牠。</li>
+  </ul>
+</section>
+
+<!-- ============ AR 畫面上的介面 ============ -->
+<div id="overlay">
+  <div id="touch"></div>
+  <div id="hint">慢慢移動手機，掃描桌面…</div>
+  <div id="speech"></div>
+  <div id="dbg"></div>
+  <div id="picker"><div class="t">要召喚誰？</div><div class="grid" id="pickGrid"></div></div>
+  <div id="bar">
+    <button id="mic">🎤 按住說話</button>
+    <button id="summon">🐾 召喚</button>
+    <button id="reset" title="全部收回">↺</button>
+    <button id="exit" title="離開">✕</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+/* ================= 可調參數 ================= */
+const PET_SCALE   = 1.1;   // 寵物大小（1.0 ≈ 身長 13 公分）
+const WALK_SPEED  = 0.07;  // 走路速度（公尺/秒）
+const EDGE_MARGIN = 0.04;  // 離桌緣至少多遠（公尺）
+const GRID        = 0.04;  // 掃描格子大小（公尺）
+const HEIGHT_TOL  = 0.025; // 同一個桌面的高度容許誤差（公尺）
+const MAX_PETS    = 4;     // 同時最多幾隻
+
+const $ = id => document.getElementById(id);
+const hintEl = $('hint'), speechEl = $('speech'), dbgEl = $('dbg');
+const hint = t => { hintEl.textContent = t; };
+
+/* ================= 毛色 ================= */
+const PALETTES = {
+  cat: {
+    orange: { label: '橘貓', fur: 0xf7a24f, dark: 0xdf7a2c, cream: 0xfff4e3, stripes: true,  eye: 0x2a1d16 },
+    white:  { label: '白貓', fur: 0xfbfaf7, dark: 0xebe5dc, cream: 0xffffff, stripes: false, eye: 0x4f8fe0, pupil: true },
+    gray:   { label: '灰貓', fur: 0xa7b1bd, dark: 0x76818e, cream: 0xf0f2f5, stripes: true,  eye: 0x2a2a2a },
+    black:  { label: '黑貓', fur: 0x34303a, dark: 0x1f1c22, cream: 0x4d4852, stripes: false, eye: 0xf2c94c, pupil: true },
+  },
+  dog: {
+    shiba:  { label: '柴犬',     fur: 0xeca65e, dark: 0xcc8443, cream: 0xfff5e6, ears: 'up',   eye: 0x221812 },
+    white:  { label: '白色小狗', fur: 0xfcfbf8, dark: 0xeee6da, cream: 0xffffff, ears: 'flop', earColor: 0xf1dcc0, eye: 0x221812 },
+    black:  { label: '黑柴',     fur: 0x3b3331, dark: 0x262020, cream: 0xf3e5d1, ears: 'up',   eye: 0x221812 },
+  },
+};
+const SPECIES_LABEL = { cat: '貓咪', dog: '小狗' };
+const EMOJI = { cat: '🐱', dog: '🐶' };
+const pal = d => PALETTES[d.species]?.[d.color] || Object.values(PALETTES[d.species] || PALETTES.cat)[0];
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+
+/* ================= 帳號與寵物資料（存在這支手機） ================= */
+const DB_KEY = 'arpet.v1';
+let db; try { db = JSON.parse(localStorage.getItem(DB_KEY)) || {}; } catch { db = {}; }
+db.users ||= {};
+const saveDB = () => { try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch {} };
+const uid = () => Math.random().toString(36).slice(2, 10);
+let user = db.current ? db.users[db.current] : null;
+
+function show(id) { for (const s of document.querySelectorAll('.screen')) s.classList.toggle('show', s.id === id); }
+
+$('loginBtn').addEventListener('click', () => {
+  const nick = $('nick').value.trim();
+  if (!nick) { $('nick').focus(); return; }
+  if (!db.users[nick]) db.users[nick] = { nick, pets: [
+    { id: uid(), name: '小橘', species: 'cat', color: 'orange' },
+    { id: uid(), name: '豆豆', species: 'dog', color: 'shiba' },
+  ] };
+  db.current = nick; saveDB(); user = db.users[nick];
+  initAudio(); renderHome(); show('homeScr');
+});
+$('nick').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+$('logout').addEventListener('click', () => { db.current = null; saveDB(); user = null; $('nick').value = ''; show('loginScr'); });
+
+const cleanName = s => s.replace(/\s+/g, '').slice(0, 10);
+function nameError(name, selfId) {
+  if (!name) return '請輸入名字';
+  if (/^(收回|回去|再見|拜拜)$/.test(name)) return '這個詞是語音指令，換一個名字吧';
+  if (user.pets.some(p => p.id !== selfId && p.name === name)) return '已經有同名的寵物了，語音會分不出來';
+  return '';
+}
+
+let editingId = null;
+function renderHome() {
+  $('hello').textContent = `嗨，${user.nick}！`;
+  const list = $('petList'); list.textContent = '';
+  if (!user.pets.length) { const li = document.createElement('li'); li.className = 'note'; li.textContent = '還沒有寵物，先在下面新增一隻吧！'; list.append(li); }
+  for (const p of user.pets) {
+    const li = document.createElement('li'); li.className = 'pet';
+    const ava = document.createElement('div'); ava.className = 'ava'; ava.textContent = EMOJI[p.species]; ava.style.background = hex(pal(p).fur) + '55';
+    const info = document.createElement('div'); info.className = 'pinfo';
+    const act = document.createElement('div'); act.className = 'pact';
+    if (editingId === p.id) {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 10; inp.value = p.name;
+      const err = document.createElement('div'); err.className = 'err';
+      info.append(inp, err);
+      const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = '儲存';
+      const cancel = document.createElement('button'); cancel.textContent = '取消';
+      const save = () => { const n = cleanName(inp.value), e = nameError(n, p.id); if (e) { err.textContent = e; return; } p.name = n; editingId = null; saveDB(); renderHome(); };
+      ok.onclick = save; inp.onkeydown = e => { if (e.key === 'Enter') save(); };
+      cancel.onclick = () => { editingId = null; renderHome(); };
+      act.append(ok, cancel);
+      setTimeout(() => inp.focus(), 0);
+    } else {
+      const nm = document.createElement('div'); nm.className = 'pname'; nm.textContent = p.name;
+      const kd = document.createElement('div'); kd.className = 'pkind'; kd.textContent = `${pal(p).label}・說「召喚${p.name}」`;
+      info.append(nm, kd);
+      const ed = document.createElement('button'); ed.textContent = '✏️ 改名'; ed.onclick = () => { editingId = p.id; renderHome(); };
+      const del = document.createElement('button'); del.textContent = '🗑'; del.title = '刪除';
+      del.onclick = () => { if (confirm(`確定要刪除「${p.name}」嗎？`)) { user.pets = user.pets.filter(x => x.id !== p.id); saveDB(); renderHome(); } };
+      act.append(ed, del);
+    }
+    li.append(ava, info, act); list.append(li);
+  }
+  $('exampleName').textContent = user.pets[0] ? `「召喚${user.pets[0].name}」` : '「召喚小橘」';
+  renderColorChips();
+}
+
+let addSpecies = 'cat', addColor = 'orange';
+function renderColorChips() {
+  const box = $('addColor'); box.textContent = '';
+  for (const [k, v] of Object.entries(PALETTES[addSpecies])) {
+    const b = document.createElement('button'); if (k === addColor) b.className = 'on';
+    const d = document.createElement('span'); d.className = 'dot'; d.style.background = hex(v.fur);
+    b.append(d, v.label); b.onclick = () => { addColor = k; renderColorChips(); };
+    box.append(b);
+  }
+}
+for (const b of $('addSpecies').children) b.addEventListener('click', () => {
+  addSpecies = b.dataset.v; addColor = Object.keys(PALETTES[addSpecies])[0];
+  for (const x of $('addSpecies').children) x.classList.toggle('on', x === b);
+  renderColorChips();
+});
+$('addBtn').addEventListener('click', () => {
+  const n = cleanName($('addName').value), e = nameError(n, null);
+  $('addErr').textContent = e; if (e) return;
+  user.pets.push({ id: uid(), name: n, species: addSpecies, color: addColor });
+  $('addName').value = ''; saveDB(); renderHome();
+});
+$('addName').addEventListener('keydown', e => { if (e.key === 'Enter') $('addBtn').click(); });
+
+/* ================= 麥克風權限 ================= */
+let micPerm = 'unknown';
+function showMic() {
+  const st = $('micState'), btn = $('micBtn');
+  btn.style.display = micPerm === 'granted' ? 'none' : '';
+  st.textContent = { granted: '🎤 麥克風：已允許 ✅', denied: '🎤 麥克風被封鎖了：請點網址列左邊的圖示 →「權限」→ 允許麥克風，再重新整理', prompt: '🎤 麥克風：還沒允許（語音召喚需要）', unknown: '🎤 麥克風：還沒允許（語音召喚需要）' }[micPerm];
+}
+async function checkMic() {
+  try {
+    const s = await navigator.permissions.query({ name: 'microphone' });
+    micPerm = s.state; s.onchange = () => { micPerm = s.state; showMic(); };
+  } catch {}
+  showMic();
+}
+$('micBtn').addEventListener('click', async () => {
+  if (!navigator.mediaDevices?.getUserMedia) { $('micState').textContent = '🎤 這個瀏覽器無法使用麥克風'; return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach(t => t.stop()); micPerm = 'granted';
+  } catch (e) { micPerm = 'denied'; }
+  showMic();
+});
+checkMic();
+
+/* ================= three.js 基本場景 ================= */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local');
+renderer.xr.setFramebufferScaleFactor(0.85);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.01, 30);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb09070, 1.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(0.4, 1, 0.6); scene.add(sun);
+
+const reticle = (() => {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.035, 0.045, 36).rotateX(-Math.PI / 2), mat);
+  ring.add(new THREE.Mesh(new THREE.CircleGeometry(0.007, 16).rotateX(-Math.PI / 2), mat));
+  ring.matrixAutoUpdate = false; ring.visible = false;
+  return ring;
+})();
+scene.add(reticle);
+
+const previewTable = new THREE.Group();
+{
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.03, 0.5), new THREE.MeshLambertMaterial({ color: 0xc89b6d }));
+  top.position.y = -0.015; previewTable.add(top);
+  for (const [x, z] of [[-.36, -.21], [.36, -.21], [-.36, .21], [.36, .21]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 0.04), new THREE.MeshLambertMaterial({ color: 0x9c7149 }));
+    leg.position.set(x, -0.38, z); previewTable.add(leg);
+  }
+  previewTable.visible = false; scene.add(previewTable);
+}
+
+/* ================= 音效（Web Audio 即時合成，不用下載音檔） ================= */
+let actx = null, master = null, purrGain = null, pantGain = null;
+function initAudio() {
+  if (actx) { actx.resume?.(); return; }
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  master = actx.createGain(); master.gain.value = 0.9;
+  const comp = actx.createDynamicsCompressor(); master.connect(comp).connect(actx.destination);
+  // 共用的噪音
+  const len = actx.sampleRate * 2, buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+  const white = actx.createBuffer(1, len, actx.sampleRate), wd = white.getChannelData(0);
+  for (let i = 0; i < len; i++) wd[i] = Math.random() * 2 - 1;
+  // 貓：呼嚕呼嚕（輕柔版）
+  { const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260;
+    const am = actx.createGain(); am.gain.value = 0.5;
+    const lfo = actx.createOscillator(); lfo.frequency.value = 26;
+    const dep = actx.createGain(); dep.gain.value = 0.5; lfo.connect(dep).connect(am.gain);
+    purrGain = actx.createGain(); purrGain.gain.value = 0;
+    src.connect(lp).connect(am).connect(purrGain).connect(master); src.start(); lfo.start(); }
+  // 狗：開心的哈哈喘氣
+  { const src = actx.createBufferSource(); src.buffer = white; src.loop = true;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 1.4;
+    const am = actx.createGain(); am.gain.value = 0;
+    const lfo = actx.createOscillator(); lfo.type = 'triangle'; lfo.frequency.value = 4.2;
+    const dep = actx.createGain(); dep.gain.value = 0.5; lfo.connect(dep).connect(am.gain);
+    const off = actx.createConstantSource ? actx.createConstantSource() : null;
+    if (off) { off.offset.value = 0.15; off.connect(am.gain); off.start(); }
+    pantGain = actx.createGain(); pantGain.gain.value = 0;
+    src.connect(bp).connect(am).connect(pantGain).connect(master); src.start(); lfo.start(); }
+}
+function setPurr(on) { if (purrGain) purrGain.gain.setTargetAtTime(on ? 0.75 : 0, actx.currentTime, 0.15); }
+function setPant(on) { if (pantGain) pantGain.gain.setTargetAtTime(on ? 0.35 : 0, actx.currentTime, 0.12); }
+// 小奶貓的「咪～啊～」：鋸齒波 + 兩個共振峰，模擬「i→a→u」的嘴型變化
+function catMew(p = 1, len = 0.42, at = 0) {
+  if (!actx) return;
+  const t = actx.currentTime + at;
+  const o = actx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(640 * p, t);
+  o.frequency.linearRampToValueAtTime(980 * p, t + len * 0.28);
+  o.frequency.linearRampToValueAtTime(900 * p, t + len * 0.6);
+  o.frequency.linearRampToValueAtTime(700 * p, t + len);
+  const vib = actx.createOscillator(); vib.frequency.value = 7.5;
+  const vg = actx.createGain(); vg.gain.value = 16 * p; vib.connect(vg).connect(o.frequency);
+  const soft = actx.createBiquadFilter(); soft.type = 'lowpass'; soft.frequency.value = 3600;
+  const f1 = actx.createBiquadFilter(); f1.type = 'bandpass'; f1.Q.value = 4;
+  f1.frequency.setValueAtTime(650, t); f1.frequency.linearRampToValueAtTime(1150, t + len * 0.35); f1.frequency.linearRampToValueAtTime(620, t + len);
+  const f2 = actx.createBiquadFilter(); f2.type = 'bandpass'; f2.Q.value = 6;
+  f2.frequency.setValueAtTime(2500, t); f2.frequency.linearRampToValueAtTime(1700, t + len * 0.4); f2.frequency.linearRampToValueAtTime(1000, t + len);
+  const g2 = actx.createGain(); g2.gain.value = 0.55;
+  const env = actx.createGain();
+  env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1.1, t + 0.045);
+  env.gain.setValueAtTime(1.1, t + len * 0.55); env.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  o.connect(soft); soft.connect(f1).connect(env); soft.connect(f2).connect(g2).connect(env); env.connect(master);
+  o.start(t); vib.start(t); o.stop(t + len + 0.05); vib.stop(t + len + 0.05);
+}
+// 小狗的「汪！」：短促、音高快速往下掉
+function dogYip(p = 1, n = 2) {
+  if (!actx) return;
+  for (let i = 0; i < n; i++) {
+    const t = actx.currentTime + i * 0.17, len = 0.13;
+    const o = actx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(620 * p, t);
+    o.frequency.linearRampToValueAtTime(980 * p, t + 0.025);
+    o.frequency.exponentialRampToValueAtTime(480 * p, t + len);
+    const f1 = actx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 1100; f1.Q.value = 2.5;
+    const f2 = actx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 2600; f2.Q.value = 4;
+    const g2 = actx.createGain(); g2.gain.value = 0.4;
+    const env = actx.createGain();
+    env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1.3, t + 0.012);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(f1).connect(env); o.connect(f2).connect(g2).connect(env); env.connect(master);
+    o.start(t); o.stop(t + len + 0.03);
+  }
+}
+const voice = {
+  cat: { hello: () => catMew(1.0, 0.5), tap: () => catMew(1.12, 0.36), push: () => catMew(1.3, 0.26), petOn: () => setPurr(true), petOff: () => setPurr(false) },
+  dog: { hello: () => dogYip(1.0, 2), tap: () => dogYip(1.1, 1), push: () => dogYip(1.35, 1), petOn: () => setPant(true), petOff: () => setPant(false) },
+};
+
+/* ================= 小工具 ================= */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const angleDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+const easeOutBack = k => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+function segDist(px, pz, ax, az, bx, bz) {
+  const vx = bx - ax, vz = bz - az, wx = px - ax, wz = pz - az;
+  const t = clamp((wx * vx + wz * vz) / (vx * vx + vz * vz || 1), 0, 1);
+  return Math.hypot(px - (ax + t * vx), pz - (az + t * vz));
+}
+function polyOK(poly, x, z, margin) {
+  let inside = false, minD = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, zi = poly[i].z, xj = poly[j].x, zj = poly[j].z;
+    if (((zi > z) !== (zj > z)) && (x < (xj - xi) * (z - zi) / (zj - zi) + xi)) inside = !inside;
+    minD = Math.min(minD, segDist(x, z, xi, zi, xj, zj));
+  }
+  return inside && minD >= margin;
+}
+
+/* ================= 寵物模型（程式繪製的 Q 版大頭造型，0 下載量） ================= */
+const SPH = new THREE.SphereGeometry(1, 22, 16);
+const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([150, 215, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad });
+
+class Pet {
+  constructor(def) {
+    this.def = def; this.species = def.species;
+    const P = pal(def), isDog = this.species === 'dog';
+    this.isDog = isDog; this.voice = voice[this.species];
+    this.root = new THREE.Group();
+    this.body = new THREE.Group(); this.root.add(this.body);
+    const fur = toon(P.fur), dark = toon(P.dark), cream = toon(P.cream), pink = toon(0xff9eb0);
+    const ink = new THREE.MeshBasicMaterial({ color: 0x2a1c16 });
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeM = new THREE.MeshBasicMaterial({ color: P.eye });
+    const blushM = new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.55, depthWrite: false });
+    const add = (parent, geo, mat, p, s, r) => { const m = new THREE.Mesh(geo, mat); if (p) m.position.set(...p); if (s) m.scale.set(...s); if (r) m.rotation.set(...r); parent.add(m); return m; };
+
+    // 身體：小小圓圓的
+    add(this.body, SPH, fur, [0, 0.05, -0.005], [0.042, 0.038, 0.054]);
+    add(this.body, SPH, cream, [0, 0.044, 0.02], [0.03, 0.029, 0.036]);
+    if (P.stripes) {
+      add(this.body, SPH, dark, [0, 0.086, -0.01], [0.026, 0.006, 0.008]);
+      add(this.body, SPH, dark, [0, 0.083, -0.032], [0.024, 0.006, 0.008]);
+    }
+
+    // 大頭
+    const HR = isDog ? [0.056, 0.05, 0.048] : [0.058, 0.052, 0.05];
+    const onHead = (x, y, inset = 0) => HR[2] * Math.sqrt(Math.max(0, 1 - (x / HR[0]) ** 2 - (y / HR[1]) ** 2)) - inset;
+    this.head = new THREE.Group(); this.head.position.set(0, 0.112, 0.03); this.body.add(this.head);
+    add(this.head, SPH, fur, [0, 0, 0], HR);
+    if (isDog) {
+      add(this.head, SPH, cream, [0, -0.017, 0.042], [0.026, 0.018, 0.018]);           // 嘴筒
+      add(this.head, SPH, ink, [0, -0.007, 0.059], [0.009, 0.0065, 0.0055]);           // 鼻子
+      add(this.head, SPH, white, [0.003, -0.004, 0.064], [0.0025, 0.0015, 0.001]);
+      for (const s of [-1, 1]) add(this.head, new THREE.TorusGeometry(0.0048, 0.0011, 6, 14, Math.PI), ink, [s * 0.0048, -0.019, 0.0595], null, [0, 0, Math.PI]);
+      this.tongue = add(this.head, SPH, pink, [0, -0.03, 0.054], [0.008, 0.004, 0.009]); this.tongue.visible = false;
+      add(this.head, SPH, cream, [0, 0.03, 0.03], [0.008, 0.005, 0.006]).visible = this.def.color !== 'white';  // 柴犬的「眉毛」
+    } else {
+      add(this.head, SPH, cream, [0, -0.017, 0.038], [0.025, 0.015, 0.012]);           // 嘴邊
+      add(this.head, SPH, pink, [0, -0.009, 0.0495], [0.0058, 0.0042, 0.004]);         // 鼻子
+      for (const s of [-1, 1]) add(this.head, new THREE.TorusGeometry(0.0045, 0.0011, 6, 14, Math.PI), ink, [s * 0.0045, -0.0165, 0.0505], null, [0, 0, Math.PI]);  // ω 嘴
+      const wm = new THREE.LineBasicMaterial({ color: P.fur === 0x34303a ? 0xbdb3c0 : 0x8c6a52 });
+      for (const s of [-1, 1]) for (const k of [-1, 1]) {
+        const gg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(s * 0.03, -0.012, 0.04), new THREE.Vector3(s * 0.068, -0.012 + k * 0.006, 0.032)]);
+        this.head.add(new THREE.Line(gg, wm));
+      }
+    }
+    // 大大的閃亮眼睛
+    const ex = 0.023, ey = isDog ? 0.007 : 0.004;
+    this.eyeH = 0.0135;
+    this.eyes = [-1, 1].map(s => {
+      const e = add(this.head, SPH, eyeM, [s * ex, ey, onHead(ex, ey, 0.001)], [0.0115, this.eyeH, 0.0065]);
+      if (P.pupil) add(e, SPH, ink, [0, 0, 0.5], [0.55, 0.82, 0.55]);
+      add(e, SPH, white, [0.32, 0.38, 0.78], [0.36, 0.33, 0.3]);
+      add(e, SPH, white, [-0.32, -0.38, 0.82], [0.17, 0.16, 0.15]);
+      return e;
+    });
+    for (const s of [-1, 1]) {
+      const bx = 0.037, by = -0.013;
+      add(this.head, SPH, blushM, [s * bx, by, onHead(bx, by, -0.0005)], [0.0095, 0.0055, 0.002], [0, s * 0.62, 0]);
+    }
+    // 耳朵
+    this.ears = [];
+    for (const s of [-1, 1]) {
+      const g = new THREE.Group(); this.head.add(g); this.ears.push(g);
+      if (isDog && P.ears === 'flop') {
+        g.position.set(s * 0.046, 0.028, -0.004);
+        add(g, SPH, toon(P.earColor), [s * 0.006, -0.018, 0], [0.012, 0.025, 0.017], [0, 0, s * 0.3]);
+        g.userData.base = [0, 0, 0];
+      } else {
+        g.position.set(s * (isDog ? 0.031 : 0.033), isDog ? 0.04 : 0.041, isDog ? -0.006 : -0.004);
+        g.userData.base = [isDog ? -0.15 : -0.08, 0, -s * (isDog ? 0.3 : 0.38)];
+        g.rotation.set(...g.userData.base);
+        add(g, new THREE.ConeGeometry(isDog ? 0.017 : 0.019, isDog ? 0.03 : 0.031, 14), fur, [0, 0.012, 0]);
+        add(g, new THREE.ConeGeometry(isDog ? 0.0095 : 0.0105, 0.018, 14), isDog ? cream : pink, [0, 0.008, 0.008], [1, 1, 0.45]);
+      }
+    }
+    // 短短的腳（左前、右前、左後、右後）
+    const legGeo = new THREE.CylinderGeometry(0.0105, 0.0105, 0.028, 12);
+    this.legs = [[-0.022, 0.026], [0.022, 0.026], [-0.022, -0.028], [0.022, -0.028]].map(([x, z]) => {
+      const pivot = new THREE.Group(); pivot.position.set(x, 0.034, z); this.body.add(pivot);
+      add(pivot, legGeo, fur, [0, -0.014, 0]);
+      add(pivot, SPH, cream, [0, -0.028, 0.003], [0.012, 0.0072, 0.013]);
+      return pivot;
+    });
+    // 尾巴
+    if (isDog) {
+      const tg = new THREE.CylinderGeometry(0.008, 0.011, 0.03, 10).translate(0, 0.015, 0);
+      this.tail1 = new THREE.Group(); this.tail1.position.set(0, 0.075, -0.05); this.body.add(this.tail1); add(this.tail1, tg, fur);
+      this.tail2 = new THREE.Group(); this.tail2.position.set(0, 0.028, 0); this.tail1.add(this.tail2); add(this.tail2, tg, fur);
+      add(this.tail2, SPH, cream, [0, 0.03, 0], [0.009, 0.011, 0.009]);
+      this.tailBase = [-0.35, 1.45];
+    } else {
+      const tg = new THREE.CylinderGeometry(0.0075, 0.009, 0.045, 10).translate(0, 0.0225, 0);
+      this.tail1 = new THREE.Group(); this.tail1.position.set(0, 0.06, -0.052); this.body.add(this.tail1); add(this.tail1, tg, fur);
+      this.tail2 = new THREE.Group(); this.tail2.position.set(0, 0.043, 0); this.tail1.add(this.tail2); add(this.tail2, tg, fur);
+      add(this.tail2, SPH, P.stripes ? dark : fur, [0, 0.045, 0], [0.0085, 0.011, 0.0085]);
+      this.tailBase = [-0.9, 0.55];
+    }
+    // 影子
+    this.shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
+    this.shadow.scale.set(0.05, 1, 0.075); this.shadow.position.y = 0.002; this.root.add(this.shadow);
+
+    this.root.scale.setScalar(0.001);
+    this.time = Math.random() * 10; this.state = 'appear'; this.stateT = 0; this.idleDur = 2;
+    this.target = new THREE.Vector3(); this.vel = new THREE.Vector2();
+    this.petTimer = 0; this.nextBlink = this.time + 2; this.blinkUntil = 0; this.lookAtCam = true;
+    this.collider = new THREE.Vector3(0, 0.08, 0.02);
+  }
+  setState(s) {
+    if (this.state === 'pet' && s !== 'pet') this.voice.petOff();
+    this.state = s; this.stateT = 0;
+    if (s === 'idle') { this.idleDur = 1.5 + Math.random() * 3.5; this.lookAtCam = Math.random() < 0.6; }
+  }
+  turnTo(want, dt, rate) { const r = this.root.rotation; r.y += clamp(angleDiff(want, r.y), -rate * dt, rate * dt); }
+  tap() { if (this.state === 'appear') return; this.setState('tapped'); this.voice.tap(); }
+  pet() {
+    if (this.state === 'appear' || this.state === 'pushed') return;
+    this.petTimer = 0.8;
+    if (this.state !== 'pet') { this.setState('pet'); this.voice.petOn(); }
+  }
+  push(dx, dz, speed) {
+    if (this.state === 'appear') return;
+    this.vel.set(dx * speed, dz * speed); this.setState('pushed'); this.voice.push();
+  }
+  tryWander(walkable) {
+    const p = this.root.position;
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2, d = 0.06 + Math.random() * 0.2;
+      const tx = p.x + Math.sin(a) * d, tz = p.z + Math.cos(a) * d;
+      let ok = true;
+      for (let k = 1; k <= 5 && ok; k++) ok = walkable(p.x + (tx - p.x) * k / 5, p.z + (tz - p.z) * k / 5);
+      if (ok) { this.target.set(tx, 0, tz); this.setState('walk'); return; }
+    }
+    this.idleDur = this.stateT + 1.2;
+  }
+  update(dt, camLocal, walkable) {
+    this.time += dt; this.stateT += dt; this.petTimer -= dt;
+    const r = this.root, p = r.position, t = this.time, dog = this.isDog;
+    let legSwing = 0, bob = 0, tailAmp = dog ? 0.25 : 0.35, tailSpeed = dog ? 5 : 2.2, squint = false, headPitch = 0, lookCam = false, jump = 0, roll = 0, tongue = false, earPerk = 0;
+    const camYaw = Math.atan2(camLocal.x - p.x, camLocal.z - p.z);
+
+    switch (this.state) {
+      case 'appear': {
+        const k = Math.min(1, this.stateT / 0.45);
+        r.scale.setScalar(PET_SCALE * Math.max(0.001, easeOutBack(k)));
+        lookCam = true;
+        if (k >= 1) this.setState('idle');
+        break;
+      }
+      case 'idle':
+        lookCam = this.lookAtCam; tongue = dog && this.lookAtCam;
+        if (this.stateT > this.idleDur) this.tryWander(walkable);
+        break;
+      case 'walk': {
+        const dx = this.target.x - p.x, dz = this.target.z - p.z, d = Math.hypot(dx, dz);
+        if (d < 0.012) { this.setState('idle'); break; }
+        const want = Math.atan2(dx, dz); this.turnTo(want, dt, 4);
+        legSwing = Math.sin(t * 16) * 0.65; bob = Math.abs(Math.sin(t * 16)) * 0.005;
+        if (dog) { tailAmp = 0.5; tailSpeed = 10; }
+        if (Math.abs(angleDiff(want, r.rotation.y)) < 0.6) {
+          const step = Math.min(d, WALK_SPEED * dt), nx = p.x + dx / d * step, nz = p.z + dz / d * step;
+          if (walkable(nx, nz)) { p.x = nx; p.z = nz; } else this.setState('idle');
+        }
+        break;
+      }
+      case 'tapped': {
+        const k = this.stateT / 0.5;
+        if (k < 1) jump = Math.sin(Math.PI * k) * 0.035;
+        headPitch = -0.35; lookCam = true; tailAmp = dog ? 0.7 : 0.7; tailSpeed = dog ? 16 : 6; earPerk = 1; tongue = dog;
+        this.turnTo(camYaw, dt, 5);
+        if (this.stateT > 1.0) this.setState('idle');
+        break;
+      }
+      case 'pet':
+        squint = true; lookCam = true;
+        if (dog) { tailAmp = 0.75; tailSpeed = 18; headPitch = -0.15; tongue = true; roll = Math.sin(t * 3) * 0.05; }
+        else { tailAmp = 0.18; tailSpeed = 1.1; headPitch = 0.15; roll = Math.sin(t * 2.2) * 0.06; }
+        if (this.petTimer <= 0) this.setState('idle');
+        break;
+      case 'pushed': {
+        const sp = this.vel.length();
+        legSwing = Math.sin(t * 24) * 0.8; tailAmp = 0.8; tailSpeed = 8;
+        const nx = p.x + this.vel.x * dt, nz = p.z + this.vel.y * dt;
+        if (walkable(nx, nz)) { p.x = nx; p.z = nz; } else this.vel.set(0, 0);
+        this.vel.multiplyScalar(Math.exp(-3.2 * dt));
+        if (sp < 0.02) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2.5; }
+        break;
+      }
+    }
+
+    const k6 = Math.min(1, dt * 6);
+    this.legs.forEach((l, i) => { l.rotation.x = legSwing * (i === 0 || i === 3 ? 1 : -1); });
+    this.body.position.y = jump + bob;
+    this.body.rotation.z += (roll - this.body.rotation.z) * k6;
+    this.tail1.rotation.x = this.tailBase[0] + (!dog && this.state === 'pet' ? -0.3 : 0);
+    this.tail1.rotation.z = Math.sin(t * tailSpeed) * tailAmp;
+    this.tail2.rotation.x = this.tailBase[1];
+    this.tail2.rotation.z = Math.sin(t * tailSpeed - 0.9) * tailAmp * 0.8;
+    const headYaw = lookCam ? clamp(angleDiff(camYaw, r.rotation.y), -0.9, 0.9) : 0;
+    this.head.rotation.y += (headYaw - this.head.rotation.y) * Math.min(1, dt * 5);
+    this.head.rotation.x += (headPitch - this.head.rotation.x) * k6;
+    const tilt = squint ? -0.18 : (this.state === 'idle' && lookCam ? Math.sin(t * 0.7) * 0.12 : 0);   // 歪頭賣萌
+    this.head.rotation.z += (tilt - this.head.rotation.z) * Math.min(1, dt * 4);
+    this.ears.forEach((e, i) => {
+      const b = e.userData.base, s = i ? 1 : -1;
+      e.rotation.x = b[0] - earPerk * 0.25; e.rotation.z = b[2] + (squint ? -s * 0.25 : 0) + Math.sin(t * 9 + i) * 0.03 * earPerk;
+    });
+    if (this.tongue) this.tongue.visible = tongue;
+    if (t > this.nextBlink) { this.blinkUntil = t + 0.12; this.nextBlink = t + 2 + Math.random() * 4; }
+    const eyeY = squint ? 0.0018 : (t < this.blinkUntil ? 0.0012 : this.eyeH);
+    for (const e of this.eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 18);
+    const sh = 1 - jump * 8; this.shadow.scale.set(0.05 * sh, 1, 0.075 * sh);
+  }
+}
+
+/* ================= 狀態 ================= */
+let mode = 'none';            // 'xr' | 'preview' | 'none'
+let session = null, refSpace = null, hitSource = null;
+const active = [];            // 場上的寵物：{ def, pet, home, anchor, plane, planeInv }
+let pending = null, sawPlane = false, planeApi = false, hitKind = '無';
+const grid = new Map();
+const camWorld = new THREE.Matrix4(), camProjInv = new THREE.Matrix4(), camPos = new THREE.Vector3();
+const hitMat = new THREE.Matrix4(), hitPos = new THREE.Vector3(), hitQuat = new THREE.Quaternion(), upV = new THREE.Vector3();
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), camLocal = new THREE.Vector3();
+const ray = new THREE.Ray(), sphere = new THREE.Sphere();
+
+const gkey = (x, z) => Math.round(x / GRID) + ',' + Math.round(z / GRID);
+function gridHas(x, z, y) { const h = grid.get(gkey(x, z)); return h !== undefined && Math.abs(h - y) < HEIGHT_TOL; }
+const worldX = a => a.home.position.x + a.pet.root.position.x;
+const worldZ = a => a.home.position.z + a.pet.root.position.z;
+
+// 寵物 a 能不能站在 (lx, lz)？（座標相對於牠的家）
+function walkable(a, lx, lz) {
+  const wx = a.home.position.x + lx, wy = a.home.position.y, wz = a.home.position.z + lz;
+  // 不要撞到別隻（只擋「越靠越近」的移動，避免卡死）
+  for (const b of active) {
+    if (b === a || !b.pet || Math.abs(b.home.position.y - wy) > 0.1) continue;
+    const bx = worldX(b), bz = worldZ(b), dn = Math.hypot(wx - bx, wz - bz);
+    if (dn < 0.1 && dn < Math.hypot(worldX(a) - bx, worldZ(a) - bz)) return false;
+  }
+  if (mode === 'preview') return Math.abs(wx) < 0.4 - EDGE_MARGIN - 0.06 && Math.abs(wz) < 0.25 - EDGE_MARGIN - 0.03;
+  if (lx * lx + lz * lz < 0.035 * 0.035) return true;
+  if (a.plane) {
+    tmpV2.set(wx, wy, wz).applyMatrix4(a.planeInv);
+    if (Math.abs(tmpV2.y) < 0.05 && polyOK(a.plane.polygon, tmpV2.x, tmpV2.z, EDGE_MARGIN)) return true;
+  }
+  const m = EDGE_MARGIN;
+  return gridHas(wx, wz, wy) && gridHas(wx + m, wz, wy) && gridHas(wx - m, wz, wy) && gridHas(wx, wz + m, wy) && gridHas(wx, wz - m, wy);
+}
+
+/* ================= 召喚與收回 ================= */
+function requestSummon(def) {
+  initAudio(); hidePicker();
+  if (!def) return;
+  pending = { def, t: performance.now() };
+  if (mode === 'xr' && !reticle.visible) hint(`正在找桌面…請對準桌面慢慢移動手機，${def.name}就會出來`);
+}
+function removePet(id) {
+  const i = active.findIndex(a => a.def.id === id); if (i < 0) return;
+  const a = active[i]; active.splice(i, 1);
+  if (a.pet.state === 'pet') a.pet.voice.petOff();
+  scene.remove(a.home);
+  if (a.anchor) { try { a.anchor.delete(); } catch {} }
+}
+function clearPets() { for (const a of [...active]) removePet(a.def.id); setPurr(false); setPant(false); }
+function placePet(def, pos, hit, frame) {
+  removePet(def.id);
+  while (active.length >= MAX_PETS) removePet(active[0].def.id);
+  const a = { def, pet: null, home: new THREE.Group(), anchor: null, plane: null, planeInv: new THREE.Matrix4() };
+  a.home.position.copy(pos); scene.add(a.home);
+  if (frame) {
+    for (const [dx, dz] of [[0, 0], [GRID, 0], [-GRID, 0], [0, GRID], [0, -GRID]]) grid.set(gkey(pos.x + dx, pos.z + dz), pos.y);
+    if (frame.detectedPlanes) {
+      for (const pl of frame.detectedPlanes) {
+        if (pl.orientation && pl.orientation !== 'horizontal') continue;
+        const pp = frame.getPose(pl.planeSpace, refSpace); if (!pp) continue;
+        const inv = new THREE.Matrix4().fromArray(pp.transform.matrix).invert();
+        const lp = pos.clone().applyMatrix4(inv);
+        if (Math.abs(lp.y) < 0.05 && polyOK(pl.polygon, lp.x, lp.z, 0)) { a.plane = pl; a.planeInv.copy(inv); break; }
+      }
+    }
+    if (hit && hit.createAnchor) hit.createAnchor().then(x => { if (active.includes(a)) a.anchor = x; else x.delete(); }).catch(() => {});
+  }
+  a.pet = new Pet(def);
+  a.walk = (lx, lz) => walkable(a, lx, lz);
+  camLocal.copy(camPos).sub(a.home.position);
+  a.pet.root.rotation.y = Math.atan2(camLocal.x, camLocal.z);
+  a.home.add(a.pet.root);
+  active.push(a);
+  a.pet.voice.hello();
+  hint(`${def.name}來了！點牠打招呼・慢慢滑＝摸摸・快速一甩＝推牠`);
+}
+function previewSpot() {
+  const spots = [[0, 0], [-0.17, 0.02], [0.17, -0.02], [0, -0.1], [-0.12, 0.1], [0.12, 0.1]];
+  for (const [x, z] of spots) if (active.every(a => Math.hypot(worldX(a) - x, worldZ(a) - z) > 0.12)) return new THREE.Vector3(x, 0, z);
+  return new THREE.Vector3((Math.random() - 0.5) * 0.4, 0, (Math.random() - 0.5) * 0.2);
+}
+
+/* ================= 每一幀 ================= */
+let lastT = performance.now(), fpsN = 0, fpsT = 0, fps = 0;
+function loop(time, frame) {
+  const now = performance.now(); const dt = clamp((now - lastT) / 1000, 0, 0.05); lastT = now;
+  fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
+  let hit = null, horizontal = false;
+
+  if (frame && mode === 'xr') {
+    const vp = frame.getViewerPose(refSpace);
+    if (vp) {
+      const v = vp.views[0];
+      camWorld.fromArray(v.transform.matrix);
+      camProjInv.fromArray(v.projectionMatrix).invert();
+      camPos.setFromMatrixPosition(camWorld);
+    }
+    if (hitSource) {
+      const res = frame.getHitTestResults(hitSource);
+      if (res.length) {
+        const hp = res[0].getPose(refSpace);
+        if (hp) {
+          hit = res[0];
+          hitMat.fromArray(hp.transform.matrix);
+          hitPos.setFromMatrixPosition(hitMat);
+          const o = hp.transform.orientation; hitQuat.set(o.x, o.y, o.z, o.w);
+          const flat = upV.set(0, 1, 0).applyQuaternion(hitQuat).y > 0.8;
+          horizontal = flat || (camPos.y - hitPos.y > 0.12);
+          hitKind = flat ? '平面' : (horizontal ? '特徵點' : '牆/直立面');
+          if (horizontal && !flat) { hitQuat.identity(); hitMat.compose(hitPos, hitQuat, tmpV.set(1, 1, 1)); }
+          reticle.visible = true; reticle.matrix.copy(hitMat);
+          reticle.material.color.set(horizontal ? 0x7dffb0 : 0xffffff);
+          reticle.material.opacity = active.length ? 0.45 : 0.9;
+          if (horizontal) {
+            grid.set(gkey(hitPos.x, hitPos.z), hitPos.y);
+            if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${user?.pets[0]?.name || ''}」，或按 🐾`); }
+          }
+        }
+      } else { reticle.visible = false; hitKind = '無'; }
+    }
+    if (frame.detectedPlanes) planeApi = true;
+    for (const a of active) {
+      if (a.anchor && frame.trackedAnchors && frame.trackedAnchors.has(a.anchor)) {
+        const ap = frame.getPose(a.anchor.anchorSpace, refSpace);
+        if (ap) a.home.position.set(ap.transform.position.x, ap.transform.position.y, ap.transform.position.z);
+      }
+      if (a.plane) {
+        if (frame.detectedPlanes && frame.detectedPlanes.has(a.plane)) {
+          const pp = frame.getPose(a.plane.planeSpace, refSpace);
+          if (pp) a.planeInv.fromArray(pp.transform.matrix).invert();
+        } else a.plane = null;
+      }
+    }
+    if (pending) {
+      if (hit && horizontal) { placePet(pending.def, hitPos, hit, frame); pending = null; }
+      else if (now - pending.t > 12000) { pending = null; hint('還找不到桌面：開亮一點的燈、手機離桌面 40～60 公分、斜斜往下拍，再慢慢左右移動'); }
+      else if (now - pending.t > 5000) hint('還在找…把手機拿高一點、斜著對準桌面，慢慢左右移動');
+    }
+  } else if (mode === 'preview') {
+    camera.updateMatrixWorld();
+    camWorld.copy(camera.matrixWorld); camProjInv.copy(camera.projectionMatrixInverse); camPos.setFromMatrixPosition(camWorld);
+    if (pending) { const d = pending.def; pending = null; placePet(d, previewSpot(), null, null); }
+  }
+
+  for (const a of active) { camLocal.copy(camPos).sub(a.home.position); a.pet.update(dt, camLocal, a.walk); }
+  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・場上 ${active.length} 隻・掃描格子 ${grid.size}${planeApi ? '' : '（無平面 API）'}`;
+  if (mode !== 'none') renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(loop);
+
+/* ================= 觸控：點、摸摸、推 ================= */
+function setRay(x, y) {
+  tmpV.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1, 0.5).applyMatrix4(camProjInv).applyMatrix4(camWorld);
+  ray.origin.copy(camPos); ray.direction.copy(tmpV).sub(camPos).normalize();
+}
+function petAt(x, y) {
+  if (!active.length || mode === 'none') return null;
+  setRay(x, y);
+  let best = null, bestD = Infinity;
+  for (const a of active) {
+    a.pet.root.updateMatrixWorld();
+    sphere.center.copy(a.pet.collider); a.pet.root.localToWorld(sphere.center);
+    sphere.radius = 0.09 * PET_SCALE;
+    if (ray.intersectsSphere(sphere)) { const d = sphere.center.distanceTo(camPos); if (d < bestD) { bestD = d; best = a; } }
+  }
+  return best;
+}
+let g = null;
+const touch = $('touch');
+touch.addEventListener('pointerdown', e => {
+  initAudio(); hidePicker();
+  g = { sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, st: performance.now(), on: petAt(e.clientX, e.clientY), dist: 0, petted: false, samples: [] };
+  g.samples.push({ x: e.clientX, y: e.clientY, t: g.st });
+  try { touch.setPointerCapture(e.pointerId); } catch {}
+});
+touch.addEventListener('pointermove', e => {
+  if (!g) return;
+  const now = performance.now(), dx = e.clientX - g.lx, dy = e.clientY - g.ly;
+  g.dist += Math.hypot(dx, dy); g.lx = e.clientX; g.ly = e.clientY;
+  g.samples.push({ x: e.clientX, y: e.clientY, t: now });
+  while (g.samples.length > 2 && now - g.samples[0].t > 100) g.samples.shift();
+  if (g.on && g.dist > 12 && active.includes(g.on)) {
+    const s0 = g.samples[0], v = Math.hypot(e.clientX - s0.x, e.clientY - s0.y) / Math.max(1, now - s0.t);
+    if (v < 0.8 && petAt(e.clientX, e.clientY) === g.on) { g.on.pet.pet(); g.petted = true; }
+  } else if (!g.on && mode === 'preview') { orbit += dx * 0.006; placePreviewCamera(); }
+});
+function endGesture() {
+  if (!g) return;
+  const now = performance.now(), dt = now - g.st, a = g.on;
+  if (a && active.includes(a)) {
+    if (g.dist < 12 && dt < 350) a.pet.tap();
+    else {
+      const s0 = g.samples[0], vx = (g.lx - s0.x) / Math.max(1, now - s0.t), vy = (g.ly - s0.y) / Math.max(1, now - s0.t);
+      const v = Math.hypot(vx, vy);
+      if (v > 0.6 && (!g.petted || dt < 450)) {
+        const right = tmpV.setFromMatrixColumn(camWorld, 0); right.y = 0; right.normalize();
+        const fwd = tmpV2.setFromMatrixColumn(camWorld, 2).negate(); fwd.y = 0; fwd.normalize();
+        const wx = right.x * vx - fwd.x * vy, wz = right.z * vx - fwd.z * vy, len = Math.hypot(wx, wz) || 1;
+        a.pet.push(wx / len, wz / len, clamp(v * 0.35, 0.2, 0.6));
+      }
+    }
+  }
+  g = null;
+}
+touch.addEventListener('pointerup', endGesture);
+touch.addEventListener('pointercancel', endGesture);
+
+/* ================= 召喚選單 ================= */
+const picker = $('picker');
+function hidePicker() { picker.classList.remove('show'); }
+function showPicker() {
+  const gEl = $('pickGrid'); gEl.textContent = '';
+  for (const p of user.pets) {
+    const b = document.createElement('button'); b.textContent = `${EMOJI[p.species]} ${p.name}`;
+    b.onclick = () => requestSummon(p); gEl.append(b);
+  }
+  if (!user.pets.length) { const s = document.createElement('div'); s.textContent = '你還沒有寵物，先離開回到列表新增一隻'; gEl.append(s); }
+  if (active.length) { const c = document.createElement('button'); c.className = 'clear'; c.textContent = '全部收回'; c.onclick = () => { clearPets(); hidePicker(); hint('都回家了～再召喚一次吧'); }; gEl.append(c); }
+  picker.classList.add('show');
+}
+$('summon').addEventListener('click', () => { initAudio(); picker.classList.contains('show') ? hidePicker() : showPicker(); });
+
+/* ================= 語音召喚：「召喚＋名字」 ================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const norm = s => s.replace(/[\s，。！？、,.!?「」『』"'～~]/g, '').toLowerCase();
+function matchCommand(txt) {
+  const t = norm(txt);
+  if (/收回|回去|回家|再見|拜拜/.test(t)) return { type: 'clear' };
+  const pets = user?.pets || [];
+  let best = null;
+  for (const p of pets) { const n = norm(p.name); if (n && t.includes(n) && (!best || n.length > best.len)) best = { p, len: n.length }; }
+  if (best) return { type: 'summon', def: best.p };
+  // 同音字容錯：例如「小橘」被聽成「小菊」→ 比對名字裡有幾個字對上（「小」「阿」這類常見字不算）
+  const body = t.replace(/^.*?(召喚|召唤|叫|呼叫)/, ''), common = /[小阿大老]/;
+  let fb = null;
+  for (const p of pets) {
+    const chars = [...norm(p.name)]; if (chars.length < 2) continue;
+    const key = chars.filter(c => !common.test(c)); if (!key.length) continue;
+    const sc = key.filter(c => body.includes(c)).length / key.length;
+    if (sc >= 0.5 && (!fb || sc > fb.sc)) fb = { p, sc };
+  }
+  if (fb) return { type: 'summon', def: fb.p };
+  if (/貓|猫|喵|咪/.test(t)) { const p = pets.find(x => x.species === 'cat'); if (p) return { type: 'summon', def: p }; }
+  if (/狗|汪/.test(t)) { const p = pets.find(x => x.species === 'dog'); if (p) return { type: 'summon', def: p }; }
+  return null;
+}
+let rec = null, listening = false, pressT = 0, fired = false;
+const micBtn = $('mic');
+function startListen() {
+  initAudio(); hidePicker();
+  if (!SR) { speechEl.textContent = '這個瀏覽器不支援語音辨識，請按 🐾 召喚'; return; }
+  if (listening) return;
+  fired = false;
+  rec = new SR(); rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 5;
+  rec.onresult = ev => {
+    let txt = '', isFinal = false;
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) isFinal = true;
+    }
+    speechEl.textContent = '聽到：「' + txt + '」';
+    if (!isFinal || fired) return;
+    for (let i = ev.resultIndex; i < ev.results.length && !fired; i++) {
+      for (let k = 0; k < ev.results[i].length && !fired; k++) {
+        const c = matchCommand(ev.results[i][k].transcript);
+        if (c) { fired = true; if (c.type === 'clear') { clearPets(); hint('都回家了～再召喚一次吧'); } else requestSummon(c.def); }
+      }
+    }
+    if (!fired) {
+      if (/召喚|召唤|叫|呼叫/.test(txt) && user?.pets.length) { speechEl.textContent += '　沒聽出是誰，請直接點選 👇'; showPicker(); }
+      else speechEl.textContent += `　沒聽懂，試著說「召喚${user?.pets[0]?.name || ''}」`;
+    }
+  };
+  rec.onerror = ev => {
+    const m = { 'not-allowed': '沒有麥克風權限：請先離開 AR，在列表頁按「允許麥克風」', 'service-not-allowed': '語音辨識無法使用，請改按 🐾 召喚',
+      'no-speech': '沒聽到聲音，再試一次', 'network': '語音辨識需要網路連線', 'audio-capture': '抓不到麥克風，請改按 🐾 召喚' };
+    speechEl.textContent = m[ev.error] || ('語音辨識錯誤：' + ev.error);
+  };
+  rec.onend = () => { listening = false; micBtn.classList.remove('on'); micBtn.textContent = '🎤 按住說話'; };
+  try { rec.start(); listening = true; micBtn.classList.add('on'); micBtn.textContent = '🎤 聆聽中…'; speechEl.textContent = `請說「召喚${user?.pets[0]?.name || '＋名字'}」`; }
+  catch { speechEl.textContent = '語音辨識無法啟動，請改按 🐾 召喚'; }
+}
+micBtn.addEventListener('pointerdown', e => {
+  e.preventDefault(); pressT = performance.now();
+  if (micPerm === 'denied') { speechEl.textContent = '麥克風被封鎖了：請離開 AR，到 Chrome 網址列左邊的圖示 →「權限」→ 允許麥克風'; return; }
+  startListen();
+});
+const micUp = () => { if (listening && rec && performance.now() - pressT > 350) rec.stop(); };
+micBtn.addEventListener('pointerup', micUp);
+micBtn.addEventListener('pointercancel', micUp);
+micBtn.addEventListener('contextmenu', e => e.preventDefault());
+
+$('reset').addEventListener('click', () => { clearPets(); hidePicker(); hint('都回家了～按 🐾 再召喚一次'); });
+$('exit').addEventListener('click', () => { if (session) session.end(); else stopPreview(); });
+$('overlay').addEventListener('beforexrselect', e => e.preventDefault());
+
+/* ================= 開始 AR ================= */
+const supportEl = $('support').firstElementChild, arBtn = $('arBtn');
+(async () => {
+  if (!window.isSecureContext) { supportEl.textContent = '⚠️ 這個網址不是 HTTPS，AR 無法啟動。'; return; }
+  if (!navigator.xr) { supportEl.innerHTML = '⚠️ 這個瀏覽器不支援 AR。請在 <b>Android 手機上用 Chrome</b> 開啟，或先看預覽。'; return; }
+  let ok = false; try { ok = await navigator.xr.isSessionSupported('immersive-ar'); } catch {}
+  if (!ok) { supportEl.innerHTML = '⚠️ 目前無法啟動 AR。請確認用 <b>Chrome</b> 開啟，並已在 Play 商店更新「<b>Google Play Services for AR</b>」。'; return; }
+  supportEl.textContent = '✅ 這支手機可以使用 AR'; arBtn.disabled = false;
+})();
+
+arBtn.addEventListener('click', async () => {
+  initAudio();
+  try {
+    $('overlay').style.display = 'block';
+    session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection'],
+      domOverlay: { root: $('overlay') }
+    });
+  } catch (err) {
+    $('overlay').style.display = 'none';
+    supportEl.textContent = '⚠️ AR 啟動失敗：' + (err.message || err) + '。請確認已允許相機權限。';
+    return;
+  }
+  mode = 'xr'; grid.clear(); sawPlane = false; planeApi = false;
+  scene.background = null; previewTable.visible = false;
+  show('none');
+  hint(micPerm === 'granted' ? '慢慢左右移動手機，掃描桌面…' : '慢慢左右移動手機，掃描桌面…（語音要先在列表頁允許麥克風）');
+  session.addEventListener('end', onSessionEnd);
+  if (!session.domOverlayState) session.addEventListener('select', () => requestSummon(user.pets[0]));
+  await renderer.xr.setSession(session);
+  refSpace = renderer.xr.getReferenceSpace();
+  const viewer = await session.requestReferenceSpace('viewer');
+  try { hitSource = await session.requestHitTestSource({ space: viewer, entityTypes: ['plane', 'point'] }); }
+  catch { hitSource = await session.requestHitTestSource({ space: viewer }); }
+});
+function backHome() {
+  clearPets(); mode = 'none'; pending = null; reticle.visible = false; hidePicker();
+  renderer.domElement.style.display = 'none'; scene.background = null; previewTable.visible = false;
+  $('overlay').style.display = 'none'; speechEl.textContent = ''; dbgEl.textContent = '';
+  renderHome(); show('homeScr'); checkMic();
+}
+function onSessionEnd() { hitSource = null; session = null; backHome(); }
+
+/* ================= 預覽模式 ================= */
+let orbit = 0;
+function placePreviewCamera() {
+  const d = clamp(0.3 / (Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect), 0.6, 1.5);
+  camera.position.set(Math.sin(orbit) * d, d * 0.62, Math.cos(orbit) * d); camera.lookAt(0, 0.05, 0);
+}
+$('pvBtn').addEventListener('click', () => {
+  initAudio();
+  mode = 'preview'; orbit = 0; placePreviewCamera();
+  scene.background = new THREE.Color(0xe9e2d8); previewTable.visible = true;
+  renderer.domElement.style.display = 'block';
+  show('none'); $('overlay').style.display = 'block';
+  hint('預覽模式：按 🐾 選寵物召喚，拖曳空白處可旋轉視角');
+});
+function stopPreview() { backHome(); }
+addEventListener('resize', () => {
+  if (mode === 'xr') return;
+  renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  if (mode === 'preview') placePreviewCamera();
+});
+renderer.domElement.style.display = 'none';
+
+/* ================= 啟動 ================= */
+if (user) { renderHome(); show('homeScr'); } else show('loginScr');
+window.__ar = { camera, active, petAt, matchCommand, requestSummon, user: () => user };
+addEventListener('error', e => { hint('程式錯誤：' + e.message); });
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"5a5daa94978843109a8bbd7b6e9763f5","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

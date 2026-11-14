@@ -137,7 +137,18 @@
   .helpdoc td,.helpdoc th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
   .helpdoc th{color:var(--mute);font-weight:700}
   .pstat{font-size:.8rem;color:var(--mute);margin-top:1px}
-  .foodline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .foodline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .foodline .mini{flex:none;border:0;border-radius:10px;padding:8px 12px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer;font-size:.92rem}
+  /* 飼料商店 */
+  .testbanner{background:#fff6d6;border:1px solid #f0d98a;color:#7a5a00;border-radius:12px;padding:10px 12px;font-size:.88rem;margin:12px 0}
+  .prod{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+  .prod .ic{font-size:1.8rem;flex:none}
+  .prod .info{flex:1;min-width:0}
+  .prod .t{font-weight:700}
+  .prod .s{font-size:.82rem;color:var(--mute)}
+  .prod button{flex:none;border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer;font-size:.95rem}
+  .prod button:disabled{background:#d9cbbd}
+  #shopMsg{min-height:1.4em;font-size:.92rem;color:var(--ok);margin:6px 0}
 </style>
 <script type="importmap">
 { "imports": {
@@ -160,7 +171,7 @@
   </div>
   <div id="syncNote" class="note"></div>
 
-  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="link" id="toHelp">親密度和飽食度是什麼？</button></div>
+  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="mini" id="toShop">🛒 買飼料</button><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
 
   <h2>我的寵物</h2>
   <ul id="petList"></ul>
@@ -173,11 +184,11 @@
   <button id="pvBtn" class="big ghost">先看預覽（不開鏡頭）</button>
   <ul class="tips">
     <li>請用 <b>Android 手機的 Chrome</b> 開啟。</li>
-    <li>進入後慢慢轉一圈、走一走，<b>身邊 5 公尺內的地板、桌子、家具都可以掃</b>。按 🗺 可以看到已經掃描好的範圍。</li>
-    <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。按 👁 可以開關遮擋。</li>
-    <li><b>點地上任何地方＝叫牠跑過去</b>；目的地在下面，牠會跳下去。</li>
+    <li>進入後慢慢轉一圈、走一走，<b>身邊 5 公尺內的地板、桌子、家具都可以掃</b>。掃得越完整，寵物能跳過去的地方越多。</li>
+    <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。</li>
+    <li>寵物會自己跳上跳下，在桌子、椅子、地板之間走動。<b>貓跳得比較高</b>（往上約 1 公尺），<b>狗跳得比較低</b>（往上約 50 公分）。</li>
     <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按右下角 ☰ →「召喚」選。說「收回」會讓牠們回家。</li>
-    <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；在牠身上慢慢來回滑＝摸摸；從牠身上快速一甩＝推牠。</li>
+    <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；<b>把手伸到牠身上＝摸摸</b>（手機沒有深度感測時，改成用手指在牠身上慢慢來回滑）；用手指從牠身上快速一甩＝推牠。</li>
     <li>按 🍖 會把飼料往前丟，肚子餓的寵物會跑過去吃。</li>
   </ul>
   <button class="link" id="toAcct" style="margin-top:18px;padding-left:0">⚙️ 帳號與資料（登出、刪除帳號）</button>
@@ -287,16 +298,16 @@
   <p>代表寵物有多喜歡你，從 0% 開始。</p>
   <table>
     <tr><th>怎麼增加</th><th>加多少</th></tr>
-    <tr><td>摸摸牠（在牠身上慢慢來回滑，連續摸 1.5 秒算一次）</td><td>每次 +1%，<b>每天最多 +5%</b>；親密度到 <b>60%</b> 以後，摸摸就不會再增加</td></tr>
+    <tr><td>摸摸牠（把手伸到牠身上，連續摸 1.5 秒算一次）</td><td>每次 +1%，<b>每天最多 +5%</b>；親密度到 <b>60%</b> 以後，摸摸就不會再增加</td></tr>
     <tr><td>餵牠吃一包飼料</td><td>+10%</td></tr>
   </table>
-  <p>親密度不會自己減少。</p>
+  <p><b>飽食度降到 0% 以後，親密度每小時 −1%</b>，直到再餵牠吃東西。記得常常餵牠！</p>
   <table>
     <tr><th>親密度</th><th>解鎖</th></tr>
     <tr><td>80% 以上</td><td>叫牠的名字（按住 🎤 說「小橘」），牠會跑到你面前對你叫。</td></tr>
     <tr><td>100%</td><td>可以伸手去摸牠，每種寵物反應不一樣：<b>小狗會舔你的手</b>，<b>貓咪會用頭和身體蹭你的手</b>。</td></tr>
   </table>
-  <p class="note">伸手的方法：把手伸到寵物旁邊（需要有深度感測的手機）。手機不支援的話，<b>用手指按住寵物不放</b>也可以。</p>
+  <p class="note">伸手的方法：把手伸到寵物身上或旁邊 5 公分內（需要有深度感測的手機）。手機不支援的話，<b>用手指按住寵物不放</b>也可以。</p>
 
   <h2>🍖 飽食度</h2>
   <p>代表寵物吃得多飽。新寵物從 50% 開始。</p>
@@ -304,17 +315,28 @@
     <tr><td>吃一包飼料</td><td>+50%（最多到 100%）</td></tr>
     <tr><td>時間經過</td><td>每小時 −1%</td></tr>
     <tr><td>飽食度 100%</td><td>吃飽了，丟飼料也不會吃，飼料會留在地上</td></tr>
+    <tr><td>飽食度 0%</td><td>肚子餓扁了，<b>親密度開始每小時 −1%</b></td></tr>
   </table>
 
   <h2>怎麼餵</h2>
   <p>在 AR 畫面按 <b>🍖</b>，飼料會從手機前方丟出去，掉在真實的地板或桌面上，也可能滾到桌邊掉下去。肚子餓的寵物會自己跑過去吃。</p>
   <ul class="tips">
     <li>寵物<b>真的吃到</b>，才會扣掉一包飼料。沒吃到、掉到沒掃描過的地方，都不會扣。</li>
-    <li>飼料在比較低的地方（例如地板），牠會從桌邊跳下去吃。在比較高、牠上不去的地方，牠會停在旁邊看著飼料。</li>
+    <li>飼料在別的高度（例如地板、椅子），牠會跳上跳下過去吃。太高、太遠跳不到的地方，牠會停在旁邊看著飼料。</li>
     <li>被家具擋住過不去時，牠會在旁邊想吃但吃不到。換個地方丟就好。</li>
   </ul>
   <p class="note">每隻寵物的親密度和飽食度是分開算的。登入帳號後會存在雲端，換手機也還在。</p>
 </template>
+
+<!-- ============ 飼料商店 ============ -->
+<section id="shopScr" class="screen">
+  <div class="topbar"><button class="link" id="shopBack">← 返回</button><span></span></div>
+  <h1 style="margin-top:10px">🛒 飼料商店</h1>
+  <div class="testbanner" id="shopBanner"></div>
+  <p>現在有 <b id="shopFood">0</b> 包飼料</p>
+  <div id="shopList"></div>
+  <div id="shopMsg"></div>
+</section>
 
 <!-- ============ 帳號與資料 ============ -->
 <section id="acctScr" class="screen">
@@ -392,6 +414,18 @@ const RUN_SPEED   = 0.24;   // 叫牠過去時跑步的速度（公尺/秒）
 const MAX_CELLS   = 120000; // 地圖最多記幾格（手機記憶體）
 const DEPTH_COLS  = 30, DEPTH_ROWS = 40;   // 每次讀取深度的取樣點數
 const DEPTH_MAX   = 6.0;    // 深度最遠讀到幾公尺
+// 跳躍能力（參考真實動物）：up＝最高往上跳幾公尺、down＝最高往下跳幾公尺、gap＝最遠水平跳幾公尺
+// 貓可以跳上約 1 公尺的桌子、流理台；小型犬大概只上得了椅子、沙發（約 50 公分）
+const JUMP = {
+  cat: { up: 1.0, down: 1.6, gap: 0.55 },
+  dog: { up: 0.5, down: 0.9, gap: 0.35 },
+};
+const JUMP_WANDER = { cat: 0.35, dog: 0.18 };   // 自己散步時，有多少機率會跳到別的高度
+const TOUCH_TOL   = 0.05;   // 手離寵物身體 5 公分內算「摸到」
+const STARVE_AFF  = 1;      // 飽食度 0% 以後，親密度每小時減少多少
+// 付款模式：'test'＝測試（按購買不會扣錢，飼料只加在這支手機）・'play'＝Google Play 付款（App 上架、伺服器驗證做好後才改）
+const SHOP_MODE   = 'test';
+const PLAY_URL    = 'https://play.google.com/store/apps/details?id=io.github.wingfeeling.arpet';   // 上架後改成正式的商店網址
 
 const $ = id => document.getElementById(id);
 const hintEl = $('hint'), speechEl = $('speech'), dbgEl = $('dbg');
@@ -468,12 +502,17 @@ function savePets() {
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const statsOf = def => pets.find(p => p.id === def.id) || def;          // 一律改清單裡的那一份，才會存檔
 const fullNow = p => clamp(p.full - (Date.now() - p.fullAt) / 3600000 * RULES.fullDropPerHour, 0, 100);
-const affNow = p => clamp(p.aff, 0, 100);
+// 飽食度掉到 0% 之後過了幾小時（這段時間親密度會慢慢減少）
+const starveH = p => Math.max(0, Date.now() - (p.fullAt + Math.max(0, p.full) / RULES.fullDropPerHour * 3600000)) / 3600000;
+const affNow = p => clamp(p.aff - starveH(p) * STARVE_AFF, 0, 100);
 const pct = v => Math.round(v) + '%';
 const isFull = p => fullNow(p) >= 99.5;   // 顯示成 100% 就算吃飽
-function setFull(p, v) { p.full = clamp(v, 0, 100); p.fullAt = Date.now(); }
+// 把「用時間算出來的」親密度、飽食度寫回去（改數值之前先做，才不會算錯）
+function settle(p) { p.aff = affNow(p); p.full = fullNow(p); p.fullAt = Date.now(); }
+function setFull(p, v) { settle(p); p.full = clamp(v, 0, 100); p.fullAt = Date.now(); }
 // 摸摸加親密度：每天最多 +5%，到 60% 以後不再增加。回傳實際加了多少，和沒加的原因
 function petAffGain(p) {
+  settle(p);
   if (p.petDay !== todayStr()) { p.petDay = todayStr(); p.petGain = 0; }
   if (p.aff >= RULES.petAffCap) return { g: 0, why: 'cap' };
   if (p.petGain >= RULES.petAffPerDay) return { g: 0, why: 'day' };
@@ -486,18 +525,102 @@ function petAffGain(p) {
    寵物「真的吃到」才扣。登入時存在雲端（只能減少，不能自己加），沒登入時存在這支手機。 */
 let food = RULES.startFood;
 const foodKey = () => lsKey() + '.food';
-function loadFoodLocal() { const v = parseInt(localStorage.getItem(foodKey()), 10); food = Number.isFinite(v) ? Math.max(0, v) : RULES.startFood; }
-function saveFoodLocal() { try { localStorage.setItem(foodKey(), String(food)); } catch {} }
+// 測試模式買的飼料：只存在這支手機（雲端規則不允許自己加飼料），吃的時候先扣這裡的
+let testFood = 0;
+const testFoodKey = () => lsKey() + '.testFood';
+const totalFood = () => food + testFood;
+function loadFoodLocal() {
+  const v = parseInt(localStorage.getItem(foodKey()), 10); food = Number.isFinite(v) ? Math.max(0, v) : RULES.startFood;
+  const t = parseInt(localStorage.getItem(testFoodKey()), 10); testFood = Number.isFinite(t) ? Math.max(0, t) : 0;
+}
+function saveFoodLocal() { try { localStorage.setItem(foodKey(), String(food)); localStorage.setItem(testFoodKey(), String(testFood)); } catch {} }
 function renderFood() {
-  const fc = $('foodCount'); if (fc) fc.textContent = food;
-  const left = Math.max(0, food - (typeof foods !== 'undefined' ? foods.length : 0));
+  const fc = $('foodCount'); if (fc) fc.textContent = totalFood();
+  const sf = $('shopFood'); if (sf) sf.textContent = totalFood();
+  const left = Math.max(0, totalFood() - (typeof foods !== 'undefined' ? foods.length : 0));
   const fb2 = $('feed'); if (fb2) fb2.textContent = '🍖' + left;
 }
 function spendFood() {
+  if (testFood > 0) { testFood--; saveFoodLocal(); renderFood(); return; }
   food = Math.max(0, food - 1); saveFoodLocal(); renderFood();
   if (fb && account) fb.fs.updateDoc(fb.fs.doc(fb.db, 'users', account.uid), { food: fb.fs.increment(-1) })
     .catch(e => console.warn('food sync', e));
 }
+
+/* ================= 飼料商店 =================
+   付款這一步做成可以替換的：現在是「測試」，App 上架後改成「Google Play」，商店畫面和加飼料的流程都不用改。
+   正式付款的流程：Google Play 付款 → 拿到付款憑證 → 交給伺服器（雲端函式）跟 Google 確認 → 伺服器把飼料加進帳號 → App 重新讀取飼料數量 */
+const inPlayApp = () => 'getDigitalGoodsService' in window;   // 從 Play 商店安裝的 App 裡才有
+const Billing = {
+  mode() { return SHOP_MODE === 'test' ? 'test' : inPlayApp() ? 'play' : 'web'; },
+  async buy(prod) {
+    const m = this.mode();
+    if (m === 'test') {                         // 測試：不扣錢，直接加在這支手機
+      testFood += prod.amount; saveFoodLocal(); renderFood();
+      return { ok: true, msg: `✅（測試）已加入 ${prod.amount} 包飼料` };
+    }
+    if (m === 'web') return { ok: false, msg: '網頁版不能購買，請到 App 購買' };
+    try {                                        // Google Play 付款（上架後才會用到）
+      const svc = await window.getDigitalGoodsService('https://play.google.com/billing');
+      if (!svc) return { ok: false, msg: '無法連到 Google Play 付款' };
+      const req = new PaymentRequest([{ supportedMethods: 'https://play.google.com/billing', data: { sku: prod.id } }],
+        { total: { label: 'Total', amount: { currency: 'TWD', value: '0' } } });   // 價格以 Play 管理中心為準，這裡的數字不會用到
+      const res = await req.show();
+      const token = res.details.purchaseToken;
+      const ok = await verifyOnServer(prod.id, token);
+      await res.complete(ok ? 'success' : 'fail');
+      if (!ok) return { ok: false, msg: '付款確認失敗，請稍後再試；如果已經扣款，飼料會自動補上' };
+      await refreshFood();
+      return { ok: true, msg: `✅ 已加入 ${prod.amount} 包飼料` };
+    } catch (e) {
+      if (e?.name === 'AbortError') return { ok: false, msg: '已取消購買' };
+      return { ok: false, msg: '購買失敗：' + (e.message || e) };
+    }
+  },
+};
+// 伺服器確認付款（要等 Firebase 升級、雲端函式寫好才會有）
+async function verifyOnServer(productId, token) {
+  if (!fb || !account) return false;
+  try {
+    const fnMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js');
+    const call = fnMod.httpsCallable(fnMod.getFunctions(), 'verifyPlayPurchase');
+    const r = await call({ productId, purchaseToken: token });
+    return !!r.data?.ok;
+  } catch (e) { console.warn('verify', e); return false; }
+}
+async function refreshFood() {
+  if (!fb || !account) return;
+  try { const s = await fb.fs.getDoc(fb.fs.doc(fb.db, 'users', account.uid)); const v = s.data()?.food; if (typeof v === 'number') { food = Math.max(0, v); saveFoodLocal(); renderFood(); } } catch {}
+}
+function renderShop() {
+  const m = Billing.mode();
+  $('shopBanner').innerHTML = m === 'test'
+    ? '🧪 <b>測試模式</b>：按「購買」不會真的付款，飼料直接加進來。測試加的飼料只存在這支手機，不會存到雲端。'
+    : m === 'web' ? `飼料要在 App 裡購買。<a href="${PLAY_URL}">到 Google Play 下載 App</a>，用同一個帳號登入，買的飼料兩邊都能用。`
+    : '付款由 Google Play 處理。買的飼料會存在你的帳號，換手機也還在。';
+  $('shopMsg').textContent = '';
+  const box = $('shopList'); box.textContent = '';
+  for (const p of PRODUCTS.filter(x => x.kind === 'food')) {
+    const row = document.createElement('div'); row.className = 'prod';
+    const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = '🍖';
+    const info = document.createElement('div'); info.className = 'info';
+    const t = document.createElement('div'); t.className = 't'; t.textContent = p.label;
+    const s = document.createElement('div'); s.className = 's'; s.textContent = m === 'test' ? '測試商品・不會扣款' : '價格以 Google Play 顯示為準';
+    info.append(t, s);
+    const b = document.createElement('button'); b.textContent = m === 'test' ? '購買（測試）' : '購買';
+    b.disabled = m === 'web';
+    b.onclick = async () => {
+      b.disabled = true; $('shopMsg').textContent = '處理中…';
+      const r = await Billing.buy(p);
+      $('shopMsg').textContent = r.msg; $('shopMsg').style.color = r.ok ? 'var(--ok)' : 'var(--bad)';
+      b.disabled = false;
+    };
+    row.append(ic, info, b); box.append(row);
+  }
+  renderFood();
+}
+$('toShop').onclick = () => { renderShop(); show('shopScr'); };
+$('shopBack').onclick = () => { renderHome(); show('homeScr'); };
 
 /* ================= Firebase 登入與雲端同步 ================= */
 let fb = null, cloudTimer = 0, afterLogin = 'homeScr';
@@ -951,11 +1074,16 @@ function showGoalMark(p) { goalMark.position.copy(p); goalMark.position.y += 0.0
    寵物畫在後面的地方就會被真實的桌腳、椅子、你的手遮住。 */
 const occ = { on: true, tex: null, w: 0, h: 0, la: true, ok: false };
 const occMat = new THREE.ShaderMaterial({
-  uniforms: { uDepth: { value: null }, uUvT: { value: new THREE.Matrix4() }, uRaw: { value: 0.001 }, uProj: { value: new THREE.Vector2(-1, -0.02) }, uLA: { value: 1 }, uTexel: { value: new THREE.Vector2(1, 1) } },
+  uniforms: { uDepth: { value: null }, uUvT: { value: new THREE.Matrix4() }, uRaw: { value: 0.001 }, uProj: { value: new THREE.Vector2(-1, -0.02) }, uLA: { value: 1 }, uTexel: { value: new THREE.Vector2(1, 1) },
+    uInvProj: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uG: { value: new THREE.Vector4() }, uGN: { value: 0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `
     uniform sampler2D uDepth; uniform mat4 uUvT; uniform float uRaw; uniform vec2 uProj; uniform float uLA; uniform vec2 uTexel;
+    uniform mat4 uInvProj; uniform mat4 uCamW; uniform vec4 uG; uniform float uGN;
     varying vec2 vUv;
+    bool nearG(float y, float tol){
+      return (uGN > 0.5 && abs(y - uG.x) < tol) || (uGN > 1.5 && abs(y - uG.y) < tol) || (uGN > 2.5 && abs(y - uG.z) < tol) || (uGN > 3.5 && abs(y - uG.w) < tol);
+    }
     float dAt(vec2 p){ vec4 s = texture2D(uDepth, p); float r = uLA > 0.5 ? (s.r * 255.0 + s.g * 65280.0) : s.r; return r * uRaw; }
     void main(){
       vec2 du = (uUvT * vec4(vUv.x, 1.0 - vUv.y, 0.0, 1.0)).xy;
@@ -965,7 +1093,13 @@ const occMat = new THREE.ShaderMaterial({
       float w2 = (1.0 - w.x) * w.y * step(0.05, d2), w3 = w.x * w.y * step(0.05, d3), ws = w0 + w1 + w2 + w3;
       if (ws < 0.2) discard;                                  // 這裡沒有深度資料 → 不遮
       float d = (d0 * w0 + d1 * w1 + d2 * w2 + d3 * w3) / ws;
-      d += 0.03 + d * 0.02;                                  // 留一點餘量，腳踩的地面不會把腳吃掉
+      // 算出這個像素在真實世界的高度：
+      //   寵物腳下的那個平面 → 多留一點餘量，腳才不會被地面吃掉
+      //   其他東西（你的手、杯子、椅背）→ 只留一點點，手伸到寵物前面就會擋住牠
+      vec4 q = uInvProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0); vec3 dir = q.xyz / q.w;
+      vec3 pw = (uCamW * vec4(dir * (d / -dir.z), 1.0)).xyz;
+      float m = (uGN < 0.5 || nearG(pw.y, 0.03 + d * 0.015)) ? 0.035 + d * 0.025 : 0.012 + d * 0.012;
+      d += m;
       gl_FragDepthEXT = clamp(((uProj.x * -d + uProj.y) / d) * 0.5 + 0.5, 0.0, 1.0);
       gl_FragColor = vec4(0.0);
     }`,
@@ -992,6 +1126,9 @@ function updateOcclusion(di, view) {
   occMat.uniforms.uRaw.value = di.rawValueToMeters || 0.001;
   occMat.uniforms.uUvT.value.fromArray(di.normDepthBufferFromNormView.matrix);
   const P = view.projectionMatrix; occMat.uniforms.uProj.value.set(P[10], P[14]);
+  occMat.uniforms.uInvProj.value.copy(camProjInv); occMat.uniforms.uCamW.value.copy(camWorld);
+  const gs = []; for (const a of active) { if (!a.pet) continue; gs.push(worldGround(a)); if (a.pet.jp) gs.push(a.home.position.y + a.pet.jp.y1); }
+  const G = occMat.uniforms.uG.value; G.set(gs[0] ?? 0, gs[1] ?? 0, gs[2] ?? 0, gs[3] ?? 0); occMat.uniforms.uGN.value = Math.min(4, gs.length);
   occMesh.visible = true; occ.ok = true;
 }
 
@@ -1505,7 +1642,7 @@ class Pet {
     this.state = s; this.stateT = 0;
     if (s === 'idle') { this.idleDur = this.behavior === 'static' ? 1e9 : 1.5 + Math.random() * 3.5; this.lookAtCam = Math.random() < 0.6; }
   }
-  busy() { return this.state === 'appear' || this.state === 'fall' || this.state === 'land' || this.state === 'eat'; }
+  busy() { return this.state === 'appear' || this.state === 'fall' || this.state === 'land' || this.state === 'eat' || this.state === 'crouch' || this.state === 'jump'; }
   // 可以被「食物」或「主人」吸引過去的狀態（正在被摸、被推、正在吃的時候不會）
   free() { return this.state === 'idle' || (this.state === 'walk' && !this.goal); }
   turnTo(want, dt, rate) { const r = this.root.rotation; r.y += clamp(angleDiff(want, r.y), -rate * dt, rate * dt); }
@@ -1520,6 +1657,8 @@ class Pet {
     this.goal = null; this.vel.set(dx * speed, dz * speed); this.setState('pushed'); this.voice.push();
   }
   tryWander(a) {
+    const J = jumpAbility(this);
+    if (J && Math.random() < (J === JUMP.cat ? JUMP_WANDER.cat : JUMP_WANDER.dog) && wanderJump(a)) return;
     const p = this.root.position;
     for (let i = 0; i < 14; i++) {
       const ang = Math.random() * Math.PI * 2, d = (0.08 + Math.random() * 0.42) * this.sizeK;
@@ -1531,8 +1670,18 @@ class Pet {
   goTo(lx, ly, lz, extra = null, quiet = false) {   // 跑到 (lx, ly, lz)（座標相對於牠的家）
     if (this.busy() || this.behavior === 'static') return false;
     this.goal = { x: lx, y: ly, z: lz, ...extra }; this.target.set(lx, 0, lz); this.setState('walk');
+    if (Math.abs(ly - this.groundY) > STEP_H * 1.2 && this.a) planGoalJump(this.a, this.goal);   // 目的地在別的高度：先規劃怎麼跳過去
     if (!quiet) this.voice.tap();
     return true;
+  }
+  // 跳到 land（座標相對於家）：先蹲一下，再畫一條拋物線跳過去
+  startJump(land) {
+    const p = this.root.position, y0 = this.groundY, y1 = land.y;
+    const gap = Math.hypot(land.x - p.x, land.z - p.z);
+    const apex = Math.max(y0, y1) + 0.04 + gap * 0.12 + 0.03 * this.sizeK;   // 最高點：比高的那邊再高一點
+    const vy = Math.sqrt(2 * GRAVITY * (apex - y0)), T = vy / GRAVITY + Math.sqrt(2 * (apex - y1) / GRAVITY);
+    this.jp = { x0: p.x, z0: p.z, y0, x1: land.x, y1, z1: land.z, vy, T };
+    this.setState('crouch');
   }
   // 伸手摸（親密度 100%）：pt 是手的位置（相對於家）
   handOn(pt) {
@@ -1581,13 +1730,15 @@ class Pet {
         if (G?.food) {                                   // 飼料可能還在滾，目標跟著飼料走
           if (!G.food.alive || (G.food.eater && G.food.eater !== this)) { this.goal = null; this.setState('idle'); break; }
           G.x = G.food.pos.x - a.home.position.x; G.y = G.food.pos.y - a.home.position.y; G.z = G.food.pos.z - a.home.position.z;
-          this.target.set(G.x, 0, G.z);
+          if (!G.via) this.target.set(G.x, 0, G.z);
         }
         const dx = this.target.x - p.x, dz = this.target.z - p.z, d = Math.hypot(dx, dz);
-        const run = !!G && d > 0.15, f = run ? 1.7 : 1;
-        if (d < (G ? (G.stop || 0.03) : 0.012)) {
+        if (G?.via && d < 0.02) { const land = G.via.land; G.via = null; this.target.set(G.x, 0, G.z); this.startJump(land); break; }   // 走到起跳點了
+        const run = !!G && !G.wander && d > 0.15, f = run ? 1.7 : 1;
+        if (!G?.via && d < (G ? (G.stop || 0.03) : 0.012)) {
+          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly' && planGoalJump(a, G)) break;   // 東西在上面或下面 → 想辦法跳過去
           this.goal = null;
-          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly') { if (G.food) this.wantAt(G, a); else this.setState('idle'); break; }   // 走到了，但東西在上面或下面
+          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly') { if (G.food) this.wantAt(G, a); else this.setState('idle'); break; }   // 跳不過去
           if (G?.food) { if (G.food.state === 'rest') { this.food = G.food; G.food.eater = this; this.setState('eat'); } else this.setState('idle'); break; }
           if (G?.owner) { this.soundT = 0; this.setState('greet'); break; }
           if (G) { this.lookAtCam = true; this.idleDur = 2.5; }
@@ -1603,9 +1754,8 @@ class Pet {
           const step = Math.min(d, sp * dt), nx = p.x + dx / d * step, nz = p.z + dz / d * step;
           const code = a.check(nx, nz);
           if (code === 0) { p.x = nx; p.z = nz; this.follow(a, dt); }
-          else if (code === 1 && this.goal && B !== 'fly' && this.goal.y < this.groundY - 0.08 && this.groundY - this.goal.y < 1.3) {
-            this.vel.set(dx / d * 0.32, dz / d * 0.32); this.startFall(a, true);       // 目的地在下面 → 跳下去
-          } else if (code === 2 && G?.food) { this.goal = null; this.wantAt(G, a, true); }                              // 想吃但被擋住
+          else if (code !== 3 && G && !G.via && B !== 'fly' && Math.abs(G.y - this.groundY) > 0.07 && planGoalJump(a, G)) { /* 前面是邊緣或家具 → 改成跳過去 */ }
+          else if (code === 2 && G?.food) { this.goal = null; this.wantAt(G, a, true); }                              // 想吃但被擋住
           else if (code === 2 && this.goal) { this.goal = null; this.setState('bonk'); this.voice.bonk(); a.onBlocked?.(G); }   // 被東西擋住
           else if (code === 1 && G?.food) { this.goal = null; this.wantAt(G, a); }                                       // 飼料在上不去的地方
           else if (code === 1 && this.goal) { this.goal = null; this.setState('teeter'); a.onNoPath?.(G); }                     // 前面沒路
@@ -1718,6 +1868,27 @@ class Pet {
         }
         break;
       }
+      case 'crouch': {                                    // 起跳前蹲低、看著要跳的地方
+        const J = this.jp; if (!J) { this.setState('idle'); break; }
+        this.turnTo(Math.atan2(J.x1 - p.x, J.z1 - p.z), dt, 8);
+        const k = Math.min(1, this.stateT / 0.32);
+        A.squash = 0.22 * k; A.earPerk = 1; A.tailAmp = dog ? 0.6 : 0.5; A.tailSpeed = dog ? 10 : 7; A.headPitch = J.y1 > J.y0 ? -0.3 : 0.25;
+        if (this.stateT > 0.36) this.setState('jump');
+        break;
+      }
+      case 'jump': {                                      // 在空中：照真實的重力畫拋物線
+        ground = false;
+        const J = this.jp; if (!J) { this.setState('idle'); break; }
+        const tt = Math.min(this.stateT, J.T), k = tt / J.T;
+        p.x = J.x0 + (J.x1 - J.x0) * k; p.z = J.z0 + (J.z1 - J.z0) * k;
+        p.y = J.y0 + J.vy * tt - 0.5 * GRAVITY * tt * tt + this.hover;
+        A.legSwing = k < 0.5 ? -0.6 : 0.7; A.earPerk = 1; A.tailAmp = 0.8; A.tailSpeed = 6; A.headPitch = J.y1 > J.y0 ? -0.2 : 0.3;
+        if (this.stateT >= J.T) {
+          p.set(J.x1, J.y1 + this.hover, J.z1); this.groundY = J.y1; this.jp = null;
+          this.setState('land'); this.voice.land(); a.onJumped?.(J.y1 - J.y0);
+        }
+        break;
+      }
       case 'fall': {
         ground = false;
         this.vy -= GRAVITY * dt;
@@ -1755,6 +1926,7 @@ class Pet {
     const s = r.scale.x || 1;
     let shY = this.groundY;
     if (this.state === 'fall') shY = this.fallTarget;
+    if ((this.state === 'jump' || this.state === 'crouch') && this.jp) shY = this.stateT / this.jp.T < 0.5 && this.state === 'jump' || this.state === 'crouch' ? this.jp.y0 : this.jp.y1;
     this.shadow.visible = shY !== null && (B !== 'fly' || a.check === undefined || true);
     if (shY !== null) this.shadow.position.y = (shY - p.y) / s + 0.002 / s;
     const lift = Math.max(0, A.jump + (p.y - (shY ?? p.y))), sh = clamp(1 - lift * 5, 0.35, 1);
@@ -1811,6 +1983,80 @@ function pathOK(a, tx, tz) {
   }
   return true;
 }
+/* ---------- 跳躍：在不同高度的平面之間跳上跳下 ---------- */
+function jumpAbility(pet) {
+  if (pet.behavior === 'fly' || pet.behavior === 'static') return null;
+  const cat = pet.kind === 'cat' || (pet.kind === 'custom' && pet.def.voice === 'cat');
+  return cat ? JUMP.cat : JUMP.dog;
+}
+// 規劃從現在的位置到 (tx, ty, tz)（世界座標）怎麼跳：
+// 先在現在這一層走到「起跳點」，跳到另一層的「落地點」，再走到目的地。做不到就回傳 null。
+function planJump(a, tx, ty, tz) {
+  const pet = a.pet, J = jumpAbility(pet); if (!J) return null;
+  const y0 = worldGround(a), dy = ty - y0, up = dy > 0;
+  if (Math.abs(dy) <= STEP_H * 1.2 || dy > J.up || -dy > J.down) return null;
+  const hx = a.home.position.x, hy = a.home.position.y, hz = a.home.position.z;
+  const px = worldX(a), pz = worldZ(a), D = Math.hypot(tx - px, tz - pz);
+  const n = Math.max(2, Math.ceil(D / (CELL * 0.75)));
+  const S = k => [px + (tx - px) * k / n, pz + (tz - pz) * k / n];
+  const lo = Math.min(y0, ty), hi = Math.max(y0, ty), R = pet.radius * 0.8;
+  // 低的那一層，上方到高的那一層之間要是空的（不能在桌子底下往上跳，也不能跳到椅子底下）
+  const clear = (x, z) => [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R]].every(([ox, oz]) => !field.blocked(x + ox, z + oz, lo + 0.06, hi + 0.03));
+  // 從起點往前：在原本這一層能走到哪裡
+  let e = 0, y = y0, ly0 = y0;
+  if (up && !clear(px, pz)) return null;
+  for (let k = 1; k <= n; k++) {
+    const [x, z] = S(k);
+    const c = checkSpot(a, x - hx, z - hz, y);
+    if (c !== 0) { if (c === 1 || (up && !clear(x, z))) break; return null; }   // 走到邊緣才跳；被別的東西擋住就不跳
+    const sy = a.spotY + hy; if (Math.abs(sy - y0) > STEP_H * 2) break;
+    if (up && !clear(x, z)) break;
+    y = sy; e = k; ly0 = sy;
+  }
+  if (e === n) return null;                         // 一路都能走過去，不用跳
+  // 從目的地往回：在目標那一層，從哪裡開始能站
+  let s = n + 1, yy = ty, ly1 = ty;
+  for (let k = n; k > e; k--) {
+    const [x, z] = S(k);
+    const c = checkSpot(a, x - hx, z - hz, yy);
+    if (c !== 0) { if (k < n && (c === 1 || (!up && !clear(x, z)))) break; return null; }
+    const sy = a.spotY + hy; if (Math.abs(sy - ty) > STEP_H * 2) break;
+    if (!up && !clear(x, z)) break;
+    yy = sy; s = k; ly1 = sy;
+  }
+  if (s > n) return null;                           // 目的地本身站不住
+  const [lx0, lz0] = S(e), [lx1, lz1] = S(s);
+  if (Math.hypot(lx1 - lx0, lz1 - lz0) > J.gap) return null;   // 太遠，跳不過去
+  return { launch: { x: lx0, y: ly0, z: lz0 }, land: { x: lx1, y: ly1, z: lz1 } };
+}
+// 讓寵物照計畫跳到目標 G（座標相對於家）。成功就回傳 true
+function planGoalJump(a, G) {
+  if (!G || (G.jumpTries = (G.jumpTries || 0) + 1) > 3) return false;
+  const h = a.home.position, P = planJump(a, h.x + G.x, h.y + G.y, h.z + G.z);
+  if (!P) return false;
+  G.via = { x: P.launch.x - h.x, z: P.launch.z - h.z, land: { x: P.land.x - h.x, y: P.land.y - h.y, z: P.land.z - h.z } };
+  a.pet.goal = G; a.pet.target.set(G.via.x, 0, G.via.z);
+  if (a.pet.state !== 'walk') a.pet.setState('walk');
+  return true;
+}
+// 散步時，隨便找一個附近、跳得上去（或下去）的平面跳過去
+function wanderJump(a) {
+  const pet = a.pet, J = jumpAbility(pet); if (!J) return false;
+  const y0 = worldGround(a), px = worldX(a), pz = worldZ(a), h = a.home.position;
+  for (let i = 0; i < 26; i++) {
+    const ang = Math.random() * Math.PI * 2, d = 0.12 + Math.random() * (J.gap + 0.5);
+    const x = px + Math.sin(ang) * d, z = pz + Math.cos(ang) * d;
+    const L = field.cells.get(field.key(x, z)); if (!L) continue;
+    for (const l of L) {
+      if (!l.h || l.n < SURF_N * 4) continue;      // 要很確定是平面才跳
+      const dy = l.y - y0; if (Math.abs(dy) < 0.1 || dy > J.up || -dy > J.up) continue;   // 自己散步時，只跳到「跳得回來」的高度
+      if (checkSpot(a, x - h.x, z - h.z, l.y) !== 0) continue;
+      const G = { x: x - h.x, y: a.spotY, z: z - h.z, wander: true, stop: 0.02 };
+      if (planGoalJump(a, G)) return true;
+    }
+  }
+  return false;
+}
 // 掉下去的時候，下面的地面在哪裡？（回傳相對於家的高度）
 function landingY(a, lx, lz, fromLocal) {
   const wx = a.home.position.x + lx, wz = a.home.position.z + lz, from = a.home.position.y + fromLocal;
@@ -1854,7 +2100,7 @@ function placePet(pd, pos, hit) {
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) field.add(pos.x + dx * CELL, pos.y, pos.z + dz * CELL, 2, true);
     if (hit && hit.createAnchor) hit.createAnchor().then(x => { if (active.includes(a)) a.anchor = x; else x.delete(); }).catch(() => {});
   }
-  a.pet = new Pet(def, model, voice);
+  a.pet = new Pet(def, model, voice); a.pet.a = a;
   a.check = (lx, lz, by) => checkSpot(a, lx, lz, by);
   a.path = (tx, tz) => pathOK(a, tx, tz);
   a.spotY = null;
@@ -1886,6 +2132,7 @@ function placePet(pd, pos, hit) {
         .then(src => { if (active.includes(a)) { try { a.downSrc?.cancel(); } catch {} a.downSrc = src; } else src.cancel(); }).catch(() => {});
     }
   };
+  a.onJumped = dy => { if (Math.abs(dy) > 0.25) hint(dy > 0 ? `${def.name}跳上去了！` : `${def.name}跳下去了！`); };
   a.onLand = h => { hint(h > 0.25 ? `${def.name}安全降落！在下面找到牠了` : `${def.name}跳下來了`); };
   a.onRespawn = () => hint(`下面還沒掃描到地面，${def.name}先咻一下回來了。把桌子旁邊的地板也掃一掃吧！`);
   camLocal.copy(camPos).sub(a.home.position);
@@ -1893,7 +2140,7 @@ function placePet(pd, pos, hit) {
   a.home.add(a.pet.root);
   active.push(a); lastPet = a;
   voice.hello();
-  hint(`${def.name}來了！點牠打招呼・慢慢滑＝摸摸・快速一甩＝推牠・點地上＝叫牠過去`);
+  hint(handTrack() ? `${def.name}來了！點牠打招呼・把手伸到牠身上＝摸摸・手指快速一甩＝推牠` : `${def.name}來了！點牠打招呼・在牠身上慢慢滑＝摸摸・快速一甩＝推牠`);
 }
 function previewSpot() {
   const spots = [[0, 0.04], [-0.17, 0.05], [0.05, 0.12], [-0.05, -0.1], [-0.25, -0.08], [0.25, 0.12]];
@@ -1923,8 +2170,8 @@ function makePile() {
 function throwFood() {
   if (mode === 'none') return;
   initAudio(); hidePicker();
-  if (food <= 0) { hint('飼料用完了'); return; }
-  if (food - foods.length <= 0) { hint('飼料都丟出去了，等牠們吃掉再丟'); return; }
+  if (totalFood() <= 0) { hint('飼料用完了，按 ☰ →「回寵物列表」→「🛒 買飼料」'); return; }
+  if (totalFood() - foods.length <= 0) { hint('飼料都丟出去了，等牠們吃掉再丟'); return; }
   if (foods.length >= RULES.maxFoodOnGround) { hint(`地上已經有 ${foods.length} 包飼料了，等牠們吃完再丟吧`); return; }
   const fwd = new THREE.Vector3(0, 0, -1).transformDirection(camWorld);
   const F = { ...makePile(), pos: camPos.clone().addScaledVector(fwd, 0.15), vel: fwd.clone().multiplyScalar(1.3), state: 'fly', t: 0,
@@ -2077,10 +2324,10 @@ function renderStats() {
   const hb = document.createElement('button'); hb.textContent = '說明'; hb.onclick = openHelpModal;
   nm.append(n, hb);
   const perk = document.createElement('div'); perk.className = 'perk';
-  perk.textContent = (af >= RULES.handAff ? `🤚 伸手到牠旁邊摸摸看（或用手指按住牠不放）`
+  perk.textContent = (af >= RULES.handAff ? (handTrack() ? `🤚 伸手摸牠，會有特別的反應` : `🤚 用手指按住牠不放＝伸手摸牠`)
     : af >= RULES.callAff ? `📣 叫「${a.def.name}」牠會跑過來・到 100% 可以伸手摸牠`
     : `到 ${RULES.callAff}%：叫名字牠會跑過來`)
-    + (fu >= 99.5 ? '・現在吃飽了，不會吃飼料' : fu < 30 ? '・肚子餓了，丟飼料給牠吧' : '');
+    + (fu >= 99.5 ? '・現在吃飽了，不會吃飼料' : fu <= 0 ? '・肚子餓扁了，親密度正在下降！快丟飼料給牠' : fu < 30 ? '・肚子餓了，丟飼料給牠吧' : '');
   box.append(nm, meter('aff', '❤️ 親密度', af), meter('full', '🍖 飽食度', fu), perk);
 }
 
@@ -2130,25 +2377,72 @@ function pressHand(a) {   // 用手指按住寵物＝伸手
   if (pet.handOn(tmpV2.copy(g.hand).sub(a.home.position)) && !g.handMsg) { g.handMsg = true; hint(interactHint(a)); }
 }
 const interactHint = a => ({ lick: `${a.def.name}在舔你的手～`, rub: `${a.def.name}用頭蹭你的手～`, nuzzle: `${a.def.name}輕輕頂你的手～` })[a.pet.interact];
-// 有深度感測的手機：偵測真的手伸到寵物旁邊
-function detectHands() {
+// 有深度感測的手機：偵測真的手伸到寵物身上（手離身體 5 公分內＝摸到）
+// 只在寵物附近的畫面範圍密集取樣（每邊 HG 點），不管離多遠，取樣間距都在 1～2 公分左右
+const handTrack = () => mode === 'xr' && depthOn && depthState === '開';
+const HG = 16, camView = new THREE.Matrix4(), camProj = new THREE.Matrix4(), _hv = new THREE.Vector3(), _hp = new THREE.Vector3();
+// 寵物身體當成一個直立的圓柱：中心、半徑、上下範圍（世界座標）
+function bodyOf(a) {
+  const pet = a.pet, gy = worldGround(a) + pet.hover;
+  return { x: worldX(a), z: worldZ(a), r: Math.max(0.045, pet.radius * 1.35), y0: gy + 0.025, y1: gy + pet.rig.height * 0.95 };
+}
+function detectHands(di) {
+  camView.copy(camWorld).invert();
   for (const a of active) {
-    const pet = a.pet;
-    if (affNow(statsOf(a.def)) < RULES.handAff || !(pet.state === 'idle' || pet.state === 'hand' || pet.state === 'tapped' || pet.state === 'pet')) { a.handBase = undefined; continue; }
-    const cx = worldX(a), cz = worldZ(a), gy = worldGround(a) + pet.hover, R = 0.12 + pet.radius, top = gy + pet.rig.height * 1.4 + 0.14;
-    let n = 0, sx = 0, sy = 0, sz = 0;
-    for (let k = 0; k < DN; k++) {
-      if (!dOK[k]) continue;
-      const x = dP[k * 3], y = dP[k * 3 + 1], z = dP[k * 3 + 2];
-      if (y < gy + 0.035 || y > top || Math.hypot(x - cx, z - cz) > R) continue;
-      n++; sx += x; sy += y; sz += z;
+    const pet = a.pet; a.touchNow = false;
+    if (pet.busy() || pet.state === 'pushed' || pet.state === 'fall') { a.touchF = 0; continue; }
+    const b = bodyOf(a), R = b.r + TOUCH_TOL;
+    // 寵物周圍（含 5 公分）投影到畫面上的範圍
+    let u0 = 1, u1 = 0, v0 = 1, v1 = 0, behind = false;
+    for (const cx of [-1, 1]) for (const cz of [-1, 1]) for (const cy of [b.y0 - 0.02, b.y1 + TOUCH_TOL]) {
+      _hv.set(b.x + cx * R, cy, b.z + cz * R).applyMatrix4(camView);
+      if (_hv.z > -0.05) { behind = true; break; }
+      _hv.applyMatrix4(camProj);
+      const u = (_hv.x + 1) / 2, v = (1 - _hv.y) / 2;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
     }
-    const base = a.handBase ?? n;
-    if (n >= 6 && n > base * 1.8 + 4) {             // 突然多出一團東西＝手伸過來了
-      tmpV.set(sx / n, sy / n, sz / n).sub(a.home.position);
-      if (pet.handOn(tmpV) && !a.handMsgT) { a.handMsgT = 1; hint(interactHint(a)); }
-    } else { a.handBase = base * 0.9 + n * 0.1; }
+    if (behind) continue;
+    u0 = Math.max(0, u0); v0 = Math.max(0, v0); u1 = Math.min(1, u1); v1 = Math.min(1, v1);
+    if (u1 <= u0 || v1 <= v0) continue;
+    let n = 0, m = 0, sx = 0, sy = 0, sz = 0;
+    for (let j = 0; j < HG; j++) for (let i = 0; i < HG; i++) {
+      const u = u0 + (u1 - u0) * (i + 0.5) / HG, v = v0 + (v1 - v0) * (j + 0.5) / HG;
+      let d = 0; try { d = di.getDepthInMeters(u, v); } catch {}
+      if (!(d > 0.1 && d < 3)) continue;
+      m++;
+      _hp.set(u * 2 - 1, 1 - v * 2, 0.5).applyMatrix4(camProjInv);
+      _hp.multiplyScalar(d / -_hp.z).applyMatrix4(camWorld);
+      if (_hp.y < b.y0 || _hp.y > b.y1 + TOUCH_TOL) continue;                  // 地面（寵物站的平面）不算
+      const dh = Math.max(0, Math.hypot(_hp.x - b.x, _hp.z - b.z) - b.r), dv = Math.max(0, _hp.y - b.y1);
+      if (Math.hypot(dh, dv) > TOUCH_TOL) continue;                              // 離身體超過 5 公分
+      n++; sx += _hp.x; sy += _hp.y; sz += _hp.z;
+    }
+    if (m < 20) continue;
+    // 原本就在旁邊的真實東西（例如杯子）會慢慢被當成背景；突然多出來的一團＝手
+    if (a.touchBase === undefined) a.touchBase = n;
+    const touching = n >= 4 && n >= a.touchBase * 1.6 + 3;
+    a.touchF = touching ? (a.touchF || 0) + 1 : 0;
+    if (!touching) { a.touchBase += (n - a.touchBase) * 0.04; a.touchMsg = Math.max(0, (a.touchMsg || 0) - 1); continue; }
+    if (a.touchF < 2) continue;                                                // 連續兩幀都偵測到才算，避免雜訊
+    a.touchNow = true;
+    _hp.set(sx / n, sy / n, sz / n);
+    if (affNow(statsOf(a.def)) >= RULES.handAff) {
+      if (pet.handOn(tmpV.copy(_hp).sub(a.home.position)) && !a.handMsgT) { a.handMsgT = 1; hint(interactHint(a)); }
+    } else {
+      pet.pet();
+      if (!a.touchMsg) hint(`摸到${a.def.name}了～繼續摸一下`);
+      a.touchMsg = 90;
+    }
   }
+}
+// 寵物身邊（手會伸過來的地方）的深度不要記到地圖裡，不然手會被當成平面或障礙物
+function nearPetSpace(x, y, z) {
+  for (const a of active) {
+    if (!a.pet) continue;
+    const b = bodyOf(a);
+    if (y > b.y0 && y < b.y1 + 0.2 && Math.hypot(x - b.x, z - b.z) < b.r + 0.12) return true;
+  }
+  return false;
 }
 
 /* ---------- 掃描地圖做成的遮擋（深度圖之外的第二層，比較穩定） ---------- */
@@ -2192,6 +2486,7 @@ function sampleDepth(frame, view, di) {
     tmpV.set(u * 2 - 1, 1 - v * 2, 0.5).applyMatrix4(camProjInv);     // 相機座標中的方向
     tmpV.multiplyScalar(d / -tmpV.z).applyMatrix4(camWorld);           // 換成世界座標
     if (Math.abs(tmpV.x - camPos.x) > SCAN_R || Math.abs(tmpV.z - camPos.z) > SCAN_R || Math.abs(tmpV.y - camPos.y) > SCAN_R) { dOK[n] = 0; continue; }
+    if (active.length && nearPetSpace(tmpV.x, tmpV.y, tmpV.z)) { dOK[n] = 0; continue; }
     dP[n * 3] = tmpV.x; dP[n * 3 + 1] = tmpV.y; dP[n * 3 + 2] = tmpV.z; dD[n] = d; dOK[n] = 1;
   }
   for (let j = 0; j < DEPTH_ROWS; j++) for (let i = 0; i < DEPTH_COLS; i++) {
@@ -2214,7 +2509,24 @@ function sampleDepth(frame, view, di) {
     }
     field.add(dP[n * 3], dP[n * 3 + 1], dP[n * 3 + 2], w, horiz, tol);
   }
-  if (active.length) detectHands();
+}
+
+/* ---------- 畫面中間的深度（放寵物前檢查用） ---------- */
+const tmpM = new THREE.Matrix4();
+function centerDepth(di) {   // 畫面正中間附近 9 點的中位數（公尺），讀不到回傳 0
+  const ds = [];
+  for (const du of [-0.02, 0, 0.02]) for (const dv of [-0.02, 0, 0.02]) { let d = 0; try { d = di.getDepthInMeters(0.5 + du, 0.5 + dv); } catch {} if (d > 0.1 && d < DEPTH_MAX) ds.push(d); }
+  if (ds.length < 5) return 0;
+  ds.sort((x, y) => x - y); return ds[ds.length >> 1];
+}
+function depthSpot(di) {     // 畫面中間真實的表面，如果地圖確定它是平面就回傳那個點
+  const d = centerDepth(di); if (!d) return null;
+  tmpV2.set(0, 0, 0.5).applyMatrix4(camProjInv); tmpV2.multiplyScalar(d / -tmpV2.z).applyMatrix4(camWorld);
+  if (camPos.y - tmpV2.y < 0.08) return null;                    // 比手機高或差不多高的地方不放
+  const y = field.surfaceY(tmpV2.x, tmpV2.z, tmpV2.y, 0.03); if (y === null) return null;
+  const L = field.cells.get(field.key(tmpV2.x, tmpV2.z)), l = L && L.find(c => c.h && Math.abs(c.y - y) < 1e-6);
+  if (!l || l.n < SURF_N * 3) return null;                         // 要看過好幾次、很確定是平面
+  return new THREE.Vector3(tmpV2.x, y, tmpV2.z);
 }
 
 /* ================= 每一幀 ================= */
@@ -2222,18 +2534,22 @@ let lastT = performance.now(), fpsN = 0, fpsT = 0, fps = 0;
 function loop(time, frame) {
   const now = performance.now(); const dt = clamp((now - lastT) / 1000, 0, 0.05); lastT = now;
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
-  let hit = null, horizontal = false;
+  let hit = null, horizontal = false, frameDI = null, place = null;
 
   if (frame && mode === 'xr') {
     const vp = frame.getViewerPose(refSpace);
     if (vp) {
       const v = vp.views[0];
       camWorld.fromArray(v.transform.matrix);
-      camProjInv.fromArray(v.projectionMatrix).invert();
+      camProj.fromArray(v.projectionMatrix); camProjInv.copy(camProj).invert();
       camPos.setFromMatrixPosition(camWorld);
       if (depthOn) {
         const di = readDepth(frame, v);
-        if (di) { updateOcclusion(di, v); if (++depthFrame & 1) sampleDepth(frame, v, di); }
+        if (di) {
+          frameDI = di;
+          updateOcclusion(di, v); if (++depthFrame & 1) sampleDepth(frame, v, di);
+          if (active.length) detectHands(di);   // 手每一幀都檢查，反應才快
+        }
       } else occMesh.visible = false;
     }
     if (hitSource) {
@@ -2249,15 +2565,35 @@ function loop(time, frame) {
           horizontal = flat || (camPos.y - hitPos.y > 0.12);
           hitKind = flat ? '平面' : (horizontal ? '特徵點' : '牆/直立面');
           if (horizontal && !flat) { hitQuat.identity(); hitMat.compose(hitPos, hitQuat, tmpV.set(1, 1, 1)); }
+          // 對準點前面有沒有真實的東西擋著？（椅面沒被認成平面時，對準點會穿過椅面，落到下面的地板）
+          let blockedBy = null;
+          if (frameDI) {
+            const dc = centerDepth(frameDI);
+            const hd = -tmpV.copy(hitPos).applyMatrix4(tmpM.copy(camWorld).invert()).z;   // 對準點離手機多遠
+            if (dc > 0 && hd - dc > 0.05 + dc * 0.03) blockedBy = dc;
+          }
+          if (blockedBy !== null) {
+            const alt = depthSpot(frameDI);
+            if (alt) { hit = null; hitPos.copy(alt); horizontal = true; hitKind = '深度（前面有東西）'; hitQuat.identity(); hitMat.compose(hitPos, hitQuat, tmpV.set(1, 1, 1)); }
+            else { horizontal = false; hitKind = '被擋住'; }
+          }
           reticle.visible = true; reticle.matrix.copy(hitMat);
           reticle.material.color.set(horizontal ? 0x7dffb0 : 0xffffff);
           reticle.material.opacity = active.length ? 0.45 : 0.9;
           if (horizontal) {
-            field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
+            if (hit) field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
             if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 ☰ →「召喚」`); }
           }
         }
-      } else { reticle.visible = false; hitKind = '無'; }
+      } else {
+        // 平面偵測沒找到，但深度地圖裡畫面中間已經是確定的平面 → 也可以放
+        const alt = frameDI && depthSpot(frameDI);
+        if (alt) {
+          hitPos.copy(alt); horizontal = true; hitKind = '深度'; hitQuat.identity(); hitMat.compose(hitPos, hitQuat, tmpV.set(1, 1, 1));
+          reticle.visible = true; reticle.matrix.copy(hitMat); reticle.material.color.set(0x7dffb0); reticle.material.opacity = active.length ? 0.45 : 0.9;
+          if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 ☰ →「召喚」`); }
+        } else { reticle.visible = false; hitKind = '無'; }
+      }
     }
     for (const a of active) {
       if (a.anchor && frame.trackedAnchors && frame.trackedAnchors.has(a.anchor)) {
@@ -2270,9 +2606,9 @@ function loop(time, frame) {
       }
     }
     if (pending) {
-      if (hit && horizontal) { placePet(pending, hitPos, hit); pending = null; }
-      else if (now - pending.t > 12000) { pending = null; hint('還找不到桌面：開亮一點的燈、手機離桌面 40～60 公分、斜斜往下拍，再慢慢左右移動'); }
-      else if (now - pending.t > 5000) hint('還在找…把手機拿高一點、斜著對準桌面，慢慢左右移動');
+      if (reticle.visible && horizontal) { placePet(pending, hitPos.clone(), hit); pending = null; }
+      else if (now - pending.t > 20000) { pending = null; hint('還找不到平面：開亮一點的燈、手機離平面 40～60 公分、斜斜往下拍，慢慢左右移動。素色、反光、太暗的表面比較難找'); }
+      else if (now - pending.t > 5000) hint(hitKind === '被擋住' ? '準星前面有東西擋著，換個角度對準要放的平面' : '還在找…把手機拿高一點、斜著對準平面，慢慢左右移動');
     }
   } else if (mode === 'preview') {
     camera.updateMatrixWorld();
@@ -2282,7 +2618,7 @@ function loop(time, frame) {
 
   for (const a of active) { camLocal.copy(camPos).sub(a.home.position); a.pet.update(dt, camLocal, a); }
   if (mode !== 'none') { updateFoods(dt); updateHearts(dt); }
-  if (g && g.on && active.includes(g.on) && !g.petted && g.dist < 14 && now - g.st > 450) { g.held = true; pressHand(g.on); }
+  if (g && g.on && active.includes(g.on) && !g.petted && g.dist < 14 && now - g.st > 450 && !handTrack()) { g.held = true; pressHand(g.on); }
   else if (handSprite.visible && !(g && g.hand)) handSprite.visible = false;
   if (statsA && now - statsR > 500) { statsR = now; renderStats(); if (now - statsT > 7000 && !$('helpModal').classList.contains('show')) hideStats(); }
   if (occ.on && mode === 'xr' && now - mapOccT > 700) { mapOccT = now; updateMapOcc(); }
@@ -2331,13 +2667,13 @@ touch.addEventListener('pointermove', e => {
   while (g.samples.length > 2 && now - g.samples[0].t > 100) g.samples.shift();
   if (g.on && g.dist > 12 && active.includes(g.on)) {
     const s0 = g.samples[0], v = Math.hypot(e.clientX - s0.x, e.clientY - s0.y) / Math.max(1, now - s0.t);
-    if (v < 0.8 && petAt(e.clientX, e.clientY) === g.on) { g.on.pet.pet(); g.petted = true; }
+    if (v < 0.8 && !handTrack() && petAt(e.clientX, e.clientY) === g.on) { g.on.pet.pet(); g.petted = true; }   // 沒有深度感測的手機：用手指摸
   } else if (!g.on && mode === 'preview') { orbit += dx * 0.006; orbitH = clamp(orbitH - dy * 0.004, 0.25, 1.4); placePreviewCamera(); }
 });
 function endGesture() {
   if (!g) return;
   const now = performance.now(), dt = now - g.st, a = g.on;
-  if (!a && g.dist < 12 && dt < 350 && active.length && mode !== 'none') { hideStats(); callPetTo(g.lx, g.ly); }
+  if (!a && g.dist < 12 && dt < 350) hideStats();   // 點空白處只會關掉狀態卡（不再叫寵物走過去）
   handSprite.visible = false;
   if (a && active.includes(a)) {
     lastPet = a;
@@ -2539,7 +2875,7 @@ $('pvBtn').addEventListener('click', () => {
   scene.background = new THREE.Color(0xe9e2d8); previewSet.visible = true;
   renderer.domElement.style.display = 'block';
   show('none'); $('overlay').style.display = 'block';
-  hint('預覽模式：按 ☰ →「召喚」・拖曳空白處轉視角・點地板或桌面＝叫牠過去（點地板牠會跳下桌）');
+  hint('預覽模式：按 ☰ →「召喚」・拖曳空白處轉視角・寵物會自己在桌上和地板之間跳上跳下');
 });
 addEventListener('resize', () => {
   if (mode === 'xr') return;
@@ -2559,7 +2895,7 @@ if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct()
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
 window.__ar = { camera, active, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
-  foods, throwFood, callByName, statsOf, fullNow, food: () => food, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
+  foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>
 </body>

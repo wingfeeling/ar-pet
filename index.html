@@ -148,7 +148,22 @@
   .prod .s{font-size:.82rem;color:var(--mute)}
   .prod button{flex:none;border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer;font-size:.95rem}
   .prod button:disabled{background:#d9cbbd}
-  #shopMsg{min-height:1.4em;font-size:.92rem;color:var(--ok);margin:6px 0}
+  #shopMsg:empty{display:none}
+  #shopMsg{min-height:1.4em;font-size:.92rem;color:var(--ok);margin:6px 0;position:sticky;bottom:8px;background:var(--bg);border-radius:10px;padding:2px 6px}
+  .prod .tag{display:inline-block;font-size:.72rem;font-weight:700;color:#fff;background:#e8743b;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+  .prod .secret{font-size:.85rem;margin-top:3px;color:#b0453a;font-weight:700;letter-spacing:.02em}
+  .prod.pet{flex-wrap:wrap}
+  .prod.pet .btns{display:flex;gap:8px;width:100%;flex-wrap:wrap}
+  .prod.pet .btns button{flex:1}
+  .prod button.set{background:#c2185b}
+  .prod .own{flex:none;font-weight:700;color:var(--ok)}
+  .prod.focus{outline:3px solid var(--accent);outline-offset:2px}
+  #shopScr h2{margin-top:22px}
+  .slotline{font-size:.88rem;color:var(--mute);margin:-4px 0 8px}
+  li.empty{border:2px dashed var(--line);border-radius:16px;padding:14px;color:var(--mute);text-align:center;list-style:none;margin-bottom:10px;cursor:pointer;font-weight:700}
+  .freefood{flex-basis:100%;font-size:.82rem;color:var(--mute)}
+  #edSpecies button.lock{opacity:.6}
+  .pfixed{display:inline-block;font-size:.7rem;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:2px;font-weight:400}
 </style>
 <script type="importmap">
 { "imports": {
@@ -171,9 +186,10 @@
   </div>
   <div id="syncNote" class="note"></div>
 
-  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="mini" id="toShop">🛒 買飼料</button><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
+  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="mini" id="toShop">🛒 商店</button><span class="freefood" id="freeFood"></span><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
 
   <h2>我的寵物</h2>
+  <div class="slotline" id="slotLine"></div>
   <ul id="petList"></ul>
   <button id="addPet" class="big ghost">＋ 新增寵物</button>
 
@@ -188,7 +204,7 @@
     <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。</li>
     <li>寵物會自己跳上跳下，在桌子、椅子、地板之間走動。<b>貓跳得最高</b>（往上約 1 公尺），<b>狗</b>約 50 公分，<b>羊駝</b>約 40 公分，<b>水豚</b>約 30 公分。<b>倉鼠</b>很小又怕摔，只會上下 10 幾公分的高度。</li>
     <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按右下角 ☰ →「召喚」選。說「收回」會讓牠們回家。</li>
-    <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；<b>把手伸到牠身上＝摸摸</b>（手機沒有深度感測時，改成用手指在牠身上慢慢來回滑）；用手指從牠身上快速一甩＝推牠。</li>
+    <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；親密度 100% 時伸手給牠，會有<b>親密互動</b>；<b>把手伸到牠身上＝摸摸</b>（手機沒有深度感測時，改成用手指在牠身上慢慢來回滑）；用手指從牠身上快速一甩＝推牠。</li>
     <li>按 🍖 會把飼料往前丟，肚子餓的寵物會跑過去吃。</li>
   </ul>
   <button class="link" id="toAcct" style="margin-top:18px;padding-left:0">⚙️ 帳號與資料（登出、刪除帳號）</button>
@@ -285,6 +301,7 @@
   <div id="edErr" class="err"></div>
   <button id="edSave" class="big primary">儲存</button>
   <button id="edDelete" class="big danger">刪除這隻寵物</button>
+  <p class="note" id="edFixedNote" style="display:none">這是預設寵物，不能刪除，也不能換種類（毛色、名字、聲音都可以改）。</p>
 </section>
 
 <!-- ============ 說明：親密度與飽食度 ============ -->
@@ -304,7 +321,7 @@
   <table>
     <tr><th>親密度</th><th>解鎖</th></tr>
     <tr><td>80% 以上</td><td>叫牠的名字（按住 🎤 說「小橘」），牠會跑到你面前對你叫。</td></tr>
-    <tr><td>100%</td><td>可以伸手去摸牠，每種寵物反應不一樣：<b>小狗會舔你的手</b>，<b>貓咪和水豚會用頭和身體蹭你的手</b>，<b>倉鼠和羊駝會用頭輕輕頂你的手</b>。</td></tr>
+    <tr><td>100%</td><td>解鎖<b>親密互動</b>：把手伸給牠，每種寵物反應不一樣。<b>小狗會舔你的手</b>，<b>貓咪會用頭和身體蹭你的手</b>。其他寵物的親密互動是……<b>？？？！！！！</b>養到 100% 就知道了。</td></tr>
   </table>
   <p class="note">伸手的方法：把手伸到寵物身上或旁邊 5 公分內（需要有深度感測的手機）。手機不支援的話，<b>用手指按住寵物不放</b>也可以。</p>
 
@@ -313,7 +330,7 @@
   <table>
     <tr><td>吃一包飼料</td><td>+50%（最多到 100%）</td></tr>
     <tr><td>時間經過</td><td>每小時 −1%</td></tr>
-    <tr><td>飽食度 100%</td><td>吃飽了，丟飼料也不會吃，飼料會留在地上</td></tr>
+    <tr><td>飽食度 90% 以上</td><td>吃不下了，丟飼料也不會吃，飼料會留在地上</td></tr>
     <tr><td>飽食度 0%</td><td>肚子餓扁了，<b>親密度開始每小時 −1%</b></td></tr>
   </table>
 
@@ -325,13 +342,22 @@
     <li>被家具擋住過不去時，牠會在旁邊想吃但吃不到。換個地方丟就好。</li>
   </ul>
   <p class="note">每隻寵物的親密度和飽食度是分開算的。登入帳號後會存在雲端，換手機也還在。</p>
+  <h2>🎁 免費飼料</h2>
+  <p>每 3 天送 1 包飼料，打開 App 就會自動領到（沒領的不會累積）。</p>
 </template>
 
 <!-- ============ 飼料商店 ============ -->
 <section id="shopScr" class="screen">
   <div class="topbar"><button class="link" id="shopBack">← 返回</button><span></span></div>
-  <h1 style="margin-top:10px">🛒 飼料商店</h1>
+  <h1 style="margin-top:10px">🛒 商店</h1>
   <div class="testbanner" id="shopBanner"></div>
+  <h2>🐾 寵物</h2>
+  <p class="note">買一次就永遠擁有，換手機登入同一個帳號也還在。<b>寵物套餐</b>＝寵物＋1 個空位＋10 包飼料。</p>
+  <div id="shopPets"></div>
+  <h2>🏠 寵物空位</h2>
+  <p class="note" id="shopSlotNote"></p>
+  <div id="shopSlots"></div>
+  <h2>🍖 飼料</h2>
   <p>現在有 <b id="shopFood">0</b> 包飼料</p>
   <div id="shopList"></div>
   <div id="shopMsg"></div>
@@ -396,7 +422,7 @@ import { RULES, SPECIES, PRODUCTS } from './js/catalog.js';
 /* ================= 可調參數 ================= */
 const PET_SCALE   = 1.1;    // 內建寵物的大小（1.0 ≈ 貓身長 13 公分；各種類再乘上 catalog.js 的 scale）
 const WALK_SPEED  = 0.07;   // 走路速度（公尺/秒）
-let   MAX_PETS    = RULES.freePetSlots;   // 同時最多幾隻（買了擴充會變多，由雲端的 slots 決定）
+const MAX_PETS    = RULES.maxPets;   // 同時最多召喚幾隻
 const FALL_SPEED  = 0.28;   // 推的速度超過這個（公尺/秒）碰到桌緣就會掉下去
 const GRAVITY     = 9.8;
 // 場域地圖
@@ -478,16 +504,23 @@ function normalizePet(p) {
     size: +p.size || 0.15, yaw: +p.yaw || 0, voice: p.voice, snd: { call: !!p.snd?.call, pet: !!p.snd?.pet }, model: !!p.model, thumb: p.thumb || '',
     // 親密度、飽食度（飽食度存「當時的數值＋時間」，現在的數值用時間算出來）
     aff: clamp(+p.aff || 0, 0, 100), full: clamp(p.full ?? RULES.newPetFull, 0, 100), fullAt: +p.fullAt || Date.now(),
-    petDay: p.petDay || '', petGain: +p.petGain || 0 };
+    petDay: p.petDay || '', petGain: +p.petGain || 0, fixed: !!p.fixed };
   if (q.species !== 'custom' && !PALETTES[q.species]?.[q.color]) q.color = Object.keys(PALETTES[q.species] || PALETTES.cat)[0];
   if (!q.voice) q.voice = q.species === 'dog' ? 'dog' : q.species === 'cat' ? 'cat' : 'none';
   if (q.species !== 'custom') q.voice = q.species;
   return q;
 }
+// 預設寵物（fixed）：不能刪除、不能換種類、不佔空位
 const defaultPets = () => [
-  normalizePet({ name: '小橘', species: 'cat', color: 'orange' }),
-  normalizePet({ name: '豆豆', species: 'dog', color: 'shiba' }),
+  normalizePet({ name: '小橘', species: 'cat', color: 'orange', fixed: true }),
+  normalizePet({ name: '豆豆', species: 'dog', color: 'shiba', fixed: true }),
 ];
+// 舊版的清單沒有標記預設寵物：把第一隻內建的貓和狗當成預設寵物
+function markFixed(list) {
+  if (list.some(p => p.fixed)) return list;
+  for (const sp of ['cat', 'dog']) { const p = list.find(q => q.species === sp); if (p) p.fixed = true; }
+  return list;
+}
 function readLocal(key) { try { const o = JSON.parse(localStorage.getItem(key)); return Array.isArray(o?.pets) ? o.pets.map(normalizePet) : null; } catch { return null; } }
 function oldVersionPets() { try { const o = JSON.parse(localStorage.getItem('arpet.v1')); const u = o?.users?.[o.current] || Object.values(o?.users || {})[0]; return u?.pets?.length ? u.pets.map(normalizePet) : null; } catch { return null; } }
 function savePets() {
@@ -503,7 +536,7 @@ const fullNow = p => clamp(p.full - (Date.now() - p.fullAt) / 3600000 * RULES.fu
 const starveH = p => Math.max(0, Date.now() - (p.fullAt + Math.max(0, p.full) / RULES.fullDropPerHour * 3600000)) / 3600000;
 const affNow = p => clamp(p.aff - starveH(p) * STARVE_AFF, 0, 100);
 const pct = v => Math.round(v) + '%';
-const isFull = p => fullNow(p) >= 99.5;   // 顯示成 100% 就算吃飽
+const isFull = p => fullNow(p) >= RULES.fullRefuse - 0.5;   // 飽食度 90% 以上吃不下
 // 把「用時間算出來的」親密度、飽食度寫回去（改數值之前先做，才不會算錯）
 function settle(p) { p.aff = affNow(p); p.full = fullNow(p); p.fullAt = Date.now(); }
 function setFull(p, v) { settle(p); p.full = clamp(v, 0, 100); p.fullAt = Date.now(); }
@@ -544,7 +577,62 @@ function spendFood() {
     .catch(e => console.warn('food sync', e));
 }
 
-/* ================= 飼料商店 =================
+/* ================= 買過的東西：寵物種類、空位 =================
+   正式：存在雲端帳號（owned、slots 只有伺服器能寫）。測試模式買的只存在這支手機。 */
+let cloudOwned = [], cloudSlots = 0;
+let testShop = { owned: [], slots: 0 };
+const testShopKey = () => lsKey() + '.testShop';
+function loadTestShop() {
+  try { const o = JSON.parse(localStorage.getItem(testShopKey())); testShop = { owned: Array.isArray(o?.owned) ? o.owned : [], slots: +o?.slots || 0 }; }
+  catch { testShop = { owned: [], slots: 0 }; }
+}
+function saveTestShop() { try { localStorage.setItem(testShopKey(), JSON.stringify(testShop)); } catch {} }
+const owns = sp => sp === 'custom' || !SPECIES[sp] || SPECIES[sp].free || cloudOwned.includes(sp) || testShop.owned.includes(sp);
+const fixedCount = () => pets.filter(p => p.fixed).length;
+const slotCap = () => Math.max(0, RULES.maxPets - fixedCount());                         // 空位最多幾個
+const slotTotal = () => Math.min(slotCap(), RULES.baseSlots + cloudSlots + testShop.slots);
+const slotUsed = () => pets.filter(p => !p.fixed).length;
+const slotFree = () => slotTotal() - slotUsed();
+
+/* ================= 免費飼料：每 3 天送 1 包（不累積） ================= */
+const FREE_MS = RULES.freeFoodDays * 86400000;
+let freeAt = 0, freeBusy = false;          // 上次領的時間
+const freeKey = () => lsKey() + '.freeAt';
+function renderFree(got) {
+  const el = $('freeFood'); if (!el) return;
+  if (got) { el.textContent = `🎁 送你 ${RULES.freeFoodAmount} 包免費飼料！（每 ${RULES.freeFoodDays} 天送一次）`; return; }
+  if (!freeAt) { el.textContent = `🎁 每 ${RULES.freeFoodDays} 天送 ${RULES.freeFoodAmount} 包飼料`; return; }
+  const left = freeAt + FREE_MS - Date.now();
+  const H = Math.ceil(left / 3600000), d = Math.floor(H / 24), h = H % 24;
+  el.textContent = left <= 0 ? '🎁 免費飼料可以領了' : `🎁 每 ${RULES.freeFoodDays} 天送 ${RULES.freeFoodAmount} 包・下一包：${d ? d + ' 天' : ''}${h ? (d ? ' ' : '') + h + ' 小時' : ''}後`;
+}
+async function checkFreeFood(cloudAt) {
+  if (freeBusy) return;
+  const now = Date.now();
+  if (account && fb) {
+    if (cloudAt !== undefined) freeAt = cloudAt || 0;
+    const ref = fb.fs.doc(fb.db, 'users', account.uid);
+    freeBusy = true;
+    try {
+      if (!freeAt) { await fb.fs.updateDoc(ref, { freeFoodAt: fb.fs.serverTimestamp() }); freeAt = now; renderFree(); }   // 第一次：開始計時
+      else if (now - freeAt >= FREE_MS) {
+        await fb.fs.updateDoc(ref, { food: fb.fs.increment(RULES.freeFoodAmount), freeFoodAt: fb.fs.serverTimestamp() });
+        food += RULES.freeFoodAmount; freeAt = now; saveFoodLocal(); renderFood(); renderFree(true); return;
+      } else renderFree();
+    } catch (e) { console.warn('free food', e); renderFree(); }
+    finally { freeBusy = false; }
+    return;
+  }
+  freeAt = +localStorage.getItem(freeKey()) || 0;
+  if (!freeAt) { freeAt = now; try { localStorage.setItem(freeKey(), String(now)); } catch {} renderFree(); return; }
+  if (now - freeAt >= FREE_MS) {
+    freeAt = now; try { localStorage.setItem(freeKey(), String(now)); } catch {}
+    food += RULES.freeFoodAmount; saveFoodLocal(); renderFood(); renderFree(true); return;
+  }
+  renderFree();
+}
+
+/* ================= 商店 =================
    付款這一步做成可以替換的：現在是「測試」，App 上架後改成「Google Play」，商店畫面和加飼料的流程都不用改。
    正式付款的流程：Google Play 付款 → 拿到付款憑證 → 交給伺服器（雲端函式）跟 Google 確認 → 伺服器把飼料加進帳號 → App 重新讀取飼料數量 */
 const inPlayApp = () => 'getDigitalGoodsService' in window;   // 從 Play 商店安裝的 App 裡才有
@@ -553,8 +641,8 @@ const Billing = {
   async buy(prod) {
     const m = this.mode();
     if (m === 'test') {                         // 測試：不扣錢，直接加在這支手機
-      testFood += prod.amount; saveFoodLocal(); renderFood();
-      return { ok: true, msg: `✅（測試）已加入 ${prod.amount} 包飼料` };
+      grantTest(prod);
+      return { ok: true, msg: '✅（測試）' + doneMsg(prod) };
     }
     if (m === 'web') return { ok: false, msg: '網頁版不能購買，請到 App 購買' };
     try {                                        // Google Play 付款（上架後才會用到）
@@ -568,7 +656,7 @@ const Billing = {
       await res.complete(ok ? 'success' : 'fail');
       if (!ok) return { ok: false, msg: '付款確認失敗，請稍後再試；如果已經扣款，飼料會自動補上' };
       await refreshFood();
-      return { ok: true, msg: `✅ 已加入 ${prod.amount} 包飼料` };
+      return { ok: true, msg: '✅ ' + doneMsg(prod) };
     } catch (e) {
       if (e?.name === 'AbortError') return { ok: false, msg: '已取消購買' };
       return { ok: false, msg: '購買失敗：' + (e.message || e) };
@@ -585,38 +673,116 @@ async function verifyOnServer(productId, token) {
     return !!r.data?.ok;
   } catch (e) { console.warn('verify', e); return false; }
 }
-async function refreshFood() {
+async function refreshFood() {   // 付款後重新讀取：飼料、買過的寵物、空位
   if (!fb || !account) return;
-  try { const s = await fb.fs.getDoc(fb.fs.doc(fb.db, 'users', account.uid)); const v = s.data()?.food; if (typeof v === 'number') { food = Math.max(0, v); saveFoodLocal(); renderFood(); } } catch {}
+  try {
+    const d = (await fb.fs.getDoc(fb.fs.doc(fb.db, 'users', account.uid))).data() || {};
+    if (typeof d.food === 'number') { food = Math.max(0, d.food); saveFoodLocal(); renderFood(); }
+    readOwned(d);
+  } catch {}
 }
-function renderShop() {
+function readOwned(d) { cloudOwned = Array.isArray(d?.owned) ? d.owned : []; cloudSlots = Math.max(0, +d?.slots || 0); }
+const spLabel = sp => SPECIES[sp]?.label || '';
+function doneMsg(p) {
+  return p.kind === 'food' ? `已加入 ${p.amount} 包飼料`
+    : p.kind === 'slot' ? '多了 1 個寵物空位，可以去新增寵物了'
+    : p.kind === 'pet' ? `已解鎖${spLabel(p.species)}！到「＋ 新增寵物」選牠`
+    : `已解鎖${spLabel(p.species)}，多了 1 個空位和 ${p.food} 包飼料！`;
+}
+function grantTest(p) {
+  if (p.kind === 'food') testFood += p.amount;
+  if (p.kind === 'slot') testShop.slots += p.amount;
+  if ((p.kind === 'pet' || p.kind === 'set') && !testShop.owned.includes(p.species)) testShop.owned.push(p.species);
+  if (p.kind === 'set') { testShop.slots += p.slots; testFood += p.food; }
+  saveFoodLocal(); saveTestShop(); renderFood();
+}
+// 現在能不能買（買過的寵物不能再買；空位到上限不能再買）
+function canBuy(p) {
+  if (p.kind === 'pet') return owns(p.species) ? '已擁有' : '';
+  if (p.kind === 'set') return owns(p.species) ? '已擁有' : slotTotal() >= slotCap() ? '空位已滿，請單買寵物' : '';
+  if (p.kind === 'slot') return slotTotal() >= slotCap() ? `已經到上限（最多 ${RULES.maxPets} 隻）` : '';
+  return '';
+}
+let playPrices = {};   // Google Play 回傳的價格（App 裡才有）
+const priceOf = p => playPrices[p.id] || `NT$${p.price}`;
+async function loadPlayPrices() {
+  if (Billing.mode() !== 'play' || Object.keys(playPrices).length) return;
+  try {
+    const svc = await window.getDigitalGoodsService('https://play.google.com/billing');
+    const items = await svc.getDetails(PRODUCTS.map(p => p.id));
+    for (const it of items) playPrices[it.itemId] = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: it.price.currency, maximumFractionDigits: 0 }).format(+it.price.value);
+    renderShop();
+  } catch (e) { console.warn('prices', e); }
+}
+function shopMsg(t, ok) { $('shopMsg').textContent = t; $('shopMsg').style.color = ok ? 'var(--ok)' : 'var(--bad)'; }
+function buyBtn(p, cls) {
+  const m = Billing.mode(), b = document.createElement('button');
+  if (cls) b.className = cls;
+  const why = canBuy(p);
+  b.textContent = (p.kind === 'set' ? '套餐 ' : '') + priceOf(p);
+  b.disabled = m === 'web' || !!why;
+  b.onclick = async () => {
+    b.disabled = true; shopMsg('處理中…', true);
+    const r = await Billing.buy(p);
+    renderShop(); shopMsg(r.msg, r.ok);
+  };
+  return b;
+}
+function prodRow(icon, title, sub, tag) {
+  const row = document.createElement('div'); row.className = 'prod';
+  const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = icon;
+  const info = document.createElement('div'); info.className = 'info';
+  const t = document.createElement('div'); t.className = 't'; t.textContent = title;
+  if (tag) { const g = document.createElement('span'); g.className = 'tag'; g.textContent = tag; t.append(g); }
+  info.append(t);
+  if (sub) { const s2 = document.createElement('div'); s2.className = 's'; s2.textContent = sub; info.append(s2); }
+  row.append(ic, info);
+  return { row, info };
+}
+function renderShop(focus) {
   const m = Billing.mode();
   $('shopBanner').innerHTML = m === 'test'
-    ? '🧪 <b>測試模式</b>：按「購買」不會真的付款，飼料直接加進來。測試加的飼料只存在這支手機，不會存到雲端。'
-    : m === 'web' ? `飼料要在 App 裡購買。<a href="${PLAY_URL}">到 Google Play 下載 App</a>，用同一個帳號登入，買的飼料兩邊都能用。`
-    : '付款由 Google Play 處理。買的飼料會存在你的帳號，換手機也還在。';
+    ? '🧪 <b>測試模式</b>：按購買不會真的付款，東西直接加進來。測試買的東西只存在這支手機，不會存到雲端。'
+    : m === 'web' ? `要在 App 裡購買。<a href="${PLAY_URL}">到 Google Play 下載 App</a>，用同一個帳號登入，買的東西兩邊都能用。`
+    : '付款由 Google Play 處理。買的東西會存在你的帳號，換手機也還在。';
   $('shopMsg').textContent = '';
+  // 寵物
+  const pb = $('shopPets'); pb.textContent = '';
+  for (const [k, v] of Object.entries(SPECIES).filter(([, v]) => !v.free)) {
+    const pet = PRODUCTS.find(p => p.kind === 'pet' && p.species === k), set = PRODUCTS.find(p => p.kind === 'set' && p.species === k);
+    const { row, info } = prodRow(v.emoji, v.label, v.desc);
+    row.classList.add('pet'); row.id = 'shop_' + k;
+    const sec = document.createElement('div'); sec.className = 'secret'; sec.textContent = '💗 親密互動：？？？！！！！'; info.append(sec);
+    if (owns(k)) { const o = document.createElement('span'); o.className = 'own'; o.textContent = '✅ 已擁有'; row.append(o); }
+    else {
+      const btns = document.createElement('div'); btns.className = 'btns';
+      if (pet) btns.append(buyBtn(pet));
+      if (set) btns.append(buyBtn(set, 'set'));
+      row.append(btns);
+      if (set && canBuy(set)) { const n = document.createElement('div'); n.className = 's'; n.style.width = '100%'; n.textContent = '套餐：' + canBuy(set); row.append(n); }
+    }
+    pb.append(row);
+  }
+  // 空位
+  $('shopSlotNote').textContent = `預設寵物不佔空位。現在有 ${slotTotal()} 個空位（用了 ${slotUsed()} 個），寵物最多 ${RULES.maxPets} 隻。`;
+  const sb = $('shopSlots'); sb.textContent = '';
+  const slot = PRODUCTS.find(p => p.kind === 'slot');
+  if (slot) { const { row } = prodRow('🏠', slot.label, canBuy(slot) || '多養一隻寵物'); row.id = 'shop_slot'; row.append(buyBtn(slot)); sb.append(row); }
+  // 飼料
   const box = $('shopList'); box.textContent = '';
   for (const p of PRODUCTS.filter(x => x.kind === 'food')) {
-    const row = document.createElement('div'); row.className = 'prod';
-    const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = '🍖';
-    const info = document.createElement('div'); info.className = 'info';
-    const t = document.createElement('div'); t.className = 't'; t.textContent = p.label;
-    const s = document.createElement('div'); s.className = 's'; s.textContent = m === 'test' ? '測試商品・不會扣款' : '價格以 Google Play 顯示為準';
-    info.append(t, s);
-    const b = document.createElement('button'); b.textContent = m === 'test' ? '購買（測試）' : '購買';
-    b.disabled = m === 'web';
-    b.onclick = async () => {
-      b.disabled = true; $('shopMsg').textContent = '處理中…';
-      const r = await Billing.buy(p);
-      $('shopMsg').textContent = r.msg; $('shopMsg').style.color = r.ok ? 'var(--ok)' : 'var(--bad)';
-      b.disabled = false;
-    };
-    row.append(ic, info, b); box.append(row);
+    const { row } = prodRow('🍖', p.label, `每包約 ${(p.price / p.amount).toFixed(1)} 元`, p.bonus);
+    row.append(buyBtn(p)); box.append(row);
   }
   renderFood();
+  loadPlayPrices();
+  if (focus) {
+    const el = $(focus);
+    if (el) { el.classList.add('focus'); requestAnimationFrame(() => el.scrollIntoView({ block: 'center' })); setTimeout(() => el.classList.remove('focus'), 2500); }
+  }
 }
-$('toShop').onclick = () => { renderShop(); show('shopScr'); };
+function openShop(focus, msg) { renderShop(focus); show('shopScr'); if (focus) { const el = $(focus); if (el) setTimeout(() => el.scrollIntoView({ block: 'center' }), 30); } if (msg) shopMsg(msg, false); }
+$('toShop').onclick = () => openShop();
 $('shopBack').onclick = () => { renderHome(); show('homeScr'); };
 
 /* ================= Firebase 登入與雲端同步 ================= */
@@ -636,34 +802,36 @@ async function initFirebase() {
 }
 async function onAuth(u) {
   if (!u) {
-    account = null; pets = readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
-    loadFoodLocal(); MAX_PETS = RULES.freePetSlots;
-    renderHome(); return;
+    account = null; pets = markFixed(readLocal(LS_GUEST) || oldVersionPets() || defaultPets());
+    loadFoodLocal(); loadTestShop(); cloudOwned = []; cloudSlots = 0;
+    renderHome(); checkFreeFood(); return;
   }
   account = { uid: u.uid, name: u.displayName || u.email || '我', email: u.email || '', photo: u.photoURL || '' };
   const cached = readLocal(lsKey());
-  loadFoodLocal();
-  if (cached) { pets = cached; renderHome(); }
+  loadFoodLocal(); loadTestShop(); freeAt = 0;
+  if (cached) { pets = markFixed(cached); renderHome(); }
   syncNote('☁️ 讀取雲端資料中…');
   try {
     const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'users', u.uid));
     const data = snap.exists() ? snap.data() : null;
     if (data && Array.isArray(data.pets)) {
       const local = new Map((cached || []).map(p => [p.id, p]));
-      pets = data.pets.map(p => normalizePet({ ...p, thumb: local.get(p.id)?.thumb || '' }));
+      pets = markFixed(data.pets.map(p => normalizePet({ ...p, thumb: local.get(p.id)?.thumb || '' })));
       try { localStorage.setItem(lsKey(), JSON.stringify({ pets })); } catch {}
       syncNote('☁️ 已和雲端同步');
     } else {
       // 第一次登入：把這支手機上原本的寵物帶進帳號
-      pets = cached || readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
+      pets = markFixed(cached || readLocal(LS_GUEST) || oldVersionPets() || defaultPets());
       savePets(); syncNote('☁️ 已把這支手機上的寵物存進你的帳號');
     }
     // 飼料：雲端還沒有這個欄位＝第一次，送 5 包
     if (typeof data?.food === 'number') food = Math.max(0, data.food);
     else { food = RULES.startFood; await fb.fs.setDoc(fb.fs.doc(fb.db, 'users', u.uid), { food }, { merge: true }); }
     saveFoodLocal();
-    MAX_PETS = Math.max(RULES.freePetSlots, +data?.slots || 0);
-  } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = readLocal(LS_GUEST) || defaultPets(); }
+    readOwned(data);
+    renderHome();
+    checkFreeFood(data?.freeFoodAt?.toMillis?.() || 0);
+  } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = markFixed(readLocal(LS_GUEST) || defaultPets()); }
   renderHome();
   if ($('loginScr').classList.contains('show')) { show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); afterLogin = 'homeScr'; }
 }
@@ -742,7 +910,9 @@ function renderHome() {
     const li = document.createElement('li'); li.className = 'pet';
     const info = document.createElement('div'); info.className = 'pinfo';
     const nm = document.createElement('div'); nm.className = 'pname'; nm.textContent = p.name;
-    const kd = document.createElement('div'); kd.className = 'pkind'; kd.textContent = `${kindLabel(p)}・說「召喚${p.name}」`;
+    if (p.fixed) { const fx = document.createElement('span'); fx.className = 'pfixed'; fx.textContent = '預設'; nm.append(fx); }
+    const kd = document.createElement('div'); kd.className = 'pkind';
+    kd.textContent = owns(p.species) ? `${kindLabel(p)}・說「召喚${p.name}」` : `🔒 ${kindLabel(p)}・要先到商店購買才能召喚`;
     const st = document.createElement('div'); st.className = 'pstat'; st.textContent = `❤️ 親密度 ${pct(affNow(p))}・🍖 飽食度 ${pct(fullNow(p))}`;
     info.append(nm, kd, st);
     const act = document.createElement('div'); act.className = 'pact';
@@ -752,10 +922,21 @@ function renderHome() {
     act.append(hear, ed);
     li.append(avatar(p), info, act); list.append(li);
   }
+  for (let i = 0; i < slotFree(); i++) {     // 還沒用的空位
+    const li = document.createElement('li'); li.className = 'empty'; li.textContent = '＋ 空位：按這裡新增寵物';
+    li.onclick = () => openEditor(null); list.append(li);
+  }
+  $('slotLine').textContent = `空位：用了 ${slotUsed()} / ${slotTotal()} 個（預設寵物不佔空位，最多 ${RULES.maxPets} 隻）`;
+  const add = $('addPet');
+  add.textContent = slotFree() > 0 ? '＋ 新增寵物' : slotTotal() >= slotCap() ? `已經到上限（最多 ${RULES.maxPets} 隻）` : '＋ 加一個空位';
+  add.disabled = slotFree() <= 0 && slotTotal() >= slotCap();
   $('exampleName').textContent = pets[0] ? `「召喚${pets[0].name}」` : '「召喚小橘」';
-  renderFood();
+  renderFood(); renderFree();
 }
-$('addPet').onclick = () => openEditor(null);
+$('addPet').onclick = () => {
+  if (slotFree() > 0) return openEditor(null);
+  openShop('shop_slot', '空位用完了，加一個空位就能再養一隻');
+};
 
 /* ================= 說明頁 ================= */
 $('helpDoc').append($('helpTpl').content.cloneNode(true));
@@ -848,7 +1029,8 @@ function openEditor(p) {
   draftBlobs = {}; draftModel = null;
   $('editTitle').textContent = p ? `編輯「${p.name}」` : '新增寵物';
   $('edName').value = draft.name; $('edErr').textContent = '';
-  $('edDelete').style.display = p ? '' : 'none';
+  $('edDelete').style.display = p && !p.fixed ? '' : 'none';
+  $('edFixedNote').style.display = p?.fixed ? '' : 'none';
   $('edFile').value = '';
   renderEditor(); show('editScr');
   if (p && p.species === 'custom') {
@@ -870,6 +1052,12 @@ function modelInfo(m) {
 function renderEditor() {
   const d = draft, custom = d.species === 'custom';
   segSet('edSpecies', d.species);
+  for (const b of $('edSpecies').children) {              // 還沒買的種類加上鎖；預設寵物不能換種類
+    const k = b.dataset.v, v = SPECIES[k];
+    b.classList.toggle('lock', !owns(k));
+    if (v) b.textContent = `${owns(k) ? v.emoji : '🔒'} ${v.label}`;
+    b.disabled = !!d.fixed && k !== d.species;
+  }
   $('edBuiltin').style.display = custom ? 'none' : '';
   $('edCustom').style.display = custom ? '' : 'none';
   if (!custom) {
@@ -894,6 +1082,11 @@ function renderEditor() {
   for (const [k, v] of Object.entries(SPECIES)) { const b = document.createElement('button'); b.dataset.v = k; b.textContent = `${v.emoji} ${v.label}`; box.insertBefore(b, last); }
 }
 segBind('edSpecies', v => {
+  if (draft.fixed && v !== draft.species) return;
+  if (!owns(v)) {
+    if (confirm(`${SPECIES[v].label}要先購買才能選用（${priceOf(PRODUCTS.find(p => p.kind === 'pet' && p.species === v))}）。要到商店看看嗎？`)) { stopRecording(); openShop('shop_' + v); }
+    return;
+  }
   draft.species = v;
   if (v !== 'custom') { draft.color = Object.keys(PALETTES[v])[0]; draft.voice = v; draft.behavior = 'walk'; }
   else if (!['cat', 'dog', 'none'].includes(draft.voice)) draft.voice = 'none';
@@ -924,6 +1117,8 @@ $('edSave').onclick = async () => {
   stopRecording();
   const d = draft, n = cleanName($('edName').value), err = nameError(n, d.id);
   if (err) { $('edErr').textContent = err; return; }
+  if (!editingOrig && slotFree() <= 0) { $('edErr').textContent = '空位用完了，要先到商店加一個空位'; return; }
+  if (!owns(d.species) && d.species !== editingOrig?.species) { $('edErr').textContent = `${SPECIES[d.species]?.label}要先購買才能選用`; return; }
   if (d.species === 'custom' && !draftModel && !draftBlobs.model) { $('edErr').textContent = '請先選擇一個 GLB 模型檔'; return; }
   d.name = n;
   $('edSave').disabled = true; $('edErr').textContent = '儲存中…';
@@ -943,7 +1138,7 @@ $('edSave').onclick = async () => {
   savePets(); renderHome(); show('homeScr');
 };
 $('edDelete').onclick = async () => {
-  if (!editingOrig || !confirm(`確定要刪除「${editingOrig.name}」嗎？`)) return;
+  if (!editingOrig || editingOrig.fixed || !confirm(`確定要刪除「${editingOrig.name}」嗎？刪除後空位會空出來。`)) return;
   const id = editingOrig.id;
   pets = pets.filter(p => p.id !== id);
   for (const k of ['model', 'call', 'pet']) idb.del(id + ':' + k).catch(() => {});
@@ -1365,6 +1560,7 @@ const SYNTH = {
       push: r => tone(3600 * r, 4800 * r, 0.12, 0.24), land: r => sq(r, 0, 1, 0.14), bonk: r => tone(4000 * r, 3000 * r, 0.09, 0.2),
       whine: r => { sq(r, 0, 0.9, 0.14); sq(r, 0.15, 0.85, 0.12); },
       pet: r => Math.random() < 0.5 ? sq(r, 0, 1.05, 0.1) : noiseBurst(5200, 0.05, 0.12, 3), petGap: 1.1,
+      yawn: r => tone(2600 * r, 1500 * r, 0.4, 0.07),
     };
   })(),
   alpaca: (() => {    // 羊駝的「嗯～嗯」哼哼聲
@@ -1373,6 +1569,8 @@ const SYNTH = {
       hello: r => hum(r, 0, 1, 0.6), tap: r => hum(r, 0, 1.1, 0.35), push: r => tone(520 * r, 900 * r, 0.25, 0.2, { type: 'sawtooth', lp: 1800 }),
       land: r => hum(r, 0, 1.05, 0.25, 0.2), bonk: r => hum(r, 0, 1.2, 0.25, 0.25), whine: r => hum(r, 0, 0.9, 0.85, 0.28),
       pet: r => hum(r, 0, 0.95, 0.7, 0.16), petGap: 2.2,
+      hum: r => { hum(r, 0, 1, 0.42, 0.3); hum(r, 0.55, 0.92, 0.65, 0.28); },   // 親密互動：嗯嗯～
+      yawn: r => hum(r, 0, 0.8, 0.9, 0.18),
     };
   })(),
   capybara: (() => { // 水豚：短短的啾聲，被摸時喀喀的呼嚕聲
@@ -1381,6 +1579,7 @@ const SYNTH = {
       hello: r => { ch(r); ch(r, 0.1, 1.1); ch(r, 0.2, 0.95); }, tap: r => ch(r, 0, 1.05), push: r => tone(1400 * r, 900 * r, 0.15, 0.2, { type: 'triangle' }),
       land: r => ch(r, 0, 0.9, 0.13), bonk: r => ch(r, 0, 1.2), whine: r => tone(1300 * r, 800 * r, 0.35, 0.18, { type: 'triangle', vib: 9 }),
       pet: () => { for (let i = 0; i < 8; i++) noiseBurst(330 + Math.random() * 60, 0.035, 0.4, 3, i * 0.075); }, petGap: 1.3,
+      yawn: r => tone(750 * r, 430 * r, 0.6, 0.1, { type: 'triangle', lp: 1200 }),
     };
   })(),
 };
@@ -1427,6 +1626,15 @@ async function makeVoice(def, useDraft = false) {
       if (set === 'dog') pantGain?.gain.setTargetAtTime(0, actx.currentTime, 0.15);
     },
   };
+  // 打哈欠、打呼、嗯嗯叫
+  v.yawn = () => {
+    if (c.call) return;
+    if (set === 'cat') return playBuf(S('cat_mew2'), r * 0.72, 0.3);
+    if (set === 'dog') return playBuf(S('dog_whine'), r * 0.78, 0.35);
+    SYNTH[set]?.yawn?.(r);
+  };
+  v.snore = () => { noiseBurst(260, 1.0, 0.1, 0.8); noiseBurst(420, 0.7, 0.06, 0.8, 1.3); };
+  v.hum = () => c.call ? playBuf(c.call, 1, 0.9) : SYNTH[set]?.hum ? SYNTH[set].hum(r) : v.hello();
   const syn = SYNTH[set];
   if (syn) {                                          // 有自己錄的聲音就用錄音，沒有就用合成的叫聲
     for (const k of ['hello', 'tap', 'push', 'land', 'bonk', 'whine']) { const o = v[k]; v[k] = () => c.call ? o() : syn[k](r); }
@@ -1514,6 +1722,7 @@ function buildCritter(R, def, P) {
   };
   const legs = (pts, pivotY, len, rad, legM, pawM, pawS) => {
     const geo = new THREE.CylinderGeometry(rad, rad, len, 10);
+    R.legDrop = pivotY * 0.75;
     R.legs = pts.map(([x, z]) => {
       const pv = grp(R.body, [x, pivotY, z]);
       add(pv, geo, legM, [0, -len / 2, 0]);
@@ -1524,6 +1733,7 @@ function buildCritter(R, def, P) {
   const mouth = (head, y, z, r) => { for (const s of [-1, 1]) add(head, new THREE.TorusGeometry(r, r * 0.24, 6, 14, Math.PI), ink, [s * r, y, z], null, [0, 0, Math.PI]); };
   R.ears = [];
   const B = R.body;
+  const yawnMouth = (head, y, z, w) => { R.yawnS = [w, w * 1.15, w * 0.4]; R.yawnM = add(head, SPH, toon(0x7a2f3c), [0, y, z], R.yawnS); R.yawnM.visible = false; };
 
   if (kind === 'hamster') {
     add(B, SPH, fur, [0, 0.055, -0.005], [0.06, 0.052, 0.064]);
@@ -1534,7 +1744,7 @@ function buildCritter(R, def, P) {
     for (const s of [-1, 1]) add(R.head, SPH, cream, [s * 0.027, -0.019, 0.022], [0.024, 0.02, 0.02]);   // 鼓鼓的臉頰
     add(R.head, SPH, cream, [0, -0.013, 0.036], [0.017, 0.012, 0.012]);
     add(R.head, SPH, pink, [0, -0.006, 0.0475], [0.0052, 0.004, 0.0035]);
-    mouth(R.head, -0.0155, 0.0465, 0.0038);
+    mouth(R.head, -0.0155, 0.0465, 0.0038); yawnMouth(R.head, -0.021, 0.045, 0.006); R.rollC = 0.055;
     const wm = new THREE.LineBasicMaterial({ color: 0x9c7a62 });
     for (const s of [-1, 1]) for (const q of [-1, 1]) R.head.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(s * 0.016, -0.01, 0.044), new THREE.Vector3(s * 0.046, -0.01 + q * 0.005, 0.04)]), wm));
     eyes(R.head, 0.021, 0.006, 0.039, 0.0095, 0.0115, 0.006);
@@ -1564,7 +1774,7 @@ function buildCritter(R, def, P) {
     for (const s of [-1, 1]) add(R.head, SPH, fur, [s * 0.018, 0.03, 0.008], [0.016, 0.014, 0.016]);
     add(R.head, SPH, cream, [0, -0.014, 0.028], [0.02, 0.017, 0.022]);
     add(R.head, SPH, ink, [0, -0.006, 0.0495], [0.0065, 0.0042, 0.003]);
-    mouth(R.head, -0.019, 0.0465, 0.0034);
+    mouth(R.head, -0.019, 0.0465, 0.0034); yawnMouth(R.head, -0.025, 0.046, 0.008); R.rollC = 0.1;
     eyes(R.head, 0.017, 0.004, 0.028, 0.0085, 0.0105, 0.005);
     for (const s of [-1, 1]) add(R.head, SPH, blushM, [s * 0.024, -0.011, 0.024], [0.0075, 0.0045, 0.002], [0, s * 0.8, 0]);
     for (const s of [-1, 1]) {
@@ -1587,7 +1797,7 @@ function buildCritter(R, def, P) {
     add(R.head, SPH, fur, [0, -0.007, 0.03], [0.032, 0.03, 0.036]);   // 方方長長的臉
     add(R.head, SPH, dark, [0, -0.004, 0.0625], [0.02, 0.0145, 0.006]);   // 大鼻頭
     for (const s of [-1, 1]) add(R.head, SPH, ink, [s * 0.0075, -0.001, 0.0675], [0.003, 0.0022, 0.0015]);
-    mouth(R.head, -0.024, 0.058, 0.0045);
+    mouth(R.head, -0.024, 0.058, 0.0045); yawnMouth(R.head, -0.031, 0.061, 0.009); R.rollC = 0.068;
     eyes(R.head, 0.024, 0.014, 0.024, 0.0075, 0.0065, 0.004);   // 小小的、瞇瞇的眼睛，看起來很放鬆
     for (const s of [-1, 1]) add(R.head, SPH, blushM, [s * 0.03, -0.012, 0.038], [0.008, 0.005, 0.002], [0, s * 0.9, 0]);
     for (const s of [-1, 1]) {
@@ -1612,8 +1822,9 @@ class ToonRig {
     this.isDog = isDog; this.def = def;
     this.obj = new THREE.Group();
     this.body = new THREE.Group(); this.obj.add(this.body);
-    this.nextBlink = 2; this.blinkUntil = 0;
+    this.nextBlink = 2; this.blinkUntil = 0; this.lieK = 0;
     if (!isDog && def.species !== 'cat') { buildCritter(this, def, P); return; }
+    this.legDrop = 0.026; this.rollC = 0.05;
     this.baseScale = PET_SCALE; this.radius = 0.05 * PET_SCALE; this.height = 0.17 * PET_SCALE;
     this.colC = new THREE.Vector3(0, 0.08, 0.02); this.colR = 0.09 * PET_SCALE; this.shadowS = [0.05, 0.075];
     const fur = toon(P.fur), dark = toon(P.dark), cream = toon(P.cream), pink = toon(0xff9eb0);
@@ -1659,6 +1870,8 @@ class ToonRig {
       add(e, SPH, white, [-0.32, -0.38, 0.82], [0.17, 0.16, 0.15]);
       return e;
     });
+    this.yawnS = [0.0095, 0.012, 0.004];                 // 打哈欠時張開的嘴
+    this.yawnM = add(this.head, SPH, toon(0x7a2f3c), [0, -0.027, isDog ? 0.057 : 0.047], this.yawnS); this.yawnM.visible = false;
     for (const s of [-1, 1]) { const bx = 0.037, by = -0.013; add(this.head, SPH, blushM, [s * bx, by, onHead(bx, by, -0.0005)], [0.0095, 0.0055, 0.002], [0, s * 0.62, 0]); }
     this.ears = [];
     for (const s of [-1, 1]) {
@@ -1699,14 +1912,19 @@ class ToonRig {
   }
   update(dt, A) {
     const t = A.t, k6 = Math.min(1, dt * 6), dog = this.isDog;
-    this.legs.forEach((l, i) => { l.rotation.x = A.legSwing * (i === 0 || i === 3 ? 1 : -1); });
+    const lk = this.lieK += (A.lie - this.lieK) * Math.min(1, dt * 4);   // 趴下：腳收起來、身體放低
+    // 前腳 0、1，後腳 2、3；legF／legB：伸懶腰、翻肚子時額外的角度
+    this.legs.forEach((l, i) => { l.rotation.x = A.legSwing * (i === 0 || i === 3 ? 1 : -1) + (i < 2 ? A.legF - 1.35 * lk : A.legB + 1.35 * lk); });
     // lean＞0：低頭往前（吃東西）；rear＞0：前腳抬起來站起來（舔手）
     const pitch = A.lean - A.rear;
     this.body.rotation.x += (pitch - this.body.rotation.x) * k6;
     const rx = this.body.rotation.x;
-    this.body.position.y = A.jump + A.bob + Math.max(0, -rx) * 0.055 + Math.max(0, rx) * 0.02;
-    this.body.position.z += ((A.lean > 0 ? -0.01 : 0) - this.body.position.z) * k6;
     this.body.rotation.z += (A.roll - this.body.rotation.z) * k6;
+    // 側躺、翻肚子：以身體中心為軸轉，才不會陷到地面下
+    const rz = this.body.rotation.z, rc = this.rollC || 0.05;
+    this.body.position.y = A.jump + A.bob + Math.max(0, -rx) * 0.055 + Math.max(0, rx) * 0.02 - (this.legDrop || 0) * lk + rc * (1 - Math.cos(rz)) + A.liftY;
+    this.body.position.x = rc * Math.sin(rz);
+    this.body.position.z += ((A.lean > 0 ? -0.01 : 0) - this.body.position.z) * k6;
     const sq = A.squash; this.body.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5);
     this.tail1.rotation.x = this.tailBase[0] + (!dog && A.state === 'pet' ? -0.3 : 0);
     this.tail1.rotation.z = Math.sin(t * A.tailSpeed) * A.tailAmp;
@@ -1716,7 +1934,7 @@ class ToonRig {
     this.head.rotation.y += (headYaw - this.head.rotation.y) * Math.min(1, dt * 5);
     let hp = A.headPitch;
     if (this.neck) {                                   // 羊駝：吃東西時把長脖子彎下去
-      this.neck.rotation.x += ((A.lean > 0 ? 1.45 : 0) - this.neck.rotation.x) * k6;
+      this.neck.rotation.x += ((A.chew ? 1.45 : 0) - this.neck.rotation.x) * k6;
       hp -= this.neck.rotation.x * 0.75;
     }
     this.head.rotation.x += (hp - this.head.rotation.x) * (A.chew ? 1 : k6);
@@ -1733,6 +1951,7 @@ class ToonRig {
       this.tongue.position.z = 0.054 + lk * 0.01;
     }
     if (t > this.nextBlink) { this.blinkUntil = t + 0.12; this.nextBlink = t + 2 + Math.random() * 4; }
+    if (this.yawnM) { this.yawnM.visible = A.yawn > 0.04; this.yawnM.scale.y = this.yawnS[1] * Math.max(0.05, A.yawn); }
     const eyeY = A.squint ? 0.0018 : (t < this.blinkUntil ? 0.0012 : this.eyeH);
     for (const e of this.eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 18);
   }
@@ -1803,30 +2022,60 @@ class Pet {
     this.safe = new THREE.Vector3();
     this.petTimer = 0; this.lookAtCam = true;
     this.A = { t: 0, legSwing: 0, bob: 0, jump: 0, roll: 0, squash: 0, squint: false, headPitch: 0, lookCam: false, tongue: false, earPerk: 0, tailAmp: 0, tailSpeed: 1, moving: false, camRel: 0, state: '',
-      lean: 0, rear: 0, chew: false, lick: false, headTilt: 0, headYaw: null };
+      lean: 0, rear: 0, chew: false, lick: false, headTilt: 0, headYaw: null, lie: 0, legF: 0, legB: 0, yawn: 0, liftY: 0 };
+    this.petLong = 0; this.intimCool = 0; this.act = null;
     this.interact = interactOf(def);
     this.food = null; this.foodCheck = 0; this.petHold = 0; this.petCool = 0;
     this.handPt = new THREE.Vector3(); this.handT = 0; this.soundT = 0;
   }
   get collider() { return this.rig.colC; }
   setState(s) {
-    if ((this.state === 'pet' || this.state === 'hand') && s !== this.state) this.voice.petOff();
+    if ((this.state === 'pet' || this.state === 'hand' || this.state === 'belly') && s !== this.state && !(this.state === 'pet' && s === 'belly')) this.voice.petOff();
+    if (s !== 'pet' && s !== 'belly') this.petLong = 0;
     if (this.state === 'eat' && s !== 'eat' && this.food && this.food.eater === this) this.food.eater = null;
     this.state = s; this.stateT = 0;
     if (s === 'idle') { this.idleDur = this.behavior === 'static' ? 1e9 : 1.5 + Math.random() * 3.5; this.lookAtCam = Math.random() < 0.6; }
   }
   busy() { return this.state === 'appear' || this.state === 'fall' || this.state === 'land' || this.state === 'eat' || this.state === 'crouch' || this.state === 'jump'; }
   // 可以被「食物」或「主人」吸引過去的狀態（正在被摸、被推、正在吃的時候不會）
-  free() { return this.state === 'idle' || (this.state === 'walk' && !this.goal); }
+  free() { return this.state === 'idle' || this.state === 'act' || (this.state === 'walk' && !this.goal); }
+  aloft() { return this.state === 'climb' || this.state === 'onHand'; }   // 倉鼠在你手上
+  // 自己做的小動作：搖尾巴、伸懶腰、打哈欠、趴著、側躺…
+  startAct(type) {
+    const D = { wag: 3, stretch: 2.6, yawn: 2.0, loaf: 7 + Math.random() * 6, side: 7 + Math.random() * 6, groom: 2.8, stand: 2.6, look: 3, doze: 8 + Math.random() * 4 };
+    this.act = { type, dur: D[type] || 2.5, dir: Math.random() < 0.5 ? -1 : 1 };
+    this.goal = null; this.soundT = 0.6 + Math.random();
+    this.setState('act');
+    if (type === 'yawn') this.voice.yawn();
+  }
+  // 親密互動：走到你旁邊睡覺／靠到你面前嗯嗯叫
+  startIntim(kind) {
+    this.goal = null; this.soundT = 0.3;
+    if (kind === 'sleep') { this.sleepDur = 25 + Math.random() * 15; this.sleepSide = Math.random() < 0.5 ? -1 : 1; this.setState('sleep'); }
+    else this.setState('hum');
+    this.a?.onIntim?.(kind);
+  }
+  // 倉鼠從手上下來：跳回原本的地方（太遠的話咻一下回去）
+  climbDown(a) {
+    const f = this.climbFrom, p = this.root.position;
+    this.groundY = p.y - this.hover;
+    a.onIntim?.('down');
+    if (!f || Math.hypot(f.x - p.x, f.z - p.z) > 0.7 || Math.abs(f.y - this.groundY) > 0.6) {
+      p.set(this.safe.x, this.safe.y + this.hover, this.safe.z); this.groundY = this.safe.y;
+      this.root.scale.setScalar(0.001); this.setState('appear'); return;
+    }
+    this.startJump({ x: f.x, y: f.y, z: f.z });
+  }
   turnTo(want, dt, rate) { const r = this.root.rotation; r.y += clamp(angleDiff(want, r.y), -rate * dt, rate * dt); }
-  tap() { if (this.busy() || this.state === 'hand') return; this.setState('tapped'); this.voice.tap(); }
+  tap() { if (this.aloft()) { this.voice.tap(); return; } if (this.busy() || this.state === 'hand') return; this.setState('tapped'); this.voice.tap(); }
   pet() {
-    if (this.busy() || this.state === 'pushed' || this.state === 'hand') return;
+    if (this.state === 'belly') { this.petTimer = 0.8; return; }
+    if (this.busy() || this.state === 'pushed' || this.state === 'hand' || this.aloft()) return;
     this.petTimer = 0.8;
     if (this.state !== 'pet') { this.setState('pet'); this.voice.petOn(); }
   }
   push(dx, dz, speed) {
-    if (this.busy()) return;
+    if (this.busy() || this.aloft()) return;
     this.goal = null; this.vel.set(dx * speed, dz * speed); this.setState('pushed'); this.voice.push();
   }
   tryWander(a) {
@@ -1841,7 +2090,7 @@ class Pet {
     this.idleDur = this.stateT + 1.2;
   }
   goTo(lx, ly, lz, extra = null, quiet = false) {   // 跑到 (lx, ly, lz)（座標相對於牠的家）
-    if (this.busy() || this.behavior === 'static') return false;
+    if (this.busy() || this.behavior === 'static' || this.aloft()) return false;
     this.goal = { x: lx, y: ly, z: lz, ...extra }; this.target.set(lx, 0, lz); this.setState('walk');
     if (Math.abs(ly - this.groundY) > STEP_H * 1.2 && this.a) planGoalJump(this.a, this.goal);   // 目的地在別的高度：先規劃怎麼跳過去
     if (!quiet) this.voice.tap();
@@ -1859,6 +2108,21 @@ class Pet {
   // 伸手摸（親密度 100%）：pt 是手的位置（相對於家）
   handOn(pt) {
     if (this.busy() || this.state === 'pushed' || this.state === 'fall') return false;
+    const it = this.interact;
+    if (it === 'climb') {                               // 倉鼠：爬到你手上
+      this.handPt.copy(pt); this.handT = 0.9;
+      if (this.aloft()) return true;
+      if (this.behavior === 'static') return false;
+      const p = this.root.position;
+      this.climbFrom = { x: p.x, y: this.groundY, z: p.z, sy: p.y }; this.goal = null;
+      this.setState('climb'); this.voice.hello();
+      return true;
+    }
+    if (it === 'sleep' || it === 'hum') {               // 水豚：走到你旁邊睡覺；羊駝：靠到你面前嗯嗯叫
+      if (this.state === 'sleep' || this.state === 'hum' || this.goal?.intim || this.intimCool > 0) return false;
+      this.intimCool = 5;
+      return !!this.a?.goIntim?.(it);
+    }
     this.handPt.copy(pt); this.handT = 0.7;
     if (this.state !== 'hand') { this.goal = null; this.setState('hand'); this.soundT = 0; if (this.interact === 'rub') this.voice.petOn(); else this.voice.hello(); }
     return true;
@@ -1874,12 +2138,13 @@ class Pet {
     a.onWant?.(G, blocked);
   }
   update(dt, camLocal, a) {
-    this.time += dt; this.stateT += dt; this.petTimer -= dt; this.petCool -= dt;
+    this.time += dt; this.stateT += dt; this.petTimer -= dt; this.petCool -= dt; this.intimCool -= dt;
     if (this.state !== 'pet') this.petHold = Math.max(0, this.petHold - dt * 0.5);
     const r = this.root, p = r.position, t = this.time, dog = this.isDog, B = this.behavior, A = this.A;
     A.t = t; A.legSwing = 0; A.bob = 0; A.jump = 0; A.roll = 0; A.squash = 0; A.squint = false; A.headPitch = 0; A.lookCam = false;
     A.tongue = false; A.earPerk = 0; A.moving = false; A.tailAmp = dog ? 0.25 : 0.35; A.tailSpeed = dog ? 5 : 2.2;
     A.lean = 0; A.rear = 0; A.chew = false; A.lick = false; A.headTilt = 0; A.headYaw = null;
+    A.lie = 0; A.legF = 0; A.legB = 0; A.yawn = 0; A.liftY = 0;
     const camYaw = Math.atan2(camLocal.x - p.x, camLocal.z - p.z);
     let ground = true;
 
@@ -1895,7 +2160,11 @@ class Pet {
         A.lookCam = this.lookAtCam; A.tongue = dog && this.lookAtCam;
         if (this.stateT > 0.3 && (this.foodCheck -= dt) < 0) { this.foodCheck = 0.4; if (a.seekFood?.()) break; }
         if (this.kind === 'custom' && this.lookAtCam && B !== 'static') this.turnTo(camYaw, dt, 1.2);   // 模型沒有可以轉的頭，就整隻轉過來看你
-        if (this.stateT > this.idleDur) this.tryWander(a);
+        if (this.stateT > this.idleDur) {
+          const acts = SPECIES[this.kind]?.acts;
+          if (acts && B !== 'static' && Math.random() < 0.38) this.startAct(acts[Math.floor(Math.random() * acts.length)]);
+          else this.tryWander(a);
+        }
         break;
       case 'walk': {
         if (!this.goal && (this.foodCheck -= dt) < 0) { this.foodCheck = 0.4; if (a.seekFood?.()) break; }   // 散步中看到飼料
@@ -1911,8 +2180,9 @@ class Pet {
         if (!G?.via && d < (G ? (G.stop || 0.03) : 0.012)) {
           if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly' && planGoalJump(a, G)) break;   // 東西在上面或下面 → 想辦法跳過去
           this.goal = null;
-          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly') { if (G.food) this.wantAt(G, a); else this.setState('idle'); break; }   // 跳不過去
+          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly') { if (G.food) this.wantAt(G, a); else if (G.intim) this.startIntim(G.intim); else this.setState('idle'); break; }   // 跳不過去
           if (G?.food) { if (G.food.state === 'rest') { this.food = G.food; G.food.eater = this; this.setState('eat'); } else this.setState('idle'); break; }
+          if (G?.intim) { this.startIntim(G.intim); break; }
           if (G?.owner) { this.soundT = 0; this.setState('greet'); break; }
           if (G) { this.lookAtCam = true; this.idleDur = 2.5; }
           this.setState('idle'); break;
@@ -1928,6 +2198,7 @@ class Pet {
           const code = a.check(nx, nz);
           if (code === 0) { p.x = nx; p.z = nz; this.follow(a, dt); }
           else if (code !== 3 && G && !G.via && B !== 'fly' && Math.abs(G.y - this.groundY) > 0.07 && planGoalJump(a, G)) { /* 前面是邊緣或家具 → 改成跳過去 */ }
+          else if (G?.intim) this.startIntim(G.intim);                                                                // 過不去：就在這裡
           else if (code === 2 && G?.food) { this.goal = null; this.wantAt(G, a, true); }                              // 想吃但被擋住
           else if (code === 2 && this.goal) { this.goal = null; this.setState('bonk'); this.voice.bonk(); a.onBlocked?.(G); }   // 被東西擋住
           else if (code === 1 && G?.food) { this.goal = null; this.wantAt(G, a); }                                       // 飼料在上不去的地方
@@ -1948,6 +2219,8 @@ class Pet {
         A.squint = true; A.lookCam = true;
         this.petHold += dt;
         if (this.petHold >= 1.5 && this.petCool <= 0) { this.petHold = 0; this.petCool = RULES.petCooldownSec; a.onPetted?.(); }
+        this.petLong += dt;
+        if (SPECIES[this.kind]?.belly && this.petLong > 4) { this.bellyDir = Math.random() < 0.5 ? -1 : 1; this.setState('belly'); a.onBelly?.(); break; }   // 摸久了翻肚子
         if (dog) { A.tailAmp = 0.75; A.tailSpeed = 18; A.headPitch = -0.15; A.tongue = true; A.roll = Math.sin(t * 3) * 0.05; }
         else { A.tailAmp = 0.18; A.tailSpeed = 1.1; A.headPitch = 0.15; A.roll = Math.sin(t * 2.2) * 0.06; }
         if (this.petTimer <= 0) this.setState('idle');
@@ -2039,6 +2312,102 @@ class Pet {
           A.headPitch = -0.2 + Math.sin(t * 3) * 0.15; A.squint = true; A.headTilt = Math.sin(t * 2) * 0.2;
           if ((this.soundT -= dt) < 0) { this.soundT = 1.6; this.voice.tap(); }
         }
+        break;
+      }
+      case 'act': {                                       // 自己做的小動作
+        const T = this.act, k = this.stateT, D = T?.dur || 0;
+        if (!T) { this.setState('idle'); break; }
+        if (k > 0.8 && (this.foodCheck -= dt) < 0) { this.foodCheck = 0.4; if (a.seekFood?.()) break; }
+        const env = clamp(Math.min(k / 0.45, (D - k) / 0.45), 0, 1);   // 開始、結束慢慢過渡
+        const down = k < D - 0.7 ? 1 : 0;
+        switch (T.type) {
+          case 'wag':                                     // 搖尾巴：屁股跟著扭、吐舌頭看你
+            if (B !== 'static') this.turnTo(camYaw, dt, 2.5);
+            A.lookCam = true; A.tailAmp = 1.0; A.tailSpeed = 17; A.roll = Math.sin(t * 8.5) * 0.07 * env; A.tongue = dog; A.earPerk = 0.7;
+            A.bob = Math.abs(Math.sin(t * 8.5)) * 0.003;
+            break;
+          case 'stretch': {                               // 伸懶腰：先前腳往前伸、屁股翹高，再把後腳往後伸
+            const p1 = clamp(Math.min(k / 0.5, (1.4 - k) / 0.3), 0, 1), p2 = clamp(Math.min((k - 1.4) / 0.35, (D - k) / 0.35), 0, 1);
+            A.lean = 0.42 * p1 - 0.12 * p2; A.legF = -0.95 * p1 - 0.1 * p2; A.legB = 0.15 * p1 + 0.9 * p2;
+            A.headPitch = -0.35 * p1 - 0.1 * p2; A.squint = p1 > 0.5 || p2 > 0.5; A.earPerk = -0.5 * p1;
+            A.tailAmp = 0.12; A.tailSpeed = 2; A.yawn = 0;
+            break;
+          }
+          case 'yawn': {                                  // 打哈欠：抬頭、嘴巴張大、眼睛閉起來
+            const y = clamp(Math.min(k / 0.5, (D - 0.2 - k) / 0.5), 0, 1);
+            A.yawn = y; A.headPitch = -0.35 * y; A.squint = y > 0.35; A.earPerk = -0.6 * y; A.tailAmp = 0.1; A.tailSpeed = 1.5;
+            break;
+          }
+          case 'loaf':                                    // 趴著：腳收起來，偶爾慢慢眨眼、看你
+            A.lie = down; A.lookCam = k % 5 < 2.6; A.squint = (k % 3.4) > 2.6; A.headPitch = 0.08; A.tailAmp = 0.1; A.tailSpeed = 1;
+            break;
+          case 'side':                                    // 側躺：整隻倒向一邊，腳伸出來
+            A.roll = 1.38 * T.dir * down; A.legF = -0.35 * down; A.legB = 0.35 * down; A.liftY = -0.004 * down;
+            A.squint = k > 1.2 && (k % 4) > 1; A.tailAmp = 0.25; A.tailSpeed = 1.2;
+            break;
+          case 'groom':                                   // 洗臉：站起來，用前腳搓臉
+            A.rear = 0.55 * env; A.legF = (-1.1 + Math.sin(t * 15) * 0.35) * env; A.headPitch = 0.15 + Math.sin(t * 7.5) * 0.12 * env;
+            A.squint = true; A.headTilt = Math.sin(t * 3.5) * 0.15 * env;
+            break;
+          case 'stand':                                   // 站起來東張西望
+            A.rear = 0.6 * env; A.legF = -0.5 * env; A.headYaw = Math.sin(k * 1.6) * 0.7; A.earPerk = 1; A.headPitch = -0.15;
+            if (k > 0.8 && (this.soundT -= dt) < 0) { this.soundT = 9; this.voice.tap(); }
+            break;
+          case 'look':                                    // 東張西望
+            A.headYaw = Math.sin(k * 1.4) * 0.8 * env; A.earPerk = 0.8; A.headTilt = Math.sin(k * 0.9) * 0.12;
+            break;
+          case 'doze':                                    // 打瞌睡：趴著，頭一點一點的
+            A.lie = down; A.squint = true; A.headPitch = 0.25 + Math.max(0, Math.sin(t * 0.9)) * 0.18; A.bob = Math.sin(t * 1.7) * 0.002;
+            if ((this.soundT -= dt) < 0 && k > 2) { this.soundT = 3.5; a.onZ?.(); }
+            break;
+        }
+        if (k > D) { this.act = null; this.setState('idle'); this.idleDur = 1 + Math.random() * 2; }
+        break;
+      }
+      case 'belly':                                       // 摸久了翻過來露出肚子（還在摸就一直翻著）
+        A.roll = 2.45 * this.bellyDir; A.legF = -0.5 + Math.sin(t * 6) * 0.3; A.legB = 0.45 + Math.sin(t * 6 + 1.3) * 0.3;
+        A.squint = true; A.tongue = dog; A.tailAmp = 0.6; A.tailSpeed = 12; A.headTilt = -0.4 * this.bellyDir;
+        this.petHold += dt;
+        if (this.petHold >= 1.5 && this.petCool <= 0) { this.petHold = 0; this.petCool = RULES.petCooldownSec; a.onPetted?.(); }
+        if (this.petTimer <= -1.8) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2.5; }
+        break;
+      case 'sleep':                                       // 親密互動（水豚）：在你旁邊睡覺
+        this.turnTo(camYaw + Math.PI / 2 * this.sleepSide, dt, 1.5);
+        A.lie = 1; A.squint = true; A.headPitch = 0.3; A.bob = Math.sin(t * 1.7) * 0.0025; A.tailAmp = 0; A.earPerk = 0;
+        if ((this.soundT -= dt) < 0) { this.soundT = 3.2; if (this.stateT > 1.2) { this.voice.snore(); a.onZ?.(); } }
+        if (this.stateT > this.sleepDur) this.startAct('yawn');
+        break;
+      case 'hum':                                         // 親密互動（羊駝）：靠到你面前，看著你嗯嗯叫
+        if (B !== 'static') this.turnTo(camYaw, dt, 4);
+        A.lookCam = true; A.headPitch = -0.4 + Math.sin(t * 2.2) * 0.06; A.headTilt = Math.sin(t * 1.4) * 0.22; A.earPerk = 0.6;
+        A.squint = Math.sin(t * 1.1) > 0.2; A.tailAmp = 0.4; A.tailSpeed = 4; A.bob = Math.abs(Math.sin(t * 2.2)) * 0.004;
+        A.lean = -0.06 + Math.sin(t * 2.2) * 0.05;
+        if ((this.soundT -= dt) < 0) { this.soundT = 1.7 + Math.random() * 0.6; this.voice.hum(); a.onHearts?.(1); }
+        if (this.stateT > 8) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 3; }
+        break;
+      case 'climb': {                                     // 親密互動（倉鼠）：爬到你手上
+        ground = false;
+        this.handT -= dt;
+        if (this.handT <= 0) { this.climbDown(a); break; }
+        const H = this.handPt, f = this.climbFrom, k = Math.min(1, this.stateT / 0.8), e = k * k * (3 - 2 * k);
+        p.x = f.x + (H.x - f.x) * e; p.z = f.z + (H.z - f.z) * e;
+        p.y = f.sy + (H.y + this.hover - f.sy) * e + Math.sin(Math.PI * k) * 0.035;
+        this.groundY = p.y - this.hover;
+        this.turnTo(Math.atan2(H.x - f.x, H.z - f.z), dt, 8);
+        A.legSwing = Math.sin(t * 22) * 0.8; A.rear = 0.4 * (1 - k); A.earPerk = 1;
+        if (k >= 1) { this.setState('onHand'); this.soundT = 0.4; a.onIntim?.('climb'); a.onHearts?.(2); }
+        break;
+      }
+      case 'onHand': {                                    // 待在手上：手移動就跟著，手拿開就下來
+        ground = false;
+        this.handT -= dt;
+        if (this.handT <= 0) { this.climbDown(a); break; }
+        const H = this.handPt, kk = Math.min(1, dt * 8);
+        p.x += (H.x - p.x) * kk; p.z += (H.z - p.z) * kk; p.y += (H.y + this.hover - p.y) * kk;
+        this.groundY = p.y - this.hover;
+        this.turnTo(camYaw, dt, 2);
+        A.lookCam = true; A.squint = Math.sin(t * 0.9) > 0.4; A.earPerk = 0.5; A.headTilt = Math.sin(t * 1.3) * 0.15;
+        if ((this.soundT -= dt) < 0) { this.soundT = 2.5 + Math.random() * 1.5; this.voice.tap(); a.onHearts?.(1); }
         break;
       }
       case 'crouch': {                                    // 起跳前蹲低、看著要跳的地方
@@ -2244,6 +2613,7 @@ function landingY(a, lx, lz, fromLocal) {
 async function requestSummon(def) {
   initAudio(); hidePicker();
   if (!def) return;
+  if (!owns(def.species)) { hint(`🔒 ${SPECIES[def.species]?.label || ''}要先到商店購買，才能召喚${def.name}`); return; }
   let model = null;
   if (def.species === 'custom') {
     hint(`${def.name}準備中…`);
@@ -2296,6 +2666,11 @@ function placePet(pd, pos, hit) {
     if (statsA === a) renderStats();
   };
   a.onHandEnd = () => { a.handMsgT = 0; };
+  a.goIntim = kind => goIntim(a, kind);
+  a.onIntim = k => { const m = intimHint(def.name, k); if (m) hint(m); };
+  a.onHearts = n => spawnHearts(a, n);
+  a.onZ = () => spawnHearts(a, 1, zTex);
+  a.onBelly = () => hint(`${def.name}翻過來露出肚子了！繼續摸摸牠～`);
   a.landY = (lx, lz, from) => landingY(a, lx, lz, from);
   a.onFall = jump => {
     hint(jump ? `${def.name}跳下去了！` : `啊～${def.name}掉下去了！`);
@@ -2344,7 +2719,7 @@ function makePile() {
 function throwFood() {
   if (mode === 'none') return;
   initAudio(); hidePicker();
-  if (totalFood() <= 0) { hint('飼料用完了，按 ☰ →「回寵物列表」→「🛒 買飼料」'); return; }
+  if (totalFood() <= 0) { hint('飼料用完了，按 ☰ →「回寵物列表」→「🛒 商店」'); return; }
   if (totalFood() - foods.length <= 0) { hint('飼料都丟出去了，等牠們吃掉再丟'); return; }
   if (foods.length >= RULES.maxFoodOnGround) { hint(`地上已經有 ${foods.length} 包飼料了，等牠們吃完再丟吧`); return; }
   const fwd = new THREE.Vector3(0, 0, -1).transformDirection(camWorld);
@@ -2413,7 +2788,7 @@ function stepFood(F, h) {
 }
 function onFoodRest(F) {
   if (!active.length) return;
-  if (active.every(a => isFull(statsOf(a.def)))) hint('大家都吃飽了（飽食度 100%），飼料先放在地上，餓了再吃');
+  if (active.every(a => isFull(statsOf(a.def)))) hint(`大家都吃飽了（飽食度 ${RULES.fullRefuse}% 以上吃不下），飼料先放在地上，餓了再吃`);
 }
 function updateFoods(dt) {
   for (const F of [...foods]) {
@@ -2447,7 +2822,7 @@ function seekFood(a) {
   return pet.goTo(best.pos.x - h.x, best.pos.y - h.y, best.pos.z - h.z, { food: best, stop: pet.radius * 0.95 + 0.02 }, true);
 }
 const unlockMsg = (before, after, name) =>
-  before < RULES.handAff && after >= RULES.handAff ? `　🎉 親密度 100%！伸手摸${name}看看` :
+  before < RULES.handAff && after >= RULES.handAff ? `　🎉 親密度 100%！解鎖親密互動，伸手給${name}看看` :
   before < RULES.callAff && after >= RULES.callAff ? `　🎉 親密度 ${RULES.callAff}%！叫「${name}」牠會跑過來` : '';
 
 /* ---------- 愛心（親密度增加時從頭上冒出來） ---------- */
@@ -2459,9 +2834,15 @@ const heartTex = (() => {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 })();
 const hearts = [];
-function spawnHearts(a, n) {
+const zTex = (() => {   // 睡覺時冒出來的 Z
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.font = 'bold 50px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 6; x.strokeStyle = '#fff'; x.fillStyle = '#5b7bd5'; x.strokeText('Z', 32, 34); x.fillText('Z', 32, 34);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+function spawnHearts(a, n, tex = heartTex) {
   for (let i = 0; i < n; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: heartTex, transparent: true, depthWrite: false, opacity: 0 }));
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
     s.scale.setScalar(0.03);
     s.position.set(worldX(a) + (Math.random() - 0.5) * 0.06, worldGround(a) + a.pet.hover + a.pet.rig.height * 1.05, worldZ(a) + (Math.random() - 0.5) * 0.06);
     scene.add(s); hearts.push({ s, t: -i * 0.28 });
@@ -2498,12 +2879,36 @@ function renderStats() {
   const hb = document.createElement('button'); hb.textContent = '說明'; hb.onclick = openHelpModal;
   nm.append(n, hb);
   const perk = document.createElement('div'); perk.className = 'perk';
-  perk.textContent = (af >= RULES.handAff ? (handTrack() ? `🤚 伸手摸牠，會有特別的反應` : `🤚 用手指按住牠不放＝伸手摸牠`)
-    : af >= RULES.callAff ? `📣 叫「${a.def.name}」牠會跑過來・到 100% 可以伸手摸牠`
+  perk.textContent = (af >= RULES.handAff ? (handTrack() ? `💗 伸手給牠＝親密互動` : `💗 用手指按住牠不放＝伸手給牠（親密互動）`)
+    : af >= RULES.callAff ? `📣 叫「${a.def.name}」牠會跑過來・到 100% 解鎖親密互動`
     : `到 ${RULES.callAff}%：叫名字牠會跑過來`)
-    + (fu >= 99.5 ? '・現在吃飽了，不會吃飼料' : fu <= 0 ? '・肚子餓扁了，親密度正在下降！快丟飼料給牠' : fu < 30 ? '・肚子餓了，丟飼料給牠吧' : '');
+    + (fu >= RULES.fullRefuse - 0.5 ? '・現在吃飽了，吃不下飼料' : fu <= 0 ? '・肚子餓扁了，親密度正在下降！快丟飼料給牠' : fu < 30 ? '・肚子餓了，丟飼料給牠吧' : '');
   box.append(nm, meter('aff', '❤️ 親密度', af), meter('full', '🍖 飽食度', fu), perk);
 }
+
+/* ---------- 你面前的地上（相對手機：往前 dist 公尺、往右 side 公尺） ---------- */
+function ownerSpot(a, dist, side = 0) {
+  const fx = -camWorld.elements[8], fz = -camWorld.elements[10], fl = Math.hypot(fx, fz) || 1;
+  const rx = camWorld.elements[0], rz = camWorld.elements[2], rl = Math.hypot(rx, rz) || 1;
+  const tx = camPos.x + fx / fl * dist + rx / rl * side, tz = camPos.z + fz / fl * dist + rz / rl * side, gy = worldGround(a);
+  let ty = field.surfaceY(tx, tz, gy, STEP_H);
+  if (ty === null) ty = field.below(tx, tz, camPos.y - 0.15);
+  if (ty === null || a.pet.behavior === 'fly') ty = gy;
+  return { tx, ty, tz, gy };
+}
+/* ---------- 親密互動：走到你旁邊睡覺（水豚）、靠到你面前嗯嗯叫（羊駝） ---------- */
+function goIntim(a, kind) {
+  const pet = a.pet, h = a.home.position;
+  const S = kind === 'sleep' ? ownerSpot(a, 0.5, 0.25 * (Math.random() < 0.5 ? -1 : 1)) : ownerSpot(a, 0.28, 0);
+  if (Math.hypot(S.tx - worldX(a), S.tz - worldZ(a)) < 0.08 && Math.abs(S.ty - S.gy) < 0.05) { pet.startIntim(kind); return true; }
+  if (!pet.goTo(S.tx - h.x, S.ty - h.y, S.tz - h.z, { owner: true, intim: kind, stop: 0.03 }, true)) return false;
+  hint(kind === 'sleep' ? `${a.def.name}慢慢走到你旁邊…` : `${a.def.name}朝你靠過來了～`);
+  return true;
+}
+const intimHint = (name, k) => ({
+  climb: `${name}爬到你手上了！手慢慢移動，牠會乖乖待著`, sleep: `${name}在你旁邊睡著了…💤`,
+  hum: `${name}靠到你面前，對你嗯嗯叫～`, down: `${name}從你手上下來了`,
+})[k] || '';
 
 /* ---------- 親密度 80%：叫名字會跑過來 ---------- */
 function callByName(def) {
@@ -2548,9 +2953,9 @@ function pressHand(a) {   // 用手指按住寵物＝伸手
   tmpV.set(worldX(a) + cx / cl * reachOut + sx, worldGround(a) + pet.hover + pet.rig.height + 0.04, worldZ(a) + cz / cl * reachOut + sz);
   if (!g.hand) { g.hand = tmpV.clone(); }          // 手放下去之後就不動，寵物自己靠過來
   handSprite.position.copy(g.hand); handSprite.visible = true;
-  if (pet.handOn(tmpV2.copy(g.hand).sub(a.home.position)) && !g.handMsg) { g.handMsg = true; hint(interactHint(a)); }
+  if (pet.handOn(tmpV2.copy(g.hand).sub(a.home.position)) && !g.handMsg) { g.handMsg = true; const m = interactHint(a); if (m) hint(m); }
 }
-const interactHint = a => ({ lick: `${a.def.name}在舔你的手～`, rub: `${a.def.name}用頭蹭你的手～`, nuzzle: `${a.def.name}輕輕頂你的手～` })[a.pet.interact];
+const interactHint = a => ({ lick: `${a.def.name}在舔你的手～`, rub: `${a.def.name}用頭蹭你的手～`, nuzzle: `${a.def.name}輕輕頂你的手～` })[a.pet.interact] || '';
 // 有深度感測的手機：偵測真的手伸到寵物身上（手離身體 5 公分內＝摸到）
 // 只在寵物附近的畫面範圍密集取樣（每邊 HG 點），不管離多遠，取樣間距都在 1～2 公分左右
 const handTrack = () => mode === 'xr' && depthOn && depthState === '開';
@@ -2558,7 +2963,7 @@ const HG = 16, camView = new THREE.Matrix4(), camProj = new THREE.Matrix4(), _hv
 // 寵物身體當成一個直立的圓柱：中心、半徑、上下範圍（世界座標）
 function bodyOf(a) {
   const pet = a.pet, gy = worldGround(a) + pet.hover;
-  return { x: worldX(a), z: worldZ(a), r: Math.max(0.045, pet.radius * 1.35), y0: gy + 0.025, y1: gy + pet.rig.height * 0.95 };
+  return { x: worldX(a), z: worldZ(a), r: Math.max(0.045, pet.radius * 1.35), y0: gy + (pet.aloft() ? -0.08 : 0.025), y1: gy + pet.rig.height * 0.95 };   // 在手上時，下面的手也要算
 }
 function detectHands(di) {
   camView.copy(camWorld).invert();
@@ -2601,7 +3006,7 @@ function detectHands(di) {
     a.touchNow = true;
     _hp.set(sx / n, sy / n, sz / n);
     if (affNow(statsOf(a.def)) >= RULES.handAff) {
-      if (pet.handOn(tmpV.copy(_hp).sub(a.home.position)) && !a.handMsgT) { a.handMsgT = 1; hint(interactHint(a)); }
+      if (pet.handOn(tmpV.copy(_hp).sub(a.home.position)) && !a.handMsgT) { const m = interactHint(a); if (m) { a.handMsgT = 1; hint(m); } }
     } else {
       pet.pet();
       if (!a.touchMsg) hint(`摸到${a.def.name}了～繼續摸一下`);
@@ -2890,7 +3295,7 @@ function showPicker() {
     const on = active.some(a => a.def.id === p.id);
     const b = document.createElement('button');
     if (on) { b.className = 'call'; b.textContent = `📣 叫${p.name}`; b.onclick = () => { hidePicker(); callByName(p); }; }
-    else { b.textContent = `${EMOJI[p.species]} ${p.name}`; b.onclick = () => requestSummon(p); }
+    else { b.textContent = `${owns(p.species) ? EMOJI[p.species] : '🔒'} ${p.name}`; b.onclick = () => requestSummon(p); }
     gEl.append(b);
   }
   if (!pets.length) { const s = document.createElement('div'); s.textContent = '你還沒有寵物，先離開回到列表新增一隻'; gEl.append(s); }
@@ -3060,17 +3465,18 @@ addEventListener('resize', () => {
 renderer.domElement.style.display = 'none';
 
 /* ================= 啟動 ================= */
-pets = readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
-if (!localStorage.getItem(LS_GUEST)) try { localStorage.setItem(LS_GUEST, JSON.stringify({ pets })); } catch {}
-loadFoodLocal();
-renderHome(); show('homeScr');
+pets = markFixed(readLocal(LS_GUEST) || oldVersionPets() || defaultPets());
+try { localStorage.setItem(LS_GUEST, JSON.stringify({ pets })); } catch {}
+loadFoodLocal(); loadTestShop();
+renderHome(); show('homeScr'); checkFreeFood();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkFreeFood(); });
 initFirebase();
 // 從「刪除帳號」網頁連過來：直接打開帳號與資料頁
 if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
 window.__ar = { camera, active, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
-  foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
+  foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, owns, slotFree, slotTotal, renderShop, openEditor, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>
 </body>

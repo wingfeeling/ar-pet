@@ -86,6 +86,25 @@
   #mic.on{background:#e74c3c!important;color:#fff!important}
   #summon{background:var(--accent)!important;color:#fff!important}
   #mapBtn.on,#occBtn.on{background:#2e9e5b!important;color:#fff!important}
+  #menuBtn{font-size:20px!important;min-width:56px!important}
+  #menuBtn.on{background:var(--accent)!important;color:#fff!important}
+  #dbg{display:none}
+  body.dev #dbg{display:block}
+  /* ☰ 功能選單 */
+  #menu{display:none;position:absolute;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));width:min(260px,calc(100% - 20px));background:rgba(255,255,255,.97);color:var(--ink);
+        border-radius:18px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+  #menu.show{display:block}
+  #menu button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;border-radius:12px;padding:13px 12px;font-size:1.05rem;font-weight:700;color:var(--ink);text-align:left}
+  #menu button:active{background:#f3ece4}
+  #menu button:disabled{opacity:.4}
+  #menu .ic{width:26px;text-align:center;font-size:1.2rem}
+  #menu hr{border:0;border-top:1px solid var(--line);margin:6px 8px}
+  #menu .devT{font-size:.75rem;color:var(--mute);margin:2px 12px 0}
+  #menu .devRow{display:none}
+  body.dev #menu .devRow{display:block}
+  #menu button.on{background:#e6f5ec!important;color:#23784a!important}
+  #menu button.on .st::after{content:'開'} #menu button .st::after{content:'關'}
+  #menu .st{margin-left:auto;font-size:.85rem;color:var(--mute);font-weight:400}
   #picker{display:none;position:absolute;left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);color:var(--ink);
           border-radius:18px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
   #picker.show{display:block}
@@ -157,7 +176,7 @@
     <li>進入後慢慢轉一圈、走一走，<b>身邊 5 公尺內的地板、桌子、家具都可以掃</b>。按 🗺 可以看到已經掃描好的範圍。</li>
     <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。按 👁 可以開關遮擋。</li>
     <li><b>點地上任何地方＝叫牠跑過去</b>；目的地在下面，牠會跳下去。</li>
-    <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按 🐾 選。說「收回」會讓牠們回家。</li>
+    <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按右下角 ☰ →「召喚」選。說「收回」會讓牠們回家。</li>
     <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；在牠身上慢慢來回滑＝摸摸；從牠身上快速一甩＝推牠。</li>
     <li>按 🍖 會把飼料往前丟，肚子餓的寵物會跑過去吃。</li>
   </ul>
@@ -323,11 +342,19 @@
   <div id="helpModal"><div class="box helpdoc"><div class="topbar"><b>親密度與飽食度</b><button class="link" id="helpClose">關閉 ✕</button></div><div id="helpModalBody"></div></div></div>
   <div id="bar">
     <button id="mic">🎤 按住說話</button>
-    <button id="summon" title="召喚">🐾</button>
     <button id="feed" title="丟飼料">🍖 5</button>
-    <button id="mapBtn" title="顯示掃描範圍">🗺</button>
-    <button id="occBtn" class="on" title="真實物體遮擋">👁</button>
-    <button id="exit" title="離開">✕</button>
+    <button id="menuBtn" title="功能選單" aria-haspopup="true" aria-expanded="false">☰</button>
+  </div>
+  <div id="menu" role="menu">
+    <button id="mHome" role="menuitem"><span class="ic">🏠</span>回寵物列表</button>
+    <button id="mSummon" role="menuitem"><span class="ic">🐾</span>召喚</button>
+    <button id="mClear" role="menuitem"><span class="ic">🏡</span>收回寵物</button>
+    <button id="mReload" role="menuitem"><span class="ic">🔄</span>重整頁面</button>
+    <div class="devRow">
+      <hr><div class="devT">開發人員工具</div>
+      <button id="mapBtn"><span class="ic">🗺</span>掃描範圍<span class="st"></span></button>
+      <button id="occBtn" class="on"><span class="ic">👁</span>真實物體遮擋<span class="st"></span></button>
+    </div>
   </div>
 </div>
 
@@ -2227,7 +2254,7 @@ function loop(time, frame) {
           reticle.material.opacity = active.length ? 0.45 : 0.9;
           if (horizontal) {
             field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
-            if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 🐾`); }
+            if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 ☰ →「召喚」`); }
           }
         }
       } else { reticle.visible = false; hitKind = '無'; }
@@ -2360,7 +2387,26 @@ function showPicker() {
   if (active.length) { const c = document.createElement('button'); c.className = 'clear'; c.textContent = '全部收回'; c.onclick = () => { clearPets(); hidePicker(); hint('都回家了～再召喚一次吧'); }; gEl.append(c); }
   picker.classList.add('show');
 }
-$('summon').addEventListener('click', () => { initAudio(); picker.classList.contains('show') ? hidePicker() : showPicker(); });
+/* ================= ☰ 功能選單 ================= */
+const menuEl = $('menu'), menuBtn = $('menuBtn');
+function hideMenu() { menuEl.classList.remove('show'); menuBtn.classList.remove('on'); menuBtn.setAttribute('aria-expanded', 'false'); }
+function showMenu() {
+  hidePicker();
+  $('mClear').disabled = !active.length;
+  menuEl.classList.add('show'); menuBtn.classList.add('on'); menuBtn.setAttribute('aria-expanded', 'true');
+}
+menuBtn.addEventListener('click', () => { initAudio(); menuEl.classList.contains('show') ? hideMenu() : showMenu(); });
+$('mHome').addEventListener('click', () => { hideMenu(); if (session) session.end(); else backHome(); });
+$('mSummon').addEventListener('click', () => { hideMenu(); showPicker(); });
+$('mClear').addEventListener('click', () => { hideMenu(); if (!active.length) return; clearPets(); hint('都回家了～再召喚一次吧'); });
+$('mReload').addEventListener('click', async () => {
+  hideMenu();
+  try { if (session) await session.end(); } catch {}
+  location.reload();
+});
+$('touch').addEventListener('pointerdown', () => { hideMenu(); }, true);
+/* 開發人員模式：網址後面加 ?dev=1 才會出現掃描範圍、遮擋開關和偵錯文字 */
+if (new URLSearchParams(location.search).has('dev')) document.body.classList.add('dev');
 
 /* ================= 語音召喚：「召喚＋名字」 ================= */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2388,7 +2434,7 @@ let rec = null, listening = false, pressT = 0, fired = false;
 const micBtn = $('mic');
 function startListen() {
   initAudio(); hidePicker();
-  if (!SR) { speechEl.textContent = '這個瀏覽器不支援語音辨識，請按 🐾 召喚'; return; }
+  if (!SR) { speechEl.textContent = '這個瀏覽器不支援語音辨識，請按 ☰ →「召喚」'; return; }
   if (listening) return;
   fired = false;
   rec = new SR(); rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 5;
@@ -2409,13 +2455,13 @@ function startListen() {
     }
   };
   rec.onerror = ev => {
-    const m = { 'not-allowed': '沒有麥克風權限：請先離開 AR，在列表頁按「允許麥克風」', 'service-not-allowed': '語音辨識無法使用，請改按 🐾 召喚',
-      'no-speech': '沒聽到聲音，再試一次', 'network': '語音辨識需要網路連線', 'audio-capture': '抓不到麥克風，請改按 🐾 召喚' };
+    const m = { 'not-allowed': '沒有麥克風權限：請先離開 AR，在列表頁按「允許麥克風」', 'service-not-allowed': '語音辨識無法使用，請改按 ☰ →「召喚」',
+      'no-speech': '沒聽到聲音，再試一次', 'network': '語音辨識需要網路連線', 'audio-capture': '抓不到麥克風，請改按 ☰ →「召喚」' };
     speechEl.textContent = m[ev.error] || ('語音辨識錯誤：' + ev.error);
   };
   rec.onend = () => { listening = false; micBtn.classList.remove('on'); micBtn.textContent = '🎤 按住說話'; };
   try { rec.start(); listening = true; micBtn.classList.add('on'); micBtn.textContent = '🎤 聆聽中…'; speechEl.textContent = `請說「召喚${pets[0]?.name || '＋名字'}」`; }
-  catch { speechEl.textContent = '語音辨識無法啟動，請改按 🐾 召喚'; }
+  catch { speechEl.textContent = '語音辨識無法啟動，請改按 ☰ →「召喚」'; }
 }
 micBtn.addEventListener('pointerdown', e => {
   e.preventDefault(); pressT = performance.now();
@@ -2427,7 +2473,6 @@ micBtn.addEventListener('pointerup', micUp);
 micBtn.addEventListener('pointercancel', micUp);
 micBtn.addEventListener('contextmenu', e => e.preventDefault());
 
-$('exit').addEventListener('click', () => { if (session) session.end(); else backHome(); });
 $('feed').addEventListener('click', throwFood);
 $('overlay').addEventListener('beforexrselect', e => e.preventDefault());
 
@@ -2473,7 +2518,7 @@ arBtn.addEventListener('click', async () => {
 });
 function backHome() {
   clearPets(); clearFoods(); clearHearts(); hideStats(); $('helpModal').classList.remove('show'); handSprite.visible = false; mapOcc.count = 0;
-  mode = 'none'; pending = null; reticle.visible = false; hidePicker();
+  mode = 'none'; pending = null; reticle.visible = false; hidePicker(); hideMenu();
   showMap = false; mapMesh.visible = false; $('mapBtn').classList.remove('on');
   renderer.domElement.style.display = 'none'; scene.background = null; previewSet.visible = false;
   $('overlay').style.display = 'none'; speechEl.textContent = ''; dbgEl.textContent = '';
@@ -2494,7 +2539,7 @@ $('pvBtn').addEventListener('click', () => {
   scene.background = new THREE.Color(0xe9e2d8); previewSet.visible = true;
   renderer.domElement.style.display = 'block';
   show('none'); $('overlay').style.display = 'block';
-  hint('預覽模式：按 🐾 召喚・拖曳空白處轉視角・點地板或桌面＝叫牠過去（點地板牠會跳下桌）');
+  hint('預覽模式：按 ☰ →「召喚」・拖曳空白處轉視角・點地板或桌面＝叫牠過去（點地板牠會跳下桌）');
 });
 addEventListener('resize', () => {
   if (mode === 'xr') return;

@@ -1,0 +1,2519 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#fff8f0">
+<title>AR 寵物召喚</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="description" content="用手機鏡頭把小貓小狗召喚到你身邊，摸摸牠、餵牠吃飼料。">
+<script src="js/config.js"></script>
+<style>
+  :root{--accent:#f2994a;--accent2:#e0832f;--ink:#2b2118;--bg:#fff8f0;--card:#fff;--line:#eddcc8;--mute:#8a6a4c;--ok:#2e9e5b;--bad:#c0392b}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  canvas{position:fixed;inset:0;display:none;touch-action:none}
+  .screen{max-width:520px;margin:0 auto;padding:26px 18px 70px;line-height:1.65;display:none}
+  .screen.show{display:block}
+  h1{font-size:1.45rem;margin:0}
+  h2{font-size:1.12rem;margin:1.5em 0 .6em}
+  h3{font-size:1rem;margin:1.2em 0 .4em}
+  label,.lbl{display:block;font-weight:700;margin:1em 0 .35em}
+  input[type=text],input[type=email],input[type=password]{width:100%;font-size:1.08rem;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+  input:focus{border-color:var(--accent)}
+  .big{display:block;width:100%;font-size:1.1rem;font-weight:700;padding:14px;border:0;border-radius:14px;margin:10px 0;cursor:pointer}
+  .primary{background:var(--accent);color:#fff}
+  .primary:disabled{background:#d9cbbd}
+  .ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+  .danger{background:#fff;color:var(--bad);border:2px solid #f0c8c0}
+  .note{font-size:.88rem;color:var(--mute)}
+  .err{color:var(--bad);font-size:.88rem;margin-top:6px;min-height:1em}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px}
+  .brand{display:flex;align-items:center;gap:8px}
+  .brand .paw{font-size:1.6rem}
+  .link{background:none;border:0;color:var(--mute);font-size:.95rem;text-decoration:underline;cursor:pointer;padding:6px}
+  #acct{display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--mute);min-width:0}
+  #acct img{width:30px;height:30px;border-radius:50%}
+  #acct .nm{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:14px 0}
+  .card.soft{background:#fff3e6;border-color:#f3d6b6}
+  .card .row2{display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .card button.mini{flex:none;border:0;border-radius:10px;padding:9px 14px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer;font-size:.95rem}
+  #petList{list-style:none;padding:0;margin:0}
+  .pet{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-bottom:10px}
+  .ava{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:1.8rem;flex:none;border:2px solid rgba(0,0,0,.06);overflow:hidden;background:#f6eee5}
+  .ava img{width:100%;height:100%;object-fit:contain}
+  .pinfo{flex:1;min-width:0}
+  .pname{font-weight:700;font-size:1.08rem;word-break:break-all}
+  .pkind{font-size:.83rem;color:var(--mute)}
+  .pact{display:flex;gap:6px;flex:none}
+  .pact button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-size:.95rem;cursor:pointer;color:var(--ink)}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:.96rem;cursor:pointer;color:var(--ink)}
+  .seg button.on{border-color:var(--accent);background:#fff1e3;font-weight:700}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;font-size:.93rem;margin:10px 0}
+  .row button{flex:none;border:0;border-radius:10px;padding:8px 12px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer}
+  ul.tips{padding-left:1.2em;font-size:.92rem;color:#5b4a3a}
+  .modelbox{display:flex;gap:14px;align-items:center}
+  .thumb{width:120px;height:120px;border-radius:16px;background:repeating-conic-gradient(#f3ebe2 0 25%,#fbf6f0 0 50%) 0 0/20px 20px;display:grid;place-items:center;flex:none;border:1px solid var(--line);font-size:2.4rem;overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:contain}
+  .filebtn{display:inline-block;border:2px solid var(--accent);color:var(--accent2);background:#fff;border-radius:12px;padding:9px 14px;font-weight:700;cursor:pointer}
+  .filebtn input{display:none}
+  .sndrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+  .sndrow .t{flex:1 1 100%;font-weight:700;font-size:.95rem}
+  .sndrow .s{flex:1 1 100%;font-size:.82rem;color:var(--mute)}
+  .sndrow button,.sndrow .filebtn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;font-size:.9rem;cursor:pointer;color:var(--ink);font-weight:400}
+  .sndrow button.rec{background:#e74c3c;color:#fff;border-color:#e74c3c}
+  .divider{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:.88rem;margin:18px 0}
+  .divider:before,.divider:after{content:"";flex:1;height:1px;background:var(--line)}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;font-size:1.05rem;font-weight:700;padding:13px;border:2px solid #dadce0;border-radius:14px;background:#fff;color:#3c4043;cursor:pointer}
+  .gbtn svg{width:22px;height:22px}
+  details.credits{margin-top:28px;font-size:.82rem;color:var(--mute)}
+  details.credits summary{cursor:pointer}
+  #overlay{display:none;position:fixed;inset:0;z-index:10;color:#fff;font-size:15px}
+  #touch{position:absolute;inset:0;touch-action:none}
+  #hint{position:absolute;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:92%;
+        background:rgba(0,0,0,.55);padding:10px 16px;border-radius:999px;text-align:center;pointer-events:none;line-height:1.45}
+  #speech{position:absolute;bottom:calc(112px + env(safe-area-inset-bottom));left:8px;right:8px;text-align:center;pointer-events:none;text-shadow:0 1px 3px #000;font-size:14px}
+  #dbg{position:absolute;bottom:calc(88px + env(safe-area-inset-bottom));left:10px;right:10px;font-size:11px;opacity:.8;pointer-events:none;text-shadow:0 1px 2px #000}
+  #bar{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center;padding:0 8px}
+  #bar button{border:0;border-radius:16px;font-size:16px;font-weight:700;padding:14px 8px;background:rgba(255,255,255,.92);color:var(--ink);min-width:46px;touch-action:none;user-select:none;-webkit-user-select:none}
+  #mic{flex:1;max-width:170px}
+  #mic.on{background:#e74c3c!important;color:#fff!important}
+  #summon{background:var(--accent)!important;color:#fff!important}
+  #mapBtn.on,#occBtn.on{background:#2e9e5b!important;color:#fff!important}
+  #picker{display:none;position:absolute;left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);color:var(--ink);
+          border-radius:18px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+  #picker.show{display:block}
+  #picker .t{font-size:.9rem;color:var(--mute);margin:0 4px 8px}
+  #picker .grid{display:flex;flex-wrap:wrap;gap:8px}
+  #picker button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:10px 14px;font-size:1rem;font-weight:700;color:var(--ink)}
+  #picker button.clear{border-color:#f0c8c0;color:#b0453a}
+  #picker button.call{border-color:#bfe3c9;color:#23784a}
+  #feed{background:#8a5a2b!important;color:#fff!important;white-space:nowrap}
+  #feed:disabled{opacity:.55}
+  /* 點寵物時出現的狀態卡 */
+  #stats{display:none;position:absolute;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(320px,92%);
+         background:rgba(255,255,255,.95);color:var(--ink);border-radius:16px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  #stats.show{display:block}
+  #stats .nm{font-weight:700;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center}
+  #stats .nm button{border:0;background:none;color:var(--mute);font-size:.88rem;text-decoration:underline;padding:4px}
+  .meter{margin:7px 0 0;font-size:.9rem}
+  .meter .lab{display:flex;justify-content:space-between}
+  .meter .track{height:9px;border-radius:9px;background:#f0e4d6;overflow:hidden;margin-top:3px}
+  .meter .fill{height:100%;border-radius:9px}
+  .meter.aff .fill{background:linear-gradient(90deg,#ff9fb3,#ff5d84)}
+  .meter.full .fill{background:linear-gradient(90deg,#f6c27a,#e08a2c)}
+  #stats .perk{font-size:.8rem;color:var(--mute);margin-top:6px}
+  /* 說明視窗（AR 裡用） */
+  #helpModal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.45);padding:calc(18px + env(safe-area-inset-top)) 12px 18px}
+  #helpModal.show{display:block}
+  #helpModal .box{background:var(--bg);color:var(--ink);border-radius:18px;max-width:520px;margin:0 auto;max-height:100%;overflow:auto;padding:16px 18px 20px;line-height:1.65;font-size:15px}
+  .helpdoc h2:first-child{margin-top:.2em}
+  .helpdoc table{width:100%;border-collapse:collapse;font-size:.92rem;margin:.4em 0}
+  .helpdoc td,.helpdoc th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+  .helpdoc th{color:var(--mute);font-weight:700}
+  .pstat{font-size:.8rem;color:var(--mute);margin-top:1px}
+  .foodline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<!-- ============ 首頁：我的寵物 ============ -->
+<section id="homeScr" class="screen">
+  <div class="topbar">
+    <div class="brand"><span class="paw">🐾</span><h1>AR 寵物召喚</h1></div>
+    <div id="acct"></div>
+  </div>
+
+  <div id="loginCard" class="card soft" style="display:none">
+    <div class="row2"><span>登入帳號後，換手機，寵物也還在。</span><button class="mini" id="toLogin">登入</button></div>
+  </div>
+  <div id="syncNote" class="note"></div>
+
+  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="link" id="toHelp">親密度和飽食度是什麼？</button></div>
+
+  <h2>我的寵物</h2>
+  <ul id="petList"></ul>
+  <button id="addPet" class="big ghost">＋ 新增寵物</button>
+
+  <h2>開始召喚</h2>
+  <div class="row" id="micRow"><span id="micState">🎤 麥克風：檢查中…</span><button id="micBtn">允許麥克風</button></div>
+  <div class="row" id="support"><span>檢查手機是否支援 AR…</span></div>
+  <button id="arBtn" class="big primary" disabled>開始 AR</button>
+  <button id="pvBtn" class="big ghost">先看預覽（不開鏡頭）</button>
+  <ul class="tips">
+    <li>請用 <b>Android 手機的 Chrome</b> 開啟。</li>
+    <li>進入後慢慢轉一圈、走一走，<b>身邊 5 公尺內的地板、桌子、家具都可以掃</b>。按 🗺 可以看到已經掃描好的範圍。</li>
+    <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。按 👁 可以開關遮擋。</li>
+    <li><b>點地上任何地方＝叫牠跑過去</b>；目的地在下面，牠會跳下去。</li>
+    <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按 🐾 選。說「收回」會讓牠們回家。</li>
+    <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；在牠身上慢慢來回滑＝摸摸；從牠身上快速一甩＝推牠。</li>
+    <li>按 🍖 會把飼料往前丟，肚子餓的寵物會跑過去吃。</li>
+  </ul>
+  <button class="link" id="toAcct" style="margin-top:18px;padding-left:0">⚙️ 帳號與資料（登出、刪除帳號）</button>
+  <p class="note"><a href="privacy.html">隱私權政策</a></p>
+  <details class="credits">
+    <summary>音效來源</summary>
+    <p>貓叫：George Miquilena（CC0）、Heismark（公眾領域）；呼嚕聲：Insanejeff（公眾領域），皆取自 Wikimedia Commons。<br>
+    狗叫：Brandon Morris（CC0）、pauliuw（CC0），取自 OpenGameArt.org。</p>
+  </details>
+</section>
+
+<!-- ============ 登入 ============ -->
+<section id="loginScr" class="screen">
+  <div class="topbar"><button class="link" id="loginBack">← 返回</button><span></span></div>
+  <h1 style="margin-top:10px">登入</h1>
+  <p class="note">登入後，寵物清單會存到雲端，換手機也找得回來。</p>
+  <button class="gbtn" id="gLogin" type="button">
+    <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+    用 Google 帳號登入
+  </button>
+  <div class="divider">或用 Email 和密碼</div>
+  <form id="emailForm" autocomplete="on" onsubmit="return false">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" inputmode="email" placeholder="you@example.com">
+    <label for="pw">密碼</label>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="至少 6 個字元">
+    <div id="loginErr" class="err"></div>
+    <button id="emailLogin" class="big primary" type="submit">登入</button>
+    <button id="emailSignup" class="big ghost" type="button">註冊新帳號</button>
+    <button id="forgot" class="link" type="button">忘記密碼？</button>
+  </form>
+</section>
+
+<!-- ============ 新增／編輯寵物 ============ -->
+<section id="editScr" class="screen">
+  <div class="topbar"><button class="link" id="edBack">← 返回</button><span></span></div>
+  <h1 id="editTitle" style="margin-top:10px">新增寵物</h1>
+
+  <span class="lbl">種類</span>
+  <div class="seg" id="edSpecies">
+    <button data-v="cat">🐱 貓咪</button>
+    <button data-v="dog">🐶 小狗</button>
+    <button data-v="custom">🧸 我的 3D 模型</button>
+  </div>
+
+  <div id="edBuiltin">
+    <span class="lbl">毛色</span>
+    <div class="seg" id="edColor"></div>
+  </div>
+
+  <div id="edCustom">
+    <span class="lbl">3D 模型（GLB 檔）</span>
+    <div class="modelbox">
+      <div class="thumb" id="edThumb">🧸</div>
+      <div>
+        <label class="filebtn" style="margin:0">📁 選擇 GLB 檔<input id="edFile" type="file" accept=".glb,.gltf,model/gltf-binary"></label>
+        <div><button class="link" id="edTurn" style="padding-left:0">↻ 轉 90°</button></div>
+        <div class="note" id="edModelInfo">還沒選檔案</div>
+      </div>
+    </div>
+    <p class="note" style="margin:.3em 0 0">左邊的縮圖要看到牠的<b>正面</b>，牠走路的方向才會對；不對的話就按「轉 90°」。</p>
+
+    <span class="lbl">大小</span>
+    <div class="seg" id="edSize">
+      <button data-v="0.10">小（10 公分）</button>
+      <button data-v="0.15">中（15 公分）</button>
+      <button data-v="0.22">大（22 公分）</button>
+      <button data-v="0.32">特大（32 公分）</button>
+    </div>
+
+    <span class="lbl">牠怎麼移動？</span>
+    <div class="seg" id="edBehavior">
+      <button data-v="walk">🐾 用腳走路</button>
+      <button data-v="hop">🐰 跳跳走</button>
+      <button data-v="fly">🕊 飛／漂浮</button>
+      <button data-v="static">🗿 擺著不動</button>
+    </div>
+    <p class="note" style="margin:.4em 0 0" id="edBehaviorNote"></p>
+
+    <span class="lbl">預設叫聲</span>
+    <div class="seg" id="edVoice">
+      <button data-v="cat">🐱 貓叫</button>
+      <button data-v="dog">🐶 狗叫</button>
+      <button data-v="none">🔇 不出聲</button>
+    </div>
+  </div>
+
+  <span class="lbl">自己的聲音（可以不錄）</span>
+  <div id="edSounds"></div>
+  <p class="note" style="margin-top:0">每段錄 1～4 秒，錄完會自動剪掉前後的空白。</p>
+
+  <label for="edName">名字</label>
+  <input id="edName" type="text" maxlength="10" placeholder="取個 2～3 個字的名字，語音最好認">
+  <div id="edErr" class="err"></div>
+  <button id="edSave" class="big primary">儲存</button>
+  <button id="edDelete" class="big danger">刪除這隻寵物</button>
+</section>
+
+<!-- ============ 說明：親密度與飽食度 ============ -->
+<section id="helpScr" class="screen">
+  <div class="topbar"><button class="link" id="helpBack">← 返回</button><span></span></div>
+  <div class="helpdoc" id="helpDoc"></div>
+</section>
+<template id="helpTpl">
+  <h2>❤️ 親密度</h2>
+  <p>代表寵物有多喜歡你，從 0% 開始。</p>
+  <table>
+    <tr><th>怎麼增加</th><th>加多少</th></tr>
+    <tr><td>摸摸牠（在牠身上慢慢來回滑，連續摸 1.5 秒算一次）</td><td>每次 +1%，<b>每天最多 +5%</b>；親密度到 <b>60%</b> 以後，摸摸就不會再增加</td></tr>
+    <tr><td>餵牠吃一包飼料</td><td>+10%</td></tr>
+  </table>
+  <p>親密度不會自己減少。</p>
+  <table>
+    <tr><th>親密度</th><th>解鎖</th></tr>
+    <tr><td>80% 以上</td><td>叫牠的名字（按住 🎤 說「小橘」），牠會跑到你面前對你叫。</td></tr>
+    <tr><td>100%</td><td>可以伸手去摸牠，每種寵物反應不一樣：<b>小狗會舔你的手</b>，<b>貓咪會用頭和身體蹭你的手</b>。</td></tr>
+  </table>
+  <p class="note">伸手的方法：把手伸到寵物旁邊（需要有深度感測的手機）。手機不支援的話，<b>用手指按住寵物不放</b>也可以。</p>
+
+  <h2>🍖 飽食度</h2>
+  <p>代表寵物吃得多飽。新寵物從 50% 開始。</p>
+  <table>
+    <tr><td>吃一包飼料</td><td>+50%（最多到 100%）</td></tr>
+    <tr><td>時間經過</td><td>每小時 −1%</td></tr>
+    <tr><td>飽食度 100%</td><td>吃飽了，丟飼料也不會吃，飼料會留在地上</td></tr>
+  </table>
+
+  <h2>怎麼餵</h2>
+  <p>在 AR 畫面按 <b>🍖</b>，飼料會從手機前方丟出去，掉在真實的地板或桌面上，也可能滾到桌邊掉下去。肚子餓的寵物會自己跑過去吃。</p>
+  <ul class="tips">
+    <li>寵物<b>真的吃到</b>，才會扣掉一包飼料。沒吃到、掉到沒掃描過的地方，都不會扣。</li>
+    <li>飼料在比較低的地方（例如地板），牠會從桌邊跳下去吃。在比較高、牠上不去的地方，牠會停在旁邊看著飼料。</li>
+    <li>被家具擋住過不去時，牠會在旁邊想吃但吃不到。換個地方丟就好。</li>
+  </ul>
+  <p class="note">每隻寵物的親密度和飽食度是分開算的。登入帳號後會存在雲端，換手機也還在。</p>
+</template>
+
+<!-- ============ 帳號與資料 ============ -->
+<section id="acctScr" class="screen">
+  <div class="topbar"><button class="link" id="acctBack">← 返回</button><span></span></div>
+  <h1 style="margin-top:10px">帳號與資料</h1>
+  <div id="acctInfo" class="card"></div>
+  <button id="acctLogin" class="big primary">登入</button>
+  <button id="acctLogout" class="big ghost">登出</button>
+  <h2>刪除資料</h2>
+  <p class="note" id="delNote"></p>
+  <button id="delAccount" class="big danger">刪除帳號</button>
+  <button id="delLocal" class="big danger">清除這支手機上的資料</button>
+  <div id="delMsg" class="err"></div>
+  <p class="note"><a href="privacy.html">隱私權政策</a></p>
+</section>
+
+<!-- ============ AR 畫面上的介面 ============ -->
+<div id="overlay">
+  <div id="touch"></div>
+  <div id="hint">慢慢移動手機，掃描桌面…</div>
+  <div id="speech"></div>
+  <div id="dbg"></div>
+  <div id="picker"><div class="t">要召喚誰？</div><div class="grid" id="pickGrid"></div></div>
+  <div id="stats"></div>
+  <div id="helpModal"><div class="box helpdoc"><div class="topbar"><b>親密度與飽食度</b><button class="link" id="helpClose">關閉 ✕</button></div><div id="helpModalBody"></div></div></div>
+  <div id="bar">
+    <button id="mic">🎤 按住說話</button>
+    <button id="summon" title="召喚">🐾</button>
+    <button id="feed" title="丟飼料">🍖 5</button>
+    <button id="mapBtn" title="顯示掃描範圍">🗺</button>
+    <button id="occBtn" class="on" title="真實物體遮擋">👁</button>
+    <button id="exit" title="離開">✕</button>
+  </div>
+</div>
+
+<script type="module">
+/* ★ Firebase 設定已經搬到 js/config.js，請到那個檔案貼上設定。 */
+const FIREBASE_CONFIG = (typeof firebaseConfig !== 'undefined' && firebaseConfig)
+  || (typeof globalThis.FIREBASE_CONFIG === 'object' && globalThis.FIREBASE_CONFIG) || null;
+
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { SND_B64 } from './js/sounds.js';
+import { RULES, SPECIES, PRODUCTS } from './js/catalog.js';
+
+/* ================= 可調參數 ================= */
+const PET_SCALE   = 1.1;    // 內建貓狗的大小（1.0 ≈ 身長 13 公分）
+const WALK_SPEED  = 0.07;   // 走路速度（公尺/秒）
+let   MAX_PETS    = RULES.freePetSlots;   // 同時最多幾隻（買了擴充會變多，由雲端的 slots 決定）
+const FALL_SPEED  = 0.28;   // 推的速度超過這個（公尺/秒）碰到桌緣就會掉下去
+const GRAVITY     = 9.8;
+// 場域地圖
+const SCAN_R      = 5.0;    // 掃描＋活動範圍：以你為中心，前後左右上下各 5 公尺
+const CELL        = 0.04;   // 地圖格子大小（公尺）
+const SURF_TOL    = 0.03;   // 同一個平面的高度容許誤差（遠的地方會自動放寬）
+const SURF_N      = 1.5;    // 一格要被看到幾次才算「確定是平面」
+const STEP_H      = 0.045;  // 這個高低差以內，寵物直接走上去／走下來
+const OBST_MIN    = 0.05;   // 比腳下平面高出多少算「障礙物」
+const OBST_MAX    = 0.5;
+const OBST_N      = 3;
+const CARVE       = 0.04;
+const RUN_SPEED   = 0.24;   // 叫牠過去時跑步的速度（公尺/秒）
+const MAX_CELLS   = 120000; // 地圖最多記幾格（手機記憶體）
+const DEPTH_COLS  = 30, DEPTH_ROWS = 40;   // 每次讀取深度的取樣點數
+const DEPTH_MAX   = 6.0;    // 深度最遠讀到幾公尺
+
+const $ = id => document.getElementById(id);
+const hintEl = $('hint'), speechEl = $('speech'), dbgEl = $('dbg');
+const hint = t => { hintEl.textContent = t; };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const angleDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+const easeOutBack = k => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+const uid = () => Math.random().toString(36).slice(2, 10);
+function show(id) { for (const s of document.querySelectorAll('.screen')) s.classList.toggle('show', s.id === id); scrollTo(0, 0); }
+
+/* ================= 毛色 ================= */
+// 種類、毛色都定義在 js/catalog.js
+const PALETTES = Object.fromEntries(Object.entries(SPECIES).filter(([, v]) => v.palettes).map(([k, v]) => [k, v.palettes]));
+const EMOJI = { ...Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.emoji])), custom: '🧸' };
+// 親密度 100% 時伸手摸的反應：內建種類看目錄，自己上傳的模型看叫聲類型
+const interactOf = def => SPECIES[def.species]?.interact || (def.voice === 'dog' ? 'lick' : def.voice === 'cat' ? 'rub' : 'nuzzle');
+const BEHAVIOR_LABEL = { walk: '用腳走路', hop: '跳跳走', fly: '飛／漂浮', static: '擺著不動' };
+const BEHAVIOR_NOTE = {
+  walk: '適合貓、狗、兔子、烏龜這類用腳走的動物。會在桌上走來走去，被用力推會掉下桌。',
+  hop: '適合兔子、小鳥、青蛙。會一蹦一蹦地前進。',
+  fly: '適合鳥、魚、蝴蝶、幽靈這類會飛或漂浮的。會浮在半空中，推到桌外也不會掉下去。',
+  static: '適合公仔、植物、玩偶。不會自己亂走，但點牠、摸牠、推牠都會有反應。',
+};
+const pal = d => PALETTES[d.species]?.[d.color] || Object.values(PALETTES[d.species] || PALETTES.cat)[0];
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+function kindLabel(p) { return p.species === 'custom' ? `3D 模型・${BEHAVIOR_LABEL[p.behavior] || ''}` : pal(p).label; }
+
+/* ================= 手機裡的檔案倉庫（模型、錄音） ================= */
+const idb = (() => {
+  let op;
+  const open = () => op ||= new Promise((res, rej) => {
+    const r = indexedDB.open('arpet', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('blobs');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('blobs', mode), rq = fn(t.objectStore('blobs'));
+      t.oncomplete = () => res(rq ? rq.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  };
+  return { get: k => tx('readonly', s => s.get(k)), set: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
+})();
+
+/* ================= 寵物清單 ================= */
+let account = null;   // { uid, name, email, photo }
+let pets = [];
+const LS_GUEST = 'arpet.v2.guest';
+const lsKey = () => account ? 'arpet.v2.u.' + account.uid : LS_GUEST;
+function normalizePet(p) {
+  const q = { id: p.id || uid(), name: p.name || '', species: p.species || 'cat', color: p.color, behavior: p.behavior || 'walk',
+    size: +p.size || 0.15, yaw: +p.yaw || 0, voice: p.voice, snd: { call: !!p.snd?.call, pet: !!p.snd?.pet }, model: !!p.model, thumb: p.thumb || '',
+    // 親密度、飽食度（飽食度存「當時的數值＋時間」，現在的數值用時間算出來）
+    aff: clamp(+p.aff || 0, 0, 100), full: clamp(p.full ?? RULES.newPetFull, 0, 100), fullAt: +p.fullAt || Date.now(),
+    petDay: p.petDay || '', petGain: +p.petGain || 0 };
+  if (q.species !== 'custom' && !PALETTES[q.species]?.[q.color]) q.color = Object.keys(PALETTES[q.species] || PALETTES.cat)[0];
+  if (!q.voice) q.voice = q.species === 'dog' ? 'dog' : q.species === 'cat' ? 'cat' : 'none';
+  if (q.species !== 'custom') q.voice = q.species;
+  return q;
+}
+const defaultPets = () => [
+  normalizePet({ name: '小橘', species: 'cat', color: 'orange' }),
+  normalizePet({ name: '豆豆', species: 'dog', color: 'shiba' }),
+];
+function readLocal(key) { try { const o = JSON.parse(localStorage.getItem(key)); return Array.isArray(o?.pets) ? o.pets.map(normalizePet) : null; } catch { return null; } }
+function oldVersionPets() { try { const o = JSON.parse(localStorage.getItem('arpet.v1')); const u = o?.users?.[o.current] || Object.values(o?.users || {})[0]; return u?.pets?.length ? u.pets.map(normalizePet) : null; } catch { return null; } }
+function savePets() {
+  try { localStorage.setItem(lsKey(), JSON.stringify({ pets })); } catch {}
+  cloudSave();
+}
+
+/* ================= 親密度與飽食度 ================= */
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const statsOf = def => pets.find(p => p.id === def.id) || def;          // 一律改清單裡的那一份，才會存檔
+const fullNow = p => clamp(p.full - (Date.now() - p.fullAt) / 3600000 * RULES.fullDropPerHour, 0, 100);
+const affNow = p => clamp(p.aff, 0, 100);
+const pct = v => Math.round(v) + '%';
+const isFull = p => fullNow(p) >= 99.5;   // 顯示成 100% 就算吃飽
+function setFull(p, v) { p.full = clamp(v, 0, 100); p.fullAt = Date.now(); }
+// 摸摸加親密度：每天最多 +5%，到 60% 以後不再增加。回傳實際加了多少，和沒加的原因
+function petAffGain(p) {
+  if (p.petDay !== todayStr()) { p.petDay = todayStr(); p.petGain = 0; }
+  if (p.aff >= RULES.petAffCap) return { g: 0, why: 'cap' };
+  if (p.petGain >= RULES.petAffPerDay) return { g: 0, why: 'day' };
+  const g = Math.min(RULES.petAff, RULES.petAffPerDay - p.petGain, RULES.petAffCap - p.aff);
+  p.petGain += g; p.aff = clamp(p.aff + g, 0, 100);
+  return { g };
+}
+
+/* ================= 飼料數量 =================
+   寵物「真的吃到」才扣。登入時存在雲端（只能減少，不能自己加），沒登入時存在這支手機。 */
+let food = RULES.startFood;
+const foodKey = () => lsKey() + '.food';
+function loadFoodLocal() { const v = parseInt(localStorage.getItem(foodKey()), 10); food = Number.isFinite(v) ? Math.max(0, v) : RULES.startFood; }
+function saveFoodLocal() { try { localStorage.setItem(foodKey(), String(food)); } catch {} }
+function renderFood() {
+  const fc = $('foodCount'); if (fc) fc.textContent = food;
+  const left = Math.max(0, food - (typeof foods !== 'undefined' ? foods.length : 0));
+  const fb2 = $('feed'); if (fb2) fb2.textContent = '🍖' + left;
+}
+function spendFood() {
+  food = Math.max(0, food - 1); saveFoodLocal(); renderFood();
+  if (fb && account) fb.fs.updateDoc(fb.fs.doc(fb.db, 'users', account.uid), { food: fb.fs.increment(-1) })
+    .catch(e => console.warn('food sync', e));
+}
+
+/* ================= Firebase 登入與雲端同步 ================= */
+let fb = null, cloudTimer = 0, afterLogin = 'homeScr';
+const syncNote = t => { $('syncNote').textContent = t; };
+async function initFirebase() {
+  if (!FIREBASE_CONFIG) return false;
+  try {
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const [app, au, fs] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+    const a = app.initializeApp(FIREBASE_CONFIG);
+    const auth = au.getAuth(a); auth.languageCode = 'zh-TW';
+    fb = { au, fs, auth, db: fs.getFirestore(a) };
+    au.onAuthStateChanged(auth, onAuth);
+    return true;
+  } catch (e) { console.warn(e); syncNote('⚠️ 登入功能載入失敗，先用這支手機的資料。'); return false; }
+}
+async function onAuth(u) {
+  if (!u) {
+    account = null; pets = readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
+    loadFoodLocal(); MAX_PETS = RULES.freePetSlots;
+    renderHome(); return;
+  }
+  account = { uid: u.uid, name: u.displayName || u.email || '我', email: u.email || '', photo: u.photoURL || '' };
+  const cached = readLocal(lsKey());
+  loadFoodLocal();
+  if (cached) { pets = cached; renderHome(); }
+  syncNote('☁️ 讀取雲端資料中…');
+  try {
+    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'users', u.uid));
+    const data = snap.exists() ? snap.data() : null;
+    if (data && Array.isArray(data.pets)) {
+      const local = new Map((cached || []).map(p => [p.id, p]));
+      pets = data.pets.map(p => normalizePet({ ...p, thumb: local.get(p.id)?.thumb || '' }));
+      try { localStorage.setItem(lsKey(), JSON.stringify({ pets })); } catch {}
+      syncNote('☁️ 已和雲端同步');
+    } else {
+      // 第一次登入：把這支手機上原本的寵物帶進帳號
+      pets = cached || readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
+      savePets(); syncNote('☁️ 已把這支手機上的寵物存進你的帳號');
+    }
+    // 飼料：雲端還沒有這個欄位＝第一次，送 5 包
+    if (typeof data?.food === 'number') food = Math.max(0, data.food);
+    else { food = RULES.startFood; await fb.fs.setDoc(fb.fs.doc(fb.db, 'users', u.uid), { food }, { merge: true }); }
+    saveFoodLocal();
+    MAX_PETS = Math.max(RULES.freePetSlots, +data?.slots || 0);
+  } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = readLocal(LS_GUEST) || defaultPets(); }
+  renderHome();
+  if ($('loginScr').classList.contains('show')) { show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); afterLogin = 'homeScr'; }
+}
+let deleting = false;
+function cloudSave() {
+  if (!fb || !account || deleting) return;
+  clearTimeout(cloudTimer);
+  syncNote('☁️ 同步中…');
+  const uidNow = account.uid;
+  cloudTimer = setTimeout(async () => {
+    try {
+      if (deleting) return;
+      // merge：只更新寵物清單，不會動到飼料數量和購買紀錄
+      await fb.fs.setDoc(fb.fs.doc(fb.db, 'users', uidNow), { pets: pets.map(({ thumb, ...p }) => p), updatedAt: fb.fs.serverTimestamp() }, { merge: true });
+      if (account?.uid === uidNow) syncNote('☁️ 已和雲端同步');
+    } catch (e) { syncNote('⚠️ 雲端同步失敗（' + (e.code || e.message) + '），資料先存在這支手機上。'); }
+  }, 700);
+}
+const AUTH_ERR = {
+  'auth/invalid-email': 'Email 格式不對', 'auth/missing-email': '請輸入 Email', 'auth/missing-password': '請輸入密碼',
+  'auth/invalid-credential': 'Email 或密碼不對', 'auth/wrong-password': 'Email 或密碼不對', 'auth/user-not-found': '找不到這個帳號，要先註冊',
+  'auth/email-already-in-use': '這個 Email 已經註冊過了，請直接登入', 'auth/weak-password': '密碼至少要 6 個字元',
+  'auth/popup-closed-by-user': '登入視窗被關掉了，再試一次', 'auth/cancelled-popup-request': '登入視窗被關掉了，再試一次',
+  'auth/popup-blocked': '瀏覽器擋住了登入視窗，請允許彈出視窗後再試一次',
+  'auth/unauthorized-domain': '這個網址還沒加入 Firebase 的「授權網域」', 'auth/operation-not-allowed': '還沒在 Firebase 開啟這種登入方式',
+  'auth/api-key-not-valid.-please-pass-a-valid-api-key.': '設定裡的 apiKey 不對，請重新複製 Firebase 的設定',
+  'auth/network-request-failed': '網路連線有問題，請稍後再試', 'auth/too-many-requests': '嘗試太多次了，請等一下再試',
+};
+const authErr = e => { $('loginErr').textContent = AUTH_ERR[e.code] || ('登入失敗：' + (e.code || e.message)); };
+$('toLogin').onclick = () => { $('loginErr').textContent = ''; show('loginScr'); };
+$('loginBack').onclick = () => { show(afterLogin); afterLogin = 'homeScr'; };
+$('gLogin').onclick = async () => {
+  if (!fb) return;
+  $('loginErr').textContent = '';
+  try { const p = new fb.au.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); await fb.au.signInWithPopup(fb.auth, p); }
+  catch (e) { authErr(e); }
+};
+$('emailLogin').onclick = async () => {
+  if (!fb) return; $('loginErr').textContent = '';
+  try { await fb.au.signInWithEmailAndPassword(fb.auth, $('email').value.trim(), $('pw').value); } catch (e) { authErr(e); }
+};
+$('emailSignup').onclick = async () => {
+  if (!fb) return; $('loginErr').textContent = '';
+  try { await fb.au.createUserWithEmailAndPassword(fb.auth, $('email').value.trim(), $('pw').value); } catch (e) { authErr(e); }
+};
+$('forgot').onclick = async () => {
+  if (!fb) return;
+  const em = $('email').value.trim(); if (!em) { $('loginErr').textContent = '先在上面輸入你的 Email'; return; }
+  try { await fb.au.sendPasswordResetEmail(fb.auth, em); $('loginErr').textContent = '已寄出重設密碼的信，請去信箱收信'; } catch (e) { authErr(e); }
+};
+
+/* ================= 首頁 ================= */
+function renderAccount() {
+  const box = $('acct'); box.textContent = '';
+  $('loginCard').style.display = fb && !account ? '' : 'none';
+  if (!fb) { syncNote(''); return; }
+  if (account) {
+    if (account.photo) { const im = document.createElement('img'); im.src = account.photo; im.referrerPolicy = 'no-referrer'; box.append(im); }
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = account.name; box.append(nm);
+    const out = document.createElement('button'); out.className = 'link'; out.textContent = '登出';
+    out.onclick = () => { if (confirm('確定要登出嗎？')) fb.au.signOut(fb.auth); };
+    box.append(out);
+  } else syncNote('');
+}
+function avatar(p) {
+  const ava = document.createElement('div'); ava.className = 'ava';
+  if (p.species === 'custom' && p.thumb) { const im = document.createElement('img'); im.src = p.thumb; ava.append(im); }
+  else { ava.textContent = EMOJI[p.species]; if (p.species !== 'custom') ava.style.background = hex(pal(p).fur) + '55'; }
+  return ava;
+}
+function renderHome() {
+  renderAccount();
+  const list = $('petList'); list.textContent = '';
+  if (!pets.length) { const li = document.createElement('li'); li.className = 'note'; li.textContent = '還沒有寵物，按下面的「新增寵物」吧！'; list.append(li); }
+  for (const p of pets) {
+    const li = document.createElement('li'); li.className = 'pet';
+    const info = document.createElement('div'); info.className = 'pinfo';
+    const nm = document.createElement('div'); nm.className = 'pname'; nm.textContent = p.name;
+    const kd = document.createElement('div'); kd.className = 'pkind'; kd.textContent = `${kindLabel(p)}・說「召喚${p.name}」`;
+    const st = document.createElement('div'); st.className = 'pstat'; st.textContent = `❤️ 親密度 ${pct(affNow(p))}・🍖 飽食度 ${pct(fullNow(p))}`;
+    info.append(nm, kd, st);
+    const act = document.createElement('div'); act.className = 'pact';
+    const hear = document.createElement('button'); hear.textContent = '🔊'; hear.title = '聽叫聲';
+    hear.onclick = async () => { initAudio(); const v = await makeVoice(p); v.hello(); };
+    const ed = document.createElement('button'); ed.textContent = '✏️ 編輯'; ed.onclick = () => openEditor(p);
+    act.append(hear, ed);
+    li.append(avatar(p), info, act); list.append(li);
+  }
+  $('exampleName').textContent = pets[0] ? `「召喚${pets[0].name}」` : '「召喚小橘」';
+  renderFood();
+}
+$('addPet').onclick = () => openEditor(null);
+
+/* ================= 說明頁 ================= */
+$('helpDoc').append($('helpTpl').content.cloneNode(true));
+$('helpModalBody').append($('helpTpl').content.cloneNode(true));
+$('toHelp').onclick = () => show('helpScr');
+$('helpBack').onclick = () => show('homeScr');
+const openHelpModal = () => $('helpModal').classList.add('show');
+$('helpClose').onclick = () => $('helpModal').classList.remove('show');
+
+/* ================= 帳號與資料（登出、刪除帳號） ================= */
+const delMsg = t => { $('delMsg').textContent = t; };
+function renderAcct() {
+  const info = $('acctInfo'); info.textContent = '';
+  const line = t => { const d = document.createElement('div'); d.textContent = t; info.append(d); };
+  if (!fb) line('這個版本還沒設定帳號登入，所有資料只存在這支手機上。');
+  else if (account) { line(`已登入：${account.name}`); if (account.email && account.email !== account.name) line(account.email); }
+  else line('還沒登入：資料只存在這支手機上。');
+  line(`寵物 ${pets.length} 隻・飼料 ${food} 包`);
+  $('acctLogin').style.display = fb && !account ? '' : 'none';
+  $('acctLogout').style.display = fb && account ? '' : 'none';
+  $('delAccount').style.display = fb && account ? '' : 'none';
+  $('delLocal').style.display = account ? 'none' : '';
+  $('delNote').textContent = account
+    ? '刪除帳號會永久刪除你的登入帳號，以及存在雲端的所有資料：寵物、飼料（包含買的）、親密度和飽食度。刪除後無法復原。'
+    : '會刪除這支手機上的寵物、錄音、上傳的模型、飼料、親密度和飽食度，回到剛安裝時的樣子。';
+}
+function openAcct() { delMsg(''); renderAcct(); show('acctScr'); }
+$('toAcct').onclick = openAcct;
+$('acctBack').onclick = () => show('homeScr');
+$('acctLogin').onclick = () => { $('loginErr').textContent = ''; afterLogin = 'acctScr'; show('loginScr'); };
+$('acctLogout').onclick = () => { if (confirm('確定要登出嗎？')) fb.au.signOut(fb.auth).then(() => show('homeScr')); };
+async function reauthenticate(u) {   // 刪除帳號前，Firebase 要求剛剛確認過本人
+  const prov = u.providerData.map(p => p.providerId);
+  if (prov.includes('google.com')) {
+    const gp = new fb.au.GoogleAuthProvider(); gp.setCustomParameters({ prompt: 'select_account', login_hint: u.email || '' });
+    await fb.au.reauthenticateWithPopup(u, gp);
+  } else if (prov.includes('password')) {
+    const pw = prompt('為了確認是你本人，請輸入這個帳號的密碼');
+    if (!pw) throw { code: 'cancel' };
+    await fb.au.reauthenticateWithCredential(u, fb.au.EmailAuthProvider.credential(u.email, pw));
+  }
+}
+async function clearLocalData(key, ids) {
+  for (const k of [key, key + '.food']) try { localStorage.removeItem(k); } catch {}
+  for (const id of ids) { for (const k of ['model', 'call', 'pet']) await idb.del(id + ':' + k).catch(() => {}); modelCache.delete(id); soundCache.delete(id); }
+}
+$('delAccount').onclick = async () => {
+  const u = fb?.auth.currentUser; if (!u) return;
+  if (!confirm('確定要刪除帳號嗎？\n\n你的帳號和雲端上所有資料（寵物、飼料、親密度、飽食度，包含買過的東西）都會永久刪除，無法復原。')) return;
+  if ((prompt('最後確認：請輸入「刪除」兩個字') || '').trim() !== '刪除') { delMsg('沒有刪除。'); return; }
+  delMsg('正在確認是你本人…');
+  try { await reauthenticate(u); }
+  catch (e) { delMsg(e.code === 'cancel' || /popup-closed|cancelled/.test(e.code || '') ? '已取消，沒有刪除。' : '確認身分失敗：' + (AUTH_ERR[e.code] || e.code || e.message)); return; }
+  delMsg('刪除中…'); deleting = true; clearTimeout(cloudTimer);
+  const uidNow = u.uid, ids = pets.map(p => p.id);
+  try {
+    await fb.fs.deleteDoc(fb.fs.doc(fb.db, 'users', uidNow));   // 雲端資料
+    await fb.au.deleteUser(u);                                     // 登入帳號
+  } catch (e) { deleting = false; delMsg('刪除失敗：' + (e.code || e.message) + '。請稍後再試一次。'); return; }
+  await clearLocalData('arpet.v2.u.' + uidNow, ids);
+  deleting = false;
+  alert('帳號和所有資料都已經刪除了。');
+  show('homeScr');
+};
+$('delLocal').onclick = async () => {
+  if (!confirm('確定要清除這支手機上的所有寵物資料嗎？清除後無法復原。')) return;
+  await clearLocalData(LS_GUEST, pets.map(p => p.id));
+  try { localStorage.removeItem('arpet.v1'); } catch {}
+  pets = defaultPets(); food = RULES.startFood;
+  try { localStorage.setItem(LS_GUEST, JSON.stringify({ pets })); } catch {}
+  saveFoodLocal(); renderHome(); renderAcct(); delMsg('已經清除了。');
+};
+
+/* ================= 新增／編輯寵物 ================= */
+let draft = null, draftBlobs = {}, draftModel = null, editingOrig = null;
+const cleanName = s => s.replace(/\s+/g, '').slice(0, 10);
+function nameError(name, selfId) {
+  if (!name) return '請輸入名字';
+  if (/^(收回|回去|回家|再見|拜拜)$/.test(name)) return '這個詞是語音指令，換一個名字吧';
+  if (pets.some(p => p.id !== selfId && p.name === name)) return '已經有同名的寵物了，語音會分不出來';
+  return '';
+}
+function segSet(id, val) { for (const b of $(id).children) b.classList.toggle('on', b.dataset.v === String(val)); }
+function segBind(id, fn) { for (const b of $(id).children) b.addEventListener('click', () => fn(b.dataset.v)); }
+
+function openEditor(p) {
+  stopRecording();
+  editingOrig = p;
+  draft = p ? normalizePet(JSON.parse(JSON.stringify(p))) : normalizePet({ species: 'cat', color: 'orange' });
+  draftBlobs = {}; draftModel = null;
+  $('editTitle').textContent = p ? `編輯「${p.name}」` : '新增寵物';
+  $('edName').value = draft.name; $('edErr').textContent = '';
+  $('edDelete').style.display = p ? '' : 'none';
+  $('edFile').value = '';
+  renderEditor(); show('editScr');
+  if (p && p.species === 'custom') {
+    $('edModelInfo').textContent = '讀取模型中…';
+    getModel(p).then(m => {
+      if (draft?.id !== p.id) return;
+      draftModel = m;
+      $('edModelInfo').textContent = m ? modelInfo(m) : '⚠️ 這支手機上找不到模型檔（可能是在別支手機上傳的），請重新選擇 GLB 檔。';
+      if (m) refreshThumb();
+    });
+  }
+}
+function modelInfo(m) {
+  const mb = (m.bytes / 1048576).toFixed(1), tri = m.tris >= 10000 ? (m.tris / 10000).toFixed(1) + ' 萬' : Math.round(m.tris);
+  let s = `${mb} MB・${tri} 個面${m.clips.length ? `・內含 ${m.clips.length} 段動畫` : ''}`;
+  if (m.tris > 150000 || m.bytes > 15 * 1048576) s += '　⚠️ 模型有點大，手機上可能會卡，建議下載時選面數少一點的版本。';
+  return s;
+}
+function renderEditor() {
+  const d = draft, custom = d.species === 'custom';
+  segSet('edSpecies', d.species);
+  $('edBuiltin').style.display = custom ? 'none' : '';
+  $('edCustom').style.display = custom ? '' : 'none';
+  if (!custom) {
+    const box = $('edColor'); box.textContent = '';
+    for (const [k, v] of Object.entries(PALETTES[d.species])) {
+      const b = document.createElement('button'); if (k === d.color) b.className = 'on';
+      const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = hex(v.fur);
+      b.append(dot, v.label); b.onclick = () => { d.color = k; renderEditor(); };
+      box.append(b);
+    }
+  } else {
+    segSet('edSize', d.size.toFixed(2)); segSet('edBehavior', d.behavior); segSet('edVoice', d.voice);
+    $('edBehaviorNote').textContent = BEHAVIOR_NOTE[d.behavior];
+    const th = $('edThumb'); th.textContent = '';
+    if (d.thumb) { const im = document.createElement('img'); im.src = d.thumb; th.append(im); } else th.textContent = '🧸';
+    if (!draftModel && !d.model) $('edModelInfo').textContent = '還沒選檔案';
+  }
+  renderSoundRows();
+}
+segBind('edSpecies', v => {
+  draft.species = v;
+  if (v !== 'custom') { draft.color = Object.keys(PALETTES[v])[0]; draft.voice = v; draft.behavior = 'walk'; }
+  else if (!['cat', 'dog', 'none'].includes(draft.voice)) draft.voice = 'none';
+  renderEditor();
+});
+segBind('edSize', v => { draft.size = +v; renderEditor(); });
+segBind('edBehavior', v => { draft.behavior = v; renderEditor(); });
+segBind('edVoice', v => { draft.voice = v; renderEditor(); initAudio(); makeVoice(draft, true).then(x => x.hello()); });
+$('edTurn').onclick = () => { draft.yaw = ((draft.yaw || 0) + Math.PI / 2) % (Math.PI * 2); refreshThumb(); };
+$('edFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (f.size > 40 * 1048576) { $('edModelInfo').textContent = '⚠️ 檔案超過 40 MB，太大了，手機跑不動。請下載面數少一點的版本。'; return; }
+  $('edModelInfo').textContent = '讀取模型中…';
+  try {
+    const m = await parseModel(f);
+    draftModel = m; draftBlobs.model = f; draft.yaw = 0;
+    if (!draft.name) { const n = cleanName(f.name.replace(/\.(glb|gltf)$/i, '')); if (n && /[一-鿿]/.test(n)) { draft.name = n; $('edName').value = n; } }
+    $('edModelInfo').textContent = modelInfo(m);
+    refreshThumb();
+  } catch (err) {
+    console.warn(err);
+    $('edModelInfo').textContent = '⚠️ 這個檔案讀不出來。請確認是 GLB 格式；如果網站有其他下載選項，選「GLB」再試一次。';
+  }
+};
+$('edBack').onclick = () => { stopRecording(); show('homeScr'); };
+$('edName').addEventListener('keydown', e => { if (e.key === 'Enter') $('edSave').click(); });
+$('edSave').onclick = async () => {
+  stopRecording();
+  const d = draft, n = cleanName($('edName').value), err = nameError(n, d.id);
+  if (err) { $('edErr').textContent = err; return; }
+  if (d.species === 'custom' && !draftModel && !draftBlobs.model) { $('edErr').textContent = '請先選擇一個 GLB 模型檔'; return; }
+  d.name = n;
+  $('edSave').disabled = true; $('edErr').textContent = '儲存中…';
+  try {
+    if (d.species !== 'custom') { if (editingOrig?.model) await idb.del(d.id + ':model'); d.model = false; d.thumb = ''; }
+    for (const k of ['model', 'call', 'pet']) {
+      if (draftBlobs[k] === null) { await idb.del(d.id + ':' + k); if (k === 'model') d.model = false; else d.snd[k] = false; }
+      else if (draftBlobs[k]) { await idb.set(d.id + ':' + k, draftBlobs[k]); if (k === 'model') d.model = true; else d.snd[k] = true; }
+    }
+  } catch (e) { $('edSave').disabled = false; $('edErr').textContent = '⚠️ 存檔失敗：手機空間可能不夠了'; return; }
+  $('edSave').disabled = false; $('edErr').textContent = '';
+  if (draftBlobs.model) modelCache.delete(d.id);
+  if (draftModel) modelCache.set(d.id, Promise.resolve(draftModel));
+  soundCache.delete(d.id);
+  const i = pets.findIndex(p => p.id === d.id);
+  if (i >= 0) pets[i] = d; else pets.push(d);
+  savePets(); renderHome(); show('homeScr');
+};
+$('edDelete').onclick = async () => {
+  if (!editingOrig || !confirm(`確定要刪除「${editingOrig.name}」嗎？`)) return;
+  const id = editingOrig.id;
+  pets = pets.filter(p => p.id !== id);
+  for (const k of ['model', 'call', 'pet']) idb.del(id + ':' + k).catch(() => {});
+  modelCache.delete(id); soundCache.delete(id);
+  savePets(); renderHome(); show('homeScr');
+};
+
+/* ---------- 自己錄聲音 ---------- */
+const SND_SLOTS = [
+  { k: 'call', t: '叫聲', s: '召喚、點牠、推牠的時候播放' },
+  { k: 'pet', t: '被摸的時候', s: '摸牠的時候會一直重複播放（貓咪預設是呼嚕聲）' },
+];
+let recState = null;
+function hasSnd(k) { return draftBlobs[k] ? true : draftBlobs[k] === null ? false : !!draft.snd[k]; }
+function renderSoundRows() {
+  const box = $('edSounds'); box.textContent = '';
+  for (const slot of SND_SLOTS) {
+    const row = document.createElement('div'); row.className = 'sndrow';
+    const has = hasSnd(slot.k);
+    const t = document.createElement('div'); t.className = 't'; t.textContent = `${slot.t}：${has ? '✅ 用你的聲音' : '用預設聲音'}`;
+    const s = document.createElement('div'); s.className = 's'; s.textContent = slot.s;
+    const rec = document.createElement('button');
+    if (recState?.k === slot.k) { rec.className = 'rec'; rec.textContent = `■ 停止（${recState.left}）`; rec.onclick = () => stopRecording(); }
+    else { rec.textContent = '● 錄音'; rec.onclick = () => startRecording(slot.k); }
+    const fl = document.createElement('label'); fl.className = 'filebtn'; fl.textContent = '📁 選音檔';
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      if (f.size > 3 * 1048576) { alert('音檔太大了（超過 3 MB），請剪短一點'); return; }
+      try { initAudio(); await decodeTrim(f); draftBlobs[slot.k] = f; renderSoundRows(); previewSlot(slot.k); }
+      catch { alert('這個音檔讀不出來，換一個格式試試（mp3、m4a、wav 都可以）'); }
+    };
+    fl.append(inp);
+    const play = document.createElement('button'); play.textContent = '▶ 試聽'; play.onclick = () => previewSlot(slot.k);
+    row.append(t, s, rec, fl, play);
+    if (has) { const rm = document.createElement('button'); rm.textContent = '✕ 改回預設'; rm.onclick = () => { draftBlobs[slot.k] = null; renderSoundRows(); }; row.append(rm); }
+    box.append(row);
+  }
+}
+async function previewSlot(k) {
+  initAudio();
+  const v = await makeVoice(draft, true);
+  if (k === 'call') v.hello(); else { v.petOn(); setTimeout(() => v.petOff(), 3200); }
+}
+async function startRecording(k) {
+  stopRecording();
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { alert('這個瀏覽器不能錄音，請改用「選音檔」'); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } }); micPerm = 'granted'; showMic(); }
+  catch { alert('拿不到麥克風：請在 Chrome 網址列左邊的圖示 →「權限」→ 允許麥克風'); return; }
+  const mr = new MediaRecorder(stream), chunks = [];
+  recState = { k, mr, stream, left: 4, timer: 0 };
+  mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mr.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+    try { initAudio(); await decodeTrim(blob); draftBlobs[k] = blob; renderSoundRows(); previewSlot(k); }
+    catch { alert('錄音好像沒有聲音，再試一次'); renderSoundRows(); }
+  };
+  mr.start();
+  recState.timer = setInterval(() => { if (!recState) return; recState.left--; if (recState.left <= 0) stopRecording(); else renderSoundRows(); }, 1000);
+  renderSoundRows();
+}
+function stopRecording() {
+  if (!recState) return;
+  const r = recState; recState = null; clearInterval(r.timer);
+  try { if (r.mr.state !== 'inactive') r.mr.stop(); } catch {}
+  renderSoundRows && draft && renderSoundRows();
+}
+
+/* ================= 麥克風權限 ================= */
+let micPerm = 'unknown';
+function showMic() {
+  const st = $('micState'), btn = $('micBtn');
+  btn.style.display = micPerm === 'granted' ? 'none' : '';
+  st.textContent = { granted: '🎤 麥克風：已允許 ✅', denied: '🎤 麥克風被封鎖了：請點網址列左邊的圖示 →「權限」→ 允許麥克風，再重新整理', prompt: '🎤 麥克風：還沒允許（語音召喚需要）', unknown: '🎤 麥克風：還沒允許（語音召喚需要）' }[micPerm];
+}
+async function checkMic() {
+  try { const s = await navigator.permissions.query({ name: 'microphone' }); micPerm = s.state; s.onchange = () => { micPerm = s.state; showMic(); }; } catch {}
+  showMic();
+}
+$('micBtn').addEventListener('click', async () => {
+  if (!navigator.mediaDevices?.getUserMedia) { $('micState').textContent = '🎤 這個瀏覽器無法使用麥克風'; return; }
+  try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); micPerm = 'granted'; }
+  catch { micPerm = 'denied'; }
+  showMic();
+});
+checkMic();
+
+/* ================= three.js 基本場景 ================= */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local');
+renderer.xr.setFramebufferScaleFactor(0.85);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.01, 30);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb09070, 1.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(0.4, 1, 0.6); scene.add(sun);
+let envTex = null;
+function ensureEnv() {   // 讓上傳的模型（寫實材質）有自然的反光
+  if (envTex) return;
+  const pm = new THREE.PMREMGenerator(renderer);
+  envTex = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
+  scene.environment = envTex;
+}
+
+const reticle = (() => {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.035, 0.045, 36).rotateX(-Math.PI / 2), mat);
+  ring.add(new THREE.Mesh(new THREE.CircleGeometry(0.007, 16).rotateX(-Math.PI / 2), mat));
+  ring.matrixAutoUpdate = false; ring.visible = false;
+  return ring;
+})();
+scene.add(reticle);
+// 叫寵物過去時，地上出現的小圈圈
+const goalMark = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.042, 32).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xffc078, transparent: true, opacity: 0, depthWrite: false }));
+goalMark.visible = false; goalMark.renderOrder = 6; scene.add(goalMark);
+let goalMarkT = 0;
+function showGoalMark(p) { goalMark.position.copy(p); goalMark.position.y += 0.004; goalMark.visible = true; goalMarkT = performance.now(); }
+
+/* ================= 真實物體遮擋：用手機的深度圖，讓前面的東西把寵物擋住 =================
+   每一幀把深度圖畫成一張「看不見、但會寫入深度」的全螢幕畫面，
+   寵物畫在後面的地方就會被真實的桌腳、椅子、你的手遮住。 */
+const occ = { on: true, tex: null, w: 0, h: 0, la: true, ok: false };
+const occMat = new THREE.ShaderMaterial({
+  uniforms: { uDepth: { value: null }, uUvT: { value: new THREE.Matrix4() }, uRaw: { value: 0.001 }, uProj: { value: new THREE.Vector2(-1, -0.02) }, uLA: { value: 1 }, uTexel: { value: new THREE.Vector2(1, 1) } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D uDepth; uniform mat4 uUvT; uniform float uRaw; uniform vec2 uProj; uniform float uLA; uniform vec2 uTexel;
+    varying vec2 vUv;
+    float dAt(vec2 p){ vec4 s = texture2D(uDepth, p); float r = uLA > 0.5 ? (s.r * 255.0 + s.g * 65280.0) : s.r; return r * uRaw; }
+    void main(){
+      vec2 du = (uUvT * vec4(vUv.x, 1.0 - vUv.y, 0.0, 1.0)).xy;
+      vec2 f = du / uTexel - 0.5, b = (floor(f) + 0.5) * uTexel, w = fract(f);
+      float d0 = dAt(b), d1 = dAt(b + vec2(uTexel.x, 0.0)), d2 = dAt(b + vec2(0.0, uTexel.y)), d3 = dAt(b + uTexel);
+      float w0 = (1.0 - w.x) * (1.0 - w.y) * step(0.05, d0), w1 = w.x * (1.0 - w.y) * step(0.05, d1);
+      float w2 = (1.0 - w.x) * w.y * step(0.05, d2), w3 = w.x * w.y * step(0.05, d3), ws = w0 + w1 + w2 + w3;
+      if (ws < 0.2) discard;                                  // 這裡沒有深度資料 → 不遮
+      float d = (d0 * w0 + d1 * w1 + d2 * w2 + d3 * w3) / ws;
+      d += 0.03 + d * 0.02;                                  // 留一點餘量，腳踩的地面不會把腳吃掉
+      gl_FragDepthEXT = clamp(((uProj.x * -d + uProj.y) / d) * 0.5 + 0.5, 0.0, 1.0);
+      gl_FragColor = vec4(0.0);
+    }`,
+  colorWrite: false, depthWrite: true, depthTest: true, depthFunc: THREE.AlwaysDepth,   // 關掉 depthTest 會連深度都不寫，所以用「永遠通過」
+});
+occMat.extensions.fragDepth = true;
+const occMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), occMat);
+occMesh.frustumCulled = false; occMesh.renderOrder = -100; occMesh.visible = false; scene.add(occMesh);
+function updateOcclusion(di, view) {
+  if (!occ.on || !di || !di.data) { occMesh.visible = false; return; }
+  const w = di.width, h = di.height, la = !(di.data.byteLength >= w * h * 4);
+  if (!occ.tex || occ.w !== w || occ.h !== h || occ.la !== la) {
+    occ.tex?.dispose();
+    occ.tex = la ? new THREE.DataTexture(new Uint8Array(w * h * 2), w, h, THREE.RGFormat, THREE.UnsignedByteType)
+                 : new THREE.DataTexture(new Float32Array(w * h), w, h, THREE.RedFormat, THREE.FloatType);
+    occ.tex.magFilter = occ.tex.minFilter = THREE.NearestFilter; occ.tex.generateMipmaps = false; occ.tex.unpackAlignment = 1;
+    occ.w = w; occ.h = h; occ.la = la;
+    occMat.uniforms.uDepth.value = occ.tex; occMat.uniforms.uLA.value = la ? 1 : 0; occMat.uniforms.uTexel.value.set(1 / w, 1 / h);
+  }
+  try {
+    occ.tex.image.data.set(la ? new Uint8Array(di.data, 0, w * h * 2) : new Float32Array(di.data, 0, w * h));
+  } catch { occMesh.visible = false; return; }
+  occ.tex.needsUpdate = true;
+  occMat.uniforms.uRaw.value = di.rawValueToMeters || 0.001;
+  occMat.uniforms.uUvT.value.fromArray(di.normDepthBufferFromNormView.matrix);
+  const P = view.projectionMatrix; occMat.uniforms.uProj.value.set(P[10], P[14]);
+  occMesh.visible = true; occ.ok = true;
+}
+
+// 預覽模式的假場景：桌子、桌上的杯子、地板
+const PV = { tableW: 0.8, tableD: 0.5, floorY: -0.73, mug: { x: 0.2, z: -0.07, r: 0.045, h: 0.095 } };
+const previewSet = new THREE.Group();
+{
+  const top = new THREE.Mesh(new THREE.BoxGeometry(PV.tableW, 0.03, PV.tableD), new THREE.MeshLambertMaterial({ color: 0xc89b6d }));
+  top.position.y = -0.015; previewSet.add(top);
+  for (const [x, z] of [[-.36, -.21], [.36, -.21], [-.36, .21], [.36, .21]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 0.04), new THREE.MeshLambertMaterial({ color: 0x9c7149 }));
+    leg.position.set(x, -0.38, z); previewSet.add(leg);
+  }
+  const mugM = new THREE.MeshLambertMaterial({ color: 0x6fa8dc });
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(PV.mug.r, PV.mug.r * 0.9, PV.mug.h, 24), mugM);
+  mug.position.set(PV.mug.x, PV.mug.h / 2, PV.mug.z); previewSet.add(mug);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.007, 8, 16), mugM);
+  handle.position.set(PV.mug.x + PV.mug.r + 0.012, PV.mug.h * 0.55, PV.mug.z); previewSet.add(handle);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 5).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xd9cdbd }));
+  floor.position.y = PV.floorY; previewSet.add(floor);
+  previewSet.visible = false; scene.add(previewSet);
+}
+
+/* ================= 場域地圖：把看到的真實世界記成一格一格的高度 =================
+   每一格（3 公分）記錄好幾層高度，例如「地板 -0.73」和「桌面 0」，
+   還有分「水平面」（可以站）和「直立面」（牆、杯子側面＝障礙物）。 */
+class FieldMap {
+  constructor() { this.cells = new Map(); }
+  key(x, z) { return Math.round(x / CELL) * 65536 + Math.round(z / CELL); }
+  clear() { this.cells.clear(); }
+  // t＝這筆資料的高度誤差（越遠的深度越不準，t 越大）
+  add(x, y, z, w, horiz, t = 0.02) {
+    const k = this.key(x, z);
+    let L = this.cells.get(k); if (!L) { L = []; this.cells.set(k, L); }
+    if (horiz) {   // 看得到這一格的這個高度＝它上面沒有東西 → 把上面舊的紀錄慢慢清掉（手拿開了、杯子拿走了）
+      for (let i = L.length - 1; i >= 0; i--) if (L[i].y > y + CARVE + t) { L[i].n -= w * 0.7; if (L[i].n <= 0) L.splice(i, 1); }
+    }
+    for (const l of L) if (l.h === horiz && Math.abs(l.y - y) < Math.max(l.t, t)) {
+      l.y = (l.y * l.n + y * w) / (l.n + w); l.t = (l.t * l.n + t * w) / (l.n + w); l.n = Math.min(l.n + w, 25); return;
+    }
+    L.push({ y, n: w, h: horiz, t });
+    if (L.length > 6) { L.sort((a, b) => b.n - a.n); L.length = 6; }
+  }
+  surface(x, z, y) { return this.surfaceY(x, z, y, SURF_TOL) !== null; }
+  // 在 y 上下 step 範圍內最接近的可站平面高度（沒有就回傳 null）
+  surfaceY(x, z, y, step) {
+    const L = this.cells.get(this.key(x, z)); if (!L) return null;
+    let best = null, bd = Infinity;
+    for (const l of L) if (l.h && l.n >= SURF_N) { const d = Math.abs(l.y - y); if (d < step + l.t * 0.6 && d < bd) { bd = d; best = l.y; } }
+    return best;
+  }
+  wall(x, z, lo, hi) { const L = this.cells.get(this.key(x, z)); if (L) for (const l of L) if (!l.h && l.n >= OBST_N && l.y > lo && l.y < hi) return true; return false; }   // 只看直立面
+  blocked(x, z, lo, hi) { const L = this.cells.get(this.key(x, z)); if (L) for (const l of L) if (l.n >= OBST_N && l.y > lo + Math.max(0, l.t - 0.02) && l.y < hi) return true; return false; }
+  // 只留下你身邊 SCAN_R 以內的資料（寵物附近的也留著）
+  prune(cx, cz, keep) {
+    const lim = SCAN_R + 0.5;
+    for (const k of this.cells.keys()) {
+      const x = Math.round(k / 65536) * CELL, z = (k - Math.round(k / 65536) * 65536) * CELL;
+      if (Math.abs(x - cx) <= lim && Math.abs(z - cz) <= lim) continue;
+      if (keep.some(p => Math.hypot(p.x - x, p.z - z) < 1.2)) continue;
+      this.cells.delete(k);
+    }
+    if (this.cells.size > MAX_CELLS) {   // 還是太多 → 刪掉最不確定的
+      const arr = [...this.cells].map(([k, L]) => [k, L.reduce((s, l) => s + l.n, 0)]).sort((a, b) => a[1] - b[1]);
+      for (let i = 0; i < arr.length - MAX_CELLS * 0.9; i++) this.cells.delete(arr[i][0]);
+    }
+  }
+  // 從畫面上點的位置打一條射線，找第一個碰到的可站平面
+  pick(ray, maxD = SCAN_R + 1) {
+    const o = ray.origin, d = ray.direction;
+    for (let s = 0.1; s < maxD; s += 0.02) {
+      const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
+      const L = this.cells.get(this.key(x, z)); if (!L) continue;
+      for (const l of L) if (l.h && l.n >= SURF_N && Math.abs(l.y - y) < 0.03 + l.t) return new THREE.Vector3(x, l.y, z);
+      for (const l of L) if (!l.h && l.n >= OBST_N && Math.abs(l.y - y) < 0.03) return null;   // 先撞到牆／家具側面
+    }
+    return null;
+  }
+  below(x, z, y) {   // 這一格在 y 下面、最可靠的水平面
+    const L = this.cells.get(this.key(x, z)); if (!L) return null;
+    let maxN = 0; for (const l of L) if (l.h && l.y < y - 0.06) maxN = Math.max(maxN, l.n);
+    if (maxN < 2.5) return null;
+    let best = null; for (const l of L) if (l.h && l.y < y - 0.06 && l.n >= maxN * 0.5 && (best === null || l.y > best)) best = l.y;
+    return best;
+  }
+  belowNear(x, z, y) {   // 正下方沒資料時，找附近 6 公分內的
+    let b = this.below(x, z, y); if (b !== null) return b;
+    for (const [dx, dz] of [[CELL, 0], [-CELL, 0], [0, CELL], [0, -CELL], [2 * CELL, 0], [-2 * CELL, 0], [0, 2 * CELL], [0, -2 * CELL]]) { b = this.below(x + dx, z + dz, y); if (b !== null) return b; }
+    return null;
+  }
+}
+const field = new FieldMap();
+function buildPreviewField() {
+  field.clear();
+  const { tableW, tableD, floorY, mug } = PV;
+  for (let x = -2.5; x <= 2.5; x += CELL) for (let z = -2.5; z <= 2.5; z += CELL) {
+    const onTable = Math.abs(x) <= tableW / 2 && Math.abs(z) <= tableD / 2;
+    field.add(x, floorY, z, 25, true);   // 地板（桌子底下也有）
+    if (!onTable) continue;
+    if (Math.hypot(x - mug.x, z - mug.z) <= mug.r + 0.01) { field.add(x, mug.h, z, 25, true); for (let y = 0.02; y < mug.h; y += 0.025) field.add(x, y, z, 25, false); }
+    else field.add(x, 0, z, 25, true);
+  }
+}
+
+/* ---------- 地圖顯示（按 🗺） ---------- */
+const MAP_MAX = 40000;
+const mapMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(CELL * 0.82, CELL * 0.82).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false }), MAP_MAX);
+mapMesh.renderOrder = 5;
+mapMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mapMesh.frustumCulled = false; mapMesh.visible = false; mapMesh.count = 0;
+scene.add(mapMesh);
+let showMap = false, mapT = 0;
+const cGreen = new THREE.Color(0x3ddc84), cBlue = new THREE.Color(0x4aa3ff), cRed = new THREE.Color(0xff4d4d), cGray = new THREE.Color(0xcccccc);
+const mObj = new THREE.Object3D();
+function refFloorY() {   // 地圖顏色的基準高度：第一隻寵物腳下，或是準星的位置
+  const a = active[active.length - 1]; if (a && a.pet) return a.home.position.y + a.pet.groundY;
+  return reticle.visible ? hitPos.y : null;
+}
+function updateMapMesh() {
+  let i = 0; const ref = refFloorY();
+  for (const [k, L] of field.cells) {
+    if (i >= MAP_MAX) break;
+    const xi = Math.round(k / 65536), zi = k - xi * 65536;
+    if (mode === 'xr' && (Math.abs(xi * CELL - camPos.x) > SCAN_R || Math.abs(zi * CELL - camPos.z) > SCAN_R)) continue;
+    let top = null, obst = false;
+    for (const l of L) {
+      if (l.h && l.n >= SURF_N) { if (top === null || l.y > top) top = l.y; }
+      if (!l.h && l.n >= OBST_N && ref !== null && l.y > ref + OBST_MIN && l.y < ref + OBST_MAX) obst = true;
+    }
+    if (top === null && !obst) continue;
+    const y = top ?? ref;
+    mObj.position.set(xi * CELL, y + 0.003, zi * CELL); mObj.updateMatrix();
+    mapMesh.setMatrixAt(i, mObj.matrix);
+    let c = cGray;
+    if (ref !== null) c = obst || y > ref + OBST_MIN ? cRed : Math.abs(y - ref) < SURF_TOL ? cGreen : cBlue;
+    mapMesh.setColorAt(i, c); i++;
+  }
+  mapMesh.count = i; mapMesh.instanceMatrix.needsUpdate = true; if (mapMesh.instanceColor) mapMesh.instanceColor.needsUpdate = true;
+}
+$('occBtn').addEventListener('click', () => {
+  occ.on = !occ.on; $('occBtn').classList.toggle('on', occ.on); if (!occ.on) occMesh.visible = false;
+  hint(occ.on ? (depthOn ? '遮擋開：真實的東西擋在前面時，寵物會被遮住' : '這支手機沒有深度感測，無法遮擋') : '遮擋關：寵物永遠畫在最前面');
+});
+$('mapBtn').addEventListener('click', () => {
+  showMap = !showMap; mapMesh.visible = showMap; $('mapBtn').classList.toggle('on', showMap);
+  if (showMap) { updateMapMesh(); hint('綠色＝寵物可以走的平面・藍色＝比較低的地方（地板）・紅色＝障礙物或比較高的地方'); }
+});
+
+/* ================= 音效 ================= */
+let actx = null, master = null, pantGain = null, noiseBuf = null;
+const sndBuf = {};
+function initAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  master = actx.createGain(); master.gain.value = 1.0;
+  const comp = actx.createDynamicsCompressor(); master.connect(comp).connect(actx.destination);
+  for (const [k, b64] of Object.entries(SND_B64)) {
+    const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    actx.decodeAudioData(u8.buffer).then(b => { sndBuf[k] = b; }).catch(() => {});
+  }
+  // 狗被摸時的哈哈喘氣（合成，很小聲）
+  const len = actx.sampleRate * 2, white = actx.createBuffer(1, len, actx.sampleRate), wd = white.getChannelData(0);
+  for (let i = 0; i < len; i++) wd[i] = Math.random() * 2 - 1;
+  noiseBuf = white;
+  const src = actx.createBufferSource(); src.buffer = white; src.loop = true;
+  const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 1.2;
+  const am = actx.createGain(); am.gain.value = 0;
+  const lfo = actx.createOscillator(); lfo.type = 'triangle'; lfo.frequency.value = 4.2;
+  const dep = actx.createGain(); dep.gain.value = 0.5; lfo.connect(dep).connect(am.gain);
+  if (actx.createConstantSource) { const off = actx.createConstantSource(); off.offset.value = 0.12; off.connect(am.gain); off.start(); }
+  pantGain = actx.createGain(); pantGain.gain.value = 0;
+  src.connect(bp).connect(am).connect(pantGain).connect(master); src.start(); lfo.start();
+}
+function playBuf(buf, rate = 1, gain = 1, loop = false) {
+  if (!actx || !buf) return null;
+  const s = actx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate; s.loop = loop;
+  const g = actx.createGain(); g.gain.value = gain; s.connect(g).connect(master); s.start();
+  return { s, g };
+}
+// 合成的短音：咀嚼的喀滋聲、舔的聲音
+function noiseBurst(freq, dur, gain, q = 1.5, delay = 0) {
+  if (!actx || !noiseBuf) return;
+  const t0 = actx.currentTime + delay, s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+  const g = actx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(gain, t0 + dur * 0.15); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  s.connect(bp).connect(g).connect(master); s.start(t0, Math.random() * 1.5, dur + 0.05);
+}
+// 錄音：解碼 → 剪掉前後空白 → 音量拉到一致
+async function decodeTrim(blob) {
+  const raw = await actx.decodeAudioData(await blob.arrayBuffer());
+  const ch = raw.getChannelData(0); let peak = 0; for (let i = 0; i < ch.length; i++) peak = Math.max(peak, Math.abs(ch[i]));
+  if (peak < 0.01) throw new Error('silent');
+  const th = peak * 0.06, pad = Math.floor(raw.sampleRate * 0.03);
+  let a = 0, b = ch.length - 1; while (a < b && Math.abs(ch[a]) < th) a++; while (b > a && Math.abs(ch[b]) < th) b--;
+  a = Math.max(0, a - pad); b = Math.min(ch.length, b + pad * 3);
+  const n = Math.max(1, Math.min(b - a, raw.sampleRate * 6)), out = actx.createBuffer(1, n, raw.sampleRate), od = out.getChannelData(0), gain = 0.9 / peak;
+  for (let i = 0; i < n; i++) { const fade = Math.min(1, i / 200, (n - i) / 600); od[i] = ch[a + i] * gain * fade; }
+  return out;
+}
+const soundCache = new Map();
+async function customBufs(def, useDraft) {
+  const out = {};
+  for (const k of ['call', 'pet']) {
+    let blob = null;
+    if (useDraft && draftBlobs[k] !== undefined) blob = draftBlobs[k];
+    else if (def.snd?.[k]) {
+      const ck = def.id + ':' + k;
+      if (!soundCache.has(ck)) soundCache.set(ck, idb.get(ck).then(b => b ? decodeTrim(b) : null).catch(() => null));
+      out[k] = await soundCache.get(ck); continue;
+    }
+    if (blob) { try { out[k] = await decodeTrim(blob); } catch {} }
+  }
+  return out;
+}
+// 每一隻寵物的聲音
+async function makeVoice(def, useDraft = false) {
+  initAudio();
+  const c = actx ? await customBufs(def, useDraft) : {};
+  const set = def.species === 'custom' ? def.voice : def.species;
+  const r = 0.96 + Math.random() * 0.1;
+  let purr = null, petTimer = 0;
+  const S = k => sndBuf[k];
+  const pick = (...ks) => S(ks[Math.floor(Math.random() * ks.length)]);
+  const call = (rate, gain = 1) => {
+    if (c.call) return playBuf(c.call, rate, gain);
+    if (set === 'cat') return playBuf(pick('cat_hello', 'cat_mew2'), r * rate, gain);
+    if (set === 'dog') return playBuf(S('dog_hello'), r * rate, gain);
+  };
+  const v = {
+    hello: () => call(1),
+    tap: () => c.call ? playBuf(c.call, 1.06) : set === 'cat' ? playBuf(pick('cat_tap', 'cat_mew2'), r) : set === 'dog' ? playBuf(S('dog_tap'), r) : null,
+    push: () => c.call ? playBuf(c.call, 1.2) : set === 'cat' ? playBuf(S('cat_push'), r) : set === 'dog' ? playBuf(S('dog_push'), r) : null,
+    land: () => c.call ? playBuf(c.call, 1.1, 0.8) : set === 'cat' ? playBuf(S('cat_tap'), r * 1.1, 0.8) : set === 'dog' ? playBuf(S('dog_tap'), r, 0.8) : null,
+    bonk: () => c.call ? playBuf(c.call, 1.25, 0.6) : set === 'cat' ? playBuf(S('cat_tap'), r * 1.2, 0.6) : set === 'dog' ? playBuf(S('dog_push'), r * 1.1, 0.6) : null,
+    whine: () => c.call ? playBuf(c.call, 1.3, 0.5) : set === 'cat' ? playBuf(S('cat_mew2'), r * 1.25, 0.55) : set === 'dog' ? playBuf(S('dog_whine'), r * 1.15, 0.65) : null,
+    chew: () => { noiseBurst(2600 + Math.random() * 900, 0.06, 0.35, 2.5); noiseBurst(3200, 0.05, 0.25, 2.5, 0.11); },
+    lick: () => { noiseBurst(1500 + Math.random() * 500, 0.13, 0.28, 1.2); },
+    petOn: () => {
+      if (!actx) return;
+      if (c.pet) {
+        const loop = () => { playBuf(c.pet, 1, 0.9); petTimer = setTimeout(loop, (c.pet.duration + 1.4) * 1000); };
+        clearTimeout(petTimer); loop(); return;
+      }
+      if (set === 'cat' && S('cat_purr')) {
+        if (!purr) { purr = playBuf(S('cat_purr'), 1, 0, true); }
+        purr.g.gain.setTargetAtTime(0.9, actx.currentTime, 0.2);
+      } else if (set === 'dog') {
+        playBuf(S('dog_whine'), r * 1.1, 0.7);
+        pantGain?.gain.setTargetAtTime(0.25, actx.currentTime, 0.12);
+      }
+    },
+    petOff: () => {
+      clearTimeout(petTimer);
+      if (purr) { const p = purr; purr = null; p.g.gain.setTargetAtTime(0, actx.currentTime, 0.25); setTimeout(() => { try { p.s.stop(); } catch {} }, 1500); }
+      if (set === 'dog') pantGain?.gain.setTargetAtTime(0, actx.currentTime, 0.15);
+    },
+  };
+  return v;
+}
+
+/* ================= 3D 模型（使用者上傳的 GLB） ================= */
+let gltfLoader = null;
+function loader() {
+  if (!gltfLoader) {
+    gltfLoader = new GLTFLoader();
+    const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    gltfLoader.setDRACOLoader(draco); gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+  }
+  return gltfLoader;
+}
+async function parseModel(blob) {
+  const buf = await blob.arrayBuffer();
+  const gltf = await new Promise((res, rej) => loader().parse(buf, '', res, rej));
+  let tris = 0;
+  gltf.scene.traverse(o => { if (o.isMesh) { const g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3; o.frustumCulled = false; } });
+  return { gltf, tris, clips: gltf.animations || [], bytes: blob.size };
+}
+const modelCache = new Map();
+function getModel(def) {
+  if (!def.model) return Promise.resolve(null);
+  if (!modelCache.has(def.id)) modelCache.set(def.id, idb.get(def.id + ':model').then(b => b ? parseModel(b) : null).catch(() => null));
+  return modelCache.get(def.id);
+}
+function fitModel(m, def) {   // 把模型縮放到指定大小、腳底放在地上、置中
+  const inner = SkeletonUtils.clone(m.gltf.scene);
+  const yawG = new THREE.Group(); yawG.rotation.y = def.yaw || 0; yawG.add(inner); yawG.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(yawG), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const s = def.size / Math.max(size.x, size.y, size.z, 1e-6);
+  const fit = new THREE.Group(); fit.scale.setScalar(s); fit.position.set(-c.x * s, -box.min.y * s, -c.z * s); fit.add(yawG);
+  return { obj: fit, inner, w: size.x * s, h: size.y * s, d: size.z * s };
+}
+let thumbR = null;
+function refreshThumb() {
+  if (!draftModel) return;
+  ensureEnv();
+  if (!thumbR) { thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(192, 192); thumbR.outputColorSpace = THREE.SRGBColorSpace; }
+  const sc = new THREE.Scene(); sc.environment = envTex;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0xb09070, 1.5)); const l = new THREE.DirectionalLight(0xffffff, 1.4); l.position.set(0.5, 1, 1); sc.add(l);
+  const f = fitModel(draftModel, { ...draft, size: 1 }); sc.add(f.obj);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 20), R = Math.max(f.w, f.h, f.d);
+  cam.position.set(R * 0.75, f.h * 0.5 + R * 0.45, R * 1.75); cam.lookAt(0, f.h * 0.42, 0);   // 斜前方看過去
+  thumbR.render(sc, cam);
+  draft.thumb = thumbR.domElement.toDataURL('image/png');
+  renderEditor();
+}
+
+/* ================= 內建貓狗的造型（程式畫的 Q 版大頭，0 下載量） ================= */
+const SPH = new THREE.SphereGeometry(1, 22, 16);
+const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([150, 215, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad });
+
+class ToonRig {
+  constructor(def) {
+    const P = pal(def), isDog = def.species === 'dog';
+    this.isDog = isDog; this.def = def;
+    this.obj = new THREE.Group();
+    this.body = new THREE.Group(); this.obj.add(this.body);
+    this.baseScale = PET_SCALE; this.radius = 0.05 * PET_SCALE; this.height = 0.17 * PET_SCALE;
+    this.colC = new THREE.Vector3(0, 0.08, 0.02); this.colR = 0.09 * PET_SCALE; this.shadowS = [0.05, 0.075];
+    const fur = toon(P.fur), dark = toon(P.dark), cream = toon(P.cream), pink = toon(0xff9eb0);
+    const ink = new THREE.MeshBasicMaterial({ color: 0x2a1c16 });
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeM = new THREE.MeshBasicMaterial({ color: P.eye });
+    const blushM = new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.55, depthWrite: false });
+    const add = (parent, geo, mat, p, s, r) => { const m = new THREE.Mesh(geo, mat); if (p) m.position.set(...p); if (s) m.scale.set(...s); if (r) m.rotation.set(...r); parent.add(m); return m; };
+
+    add(this.body, SPH, fur, [0, 0.05, -0.005], [0.042, 0.038, 0.054]);
+    add(this.body, SPH, cream, [0, 0.044, 0.02], [0.03, 0.029, 0.036]);
+    if (P.stripes) {
+      add(this.body, SPH, dark, [0, 0.086, -0.01], [0.026, 0.006, 0.008]);
+      add(this.body, SPH, dark, [0, 0.083, -0.032], [0.024, 0.006, 0.008]);
+    }
+    const HR = isDog ? [0.056, 0.05, 0.048] : [0.058, 0.052, 0.05];
+    const onHead = (x, y, inset = 0) => HR[2] * Math.sqrt(Math.max(0, 1 - (x / HR[0]) ** 2 - (y / HR[1]) ** 2)) - inset;
+    this.head = new THREE.Group(); this.head.position.set(0, 0.112, 0.03); this.body.add(this.head);
+    add(this.head, SPH, fur, [0, 0, 0], HR);
+    if (isDog) {
+      add(this.head, SPH, cream, [0, -0.017, 0.042], [0.026, 0.018, 0.018]);
+      add(this.head, SPH, ink, [0, -0.007, 0.059], [0.009, 0.0065, 0.0055]);
+      add(this.head, SPH, white, [0.003, -0.004, 0.064], [0.0025, 0.0015, 0.001]);
+      for (const s of [-1, 1]) add(this.head, new THREE.TorusGeometry(0.0048, 0.0011, 6, 14, Math.PI), ink, [s * 0.0048, -0.019, 0.0595], null, [0, 0, Math.PI]);
+      this.tongue = add(this.head, SPH, pink, [0, -0.03, 0.054], [0.008, 0.004, 0.009]); this.tongue.visible = false;
+      add(this.head, SPH, cream, [0, 0.03, 0.03], [0.008, 0.005, 0.006]).visible = def.color !== 'white';
+    } else {
+      add(this.head, SPH, cream, [0, -0.017, 0.038], [0.025, 0.015, 0.012]);
+      add(this.head, SPH, pink, [0, -0.009, 0.0495], [0.0058, 0.0042, 0.004]);
+      for (const s of [-1, 1]) add(this.head, new THREE.TorusGeometry(0.0045, 0.0011, 6, 14, Math.PI), ink, [s * 0.0045, -0.0165, 0.0505], null, [0, 0, Math.PI]);
+      const wm = new THREE.LineBasicMaterial({ color: P.fur === 0x34303a ? 0xbdb3c0 : 0x8c6a52 });
+      for (const s of [-1, 1]) for (const k of [-1, 1]) {
+        const gg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(s * 0.03, -0.012, 0.04), new THREE.Vector3(s * 0.068, -0.012 + k * 0.006, 0.032)]);
+        this.head.add(new THREE.Line(gg, wm));
+      }
+    }
+    const ex = 0.023, ey = isDog ? 0.007 : 0.004;
+    this.eyeH = 0.0135;
+    this.eyes = [-1, 1].map(s => {
+      const e = add(this.head, SPH, eyeM, [s * ex, ey, onHead(ex, ey, 0.001)], [0.0115, this.eyeH, 0.0065]);
+      if (P.pupil) add(e, SPH, ink, [0, 0, 0.5], [0.55, 0.82, 0.55]);
+      add(e, SPH, white, [0.32, 0.38, 0.78], [0.36, 0.33, 0.3]);
+      add(e, SPH, white, [-0.32, -0.38, 0.82], [0.17, 0.16, 0.15]);
+      return e;
+    });
+    for (const s of [-1, 1]) { const bx = 0.037, by = -0.013; add(this.head, SPH, blushM, [s * bx, by, onHead(bx, by, -0.0005)], [0.0095, 0.0055, 0.002], [0, s * 0.62, 0]); }
+    this.ears = [];
+    for (const s of [-1, 1]) {
+      const g = new THREE.Group(); this.head.add(g); this.ears.push(g);
+      if (isDog && P.ears === 'flop') {
+        g.position.set(s * 0.046, 0.028, -0.004);
+        add(g, SPH, toon(P.earColor), [s * 0.006, -0.018, 0], [0.012, 0.025, 0.017], [0, 0, s * 0.3]);
+        g.userData.base = [0, 0, 0];
+      } else {
+        g.position.set(s * (isDog ? 0.031 : 0.033), isDog ? 0.04 : 0.041, isDog ? -0.006 : -0.004);
+        g.userData.base = [isDog ? -0.15 : -0.08, 0, -s * (isDog ? 0.3 : 0.38)];
+        g.rotation.set(...g.userData.base);
+        add(g, new THREE.ConeGeometry(isDog ? 0.017 : 0.019, isDog ? 0.03 : 0.031, 14), fur, [0, 0.012, 0]);
+        add(g, new THREE.ConeGeometry(isDog ? 0.0095 : 0.0105, 0.018, 14), isDog ? cream : pink, [0, 0.008, 0.008], [1, 1, 0.45]);
+      }
+    }
+    const legGeo = new THREE.CylinderGeometry(0.0105, 0.0105, 0.028, 12);
+    this.legs = [[-0.022, 0.026], [0.022, 0.026], [-0.022, -0.028], [0.022, -0.028]].map(([x, z]) => {
+      const pivot = new THREE.Group(); pivot.position.set(x, 0.034, z); this.body.add(pivot);
+      add(pivot, legGeo, fur, [0, -0.014, 0]);
+      add(pivot, SPH, cream, [0, -0.028, 0.003], [0.012, 0.0072, 0.013]);
+      return pivot;
+    });
+    if (isDog) {
+      const tg = new THREE.CylinderGeometry(0.008, 0.011, 0.03, 10).translate(0, 0.015, 0);
+      this.tail1 = new THREE.Group(); this.tail1.position.set(0, 0.075, -0.05); this.body.add(this.tail1); add(this.tail1, tg, fur);
+      this.tail2 = new THREE.Group(); this.tail2.position.set(0, 0.028, 0); this.tail1.add(this.tail2); add(this.tail2, tg, fur);
+      add(this.tail2, SPH, cream, [0, 0.03, 0], [0.009, 0.011, 0.009]);
+      this.tailBase = [-0.35, 1.45];
+    } else {
+      const tg = new THREE.CylinderGeometry(0.0075, 0.009, 0.045, 10).translate(0, 0.0225, 0);
+      this.tail1 = new THREE.Group(); this.tail1.position.set(0, 0.06, -0.052); this.body.add(this.tail1); add(this.tail1, tg, fur);
+      this.tail2 = new THREE.Group(); this.tail2.position.set(0, 0.043, 0); this.tail1.add(this.tail2); add(this.tail2, tg, fur);
+      add(this.tail2, SPH, P.stripes ? dark : fur, [0, 0.045, 0], [0.0085, 0.011, 0.0085]);
+      this.tailBase = [-0.9, 0.55];
+    }
+    this.nextBlink = 2; this.blinkUntil = 0;
+  }
+  update(dt, A) {
+    const t = A.t, k6 = Math.min(1, dt * 6), dog = this.isDog;
+    this.legs.forEach((l, i) => { l.rotation.x = A.legSwing * (i === 0 || i === 3 ? 1 : -1); });
+    // lean＞0：低頭往前（吃東西）；rear＞0：前腳抬起來站起來（舔手）
+    const pitch = A.lean - A.rear;
+    this.body.rotation.x += (pitch - this.body.rotation.x) * k6;
+    const rx = this.body.rotation.x;
+    this.body.position.y = A.jump + A.bob + Math.max(0, -rx) * 0.055 + Math.max(0, rx) * 0.02;
+    this.body.position.z += ((A.lean > 0 ? -0.01 : 0) - this.body.position.z) * k6;
+    this.body.rotation.z += (A.roll - this.body.rotation.z) * k6;
+    const sq = A.squash; this.body.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5);
+    this.tail1.rotation.x = this.tailBase[0] + (!dog && A.state === 'pet' ? -0.3 : 0);
+    this.tail1.rotation.z = Math.sin(t * A.tailSpeed) * A.tailAmp;
+    this.tail2.rotation.x = this.tailBase[1];
+    this.tail2.rotation.z = Math.sin(t * A.tailSpeed - 0.9) * A.tailAmp * 0.8;
+    const headYaw = A.headYaw !== null ? clamp(A.headYaw, -0.9, 0.9) : A.lookCam ? clamp(A.camRel, -0.9, 0.9) : 0;
+    this.head.rotation.y += (headYaw - this.head.rotation.y) * Math.min(1, dt * 5);
+    this.head.rotation.x += (A.headPitch - this.head.rotation.x) * (A.chew ? 1 : k6);
+    const tilt = A.headTilt !== 0 ? A.headTilt : A.squint ? -0.18 : (A.state === 'idle' && A.lookCam ? Math.sin(t * 0.7) * 0.12 : 0);
+    this.head.rotation.z += (tilt - this.head.rotation.z) * Math.min(1, dt * 4);
+    this.ears.forEach((e, i) => {
+      const b = e.userData.base, s = i ? 1 : -1;
+      e.rotation.x = b[0] - A.earPerk * 0.25; e.rotation.z = b[2] + (A.squint ? -s * 0.25 : 0) + Math.sin(t * 9 + i) * 0.03 * A.earPerk;
+    });
+    if (this.tongue) {
+      this.tongue.visible = A.tongue;
+      const lk = A.lick ? Math.max(0, Math.sin(t * 13)) : 0;     // 舔：舌頭一伸一縮
+      this.tongue.scale.set(0.008, 0.004 + lk * 0.002, 0.009 + lk * 0.012);
+      this.tongue.position.z = 0.054 + lk * 0.01;
+    }
+    if (t > this.nextBlink) { this.blinkUntil = t + 0.12; this.nextBlink = t + 2 + Math.random() * 4; }
+    const eyeY = A.squint ? 0.0018 : (t < this.blinkUntil ? 0.0012 : this.eyeH);
+    for (const e of this.eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 18);
+  }
+}
+
+class ModelRig {
+  constructor(m, def) {
+    this.behavior = def.behavior;
+    const f = fitModel(m, def);
+    this.obj = new THREE.Group(); this.anim = new THREE.Group(); this.obj.add(this.anim); this.anim.add(f.obj);
+    this.baseScale = 1; this.height = f.h;
+    this.radius = Math.max(0.025, Math.max(f.w, f.d) * 0.42);
+    this.colC = new THREE.Vector3(0, f.h * 0.5, 0); this.colR = Math.max(0.05, Math.max(f.h, f.w, f.d) * 0.6);
+    this.shadowS = [Math.max(0.02, f.w * 0.45), Math.max(0.02, f.d * 0.45)];
+    this.mixer = null;
+    if (m.clips.length) {
+      this.mixer = new THREE.AnimationMixer(f.inner);
+      const pick = re => m.clips.find(c => re.test(c.name));
+      this.walkClip = pick(/walk|run|move|trot|fly|hop|jump|swim/i) || m.clips[0];
+      this.idleClip = pick(/idle|stand|breath|rest|sit|wait/i) || (m.clips.length === 1 ? m.clips[0] : null);
+    }
+  }
+  play(clip) {
+    if (!this.mixer || this.curClip === clip) return;
+    if (this.curAct) this.curAct.fadeOut(0.25);
+    const next = clip ? this.mixer.clipAction(clip) : null;
+    if (next) next.reset().fadeIn(0.25).play();
+    this.curAct = next; this.curClip = clip;
+  }
+  update(dt, A) {
+    if (this.mixer) { this.play(A.moving ? this.walkClip : this.idleClip); this.mixer.update(dt); }
+    const g = this.anim, t = A.t;
+    let rz = A.roll, rx = 0, sy = 1 - A.squash;
+    const animated = this.mixer && A.moving && this.walkClip;
+    if (A.moving && !animated && this.behavior === 'walk') { rz += Math.sin(t * 13) * 0.08; rx = -0.04; }   // 搖搖擺擺地走
+    if (this.behavior === 'fly') { g.position.y = A.jump + Math.sin(t * 2.6) * 0.012; if (A.moving) rx = 0.16; }
+    else g.position.y = A.jump + A.bob;
+    if (A.squint) { sy *= 1 + Math.sin(t * 7) * 0.035; rz += Math.sin(t * 2.4) * 0.06; }   // 被摸：開心地扭動
+    if (A.headPitch < -0.2) rx -= 0.12;                                                     // 被點：往後仰一下
+    if (A.lean > 0) rx += 0.32 + (A.chew ? Math.sin(t * 11) * 0.06 : 0);                      // 吃東西：低頭
+    if (A.rear > 0) rx -= A.rear * 0.6;                                                     // 站起來
+    if (A.lick) rx += Math.sin(t * 13) * 0.07;                                              // 舔：點頭
+    if (A.headTilt) rz += A.headTilt * 0.6;                                                 // 蹭：身體歪向手
+    g.rotation.z += (rz - g.rotation.z) * Math.min(1, dt * 10);
+    g.rotation.x += (rx - g.rotation.x) * Math.min(1, dt * 6);
+    const sxz = 1 / Math.sqrt(Math.max(0.3, sy)); g.scale.set(sxz, sy, sxz);
+  }
+}
+
+/* ================= 寵物的行為 ================= */
+class Pet {
+  constructor(def, model, voice) {
+    this.def = def; this.kind = def.species; this.isDog = this.kind === 'dog' || (this.kind === 'custom' && def.voice === 'dog');
+    this.behavior = this.kind === 'custom' ? def.behavior : 'walk';
+    this.voice = voice;
+    this.rig = this.kind === 'custom' ? new ModelRig(model, def) : new ToonRig(def);
+    this.root = new THREE.Group(); this.root.add(this.rig.obj);
+    this.shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
+    this.shadow.scale.set(this.rig.shadowS[0], 1, this.rig.shadowS[1]); this.root.add(this.shadow);
+    this.radius = this.rig.radius;
+    this.sizeK = this.kind === 'custom' ? clamp(def.size / 0.15, 0.6, 2.2) : 1;
+    this.hover = this.behavior === 'fly' ? Math.max(0.05, this.rig.height * 0.6) : 0;
+    this.root.scale.setScalar(0.001);
+    this.time = Math.random() * 10; this.state = 'appear'; this.stateT = 0; this.idleDur = 2;
+    this.target = new THREE.Vector3(); this.vel = new THREE.Vector2(); this.vy = 0;
+    this.groundY = 0; this.fallFrom = 0; this.fallTarget = null;
+    this.safe = new THREE.Vector3();
+    this.petTimer = 0; this.lookAtCam = true;
+    this.A = { t: 0, legSwing: 0, bob: 0, jump: 0, roll: 0, squash: 0, squint: false, headPitch: 0, lookCam: false, tongue: false, earPerk: 0, tailAmp: 0, tailSpeed: 1, moving: false, camRel: 0, state: '',
+      lean: 0, rear: 0, chew: false, lick: false, headTilt: 0, headYaw: null };
+    this.interact = interactOf(def);
+    this.food = null; this.foodCheck = 0; this.petHold = 0; this.petCool = 0;
+    this.handPt = new THREE.Vector3(); this.handT = 0; this.soundT = 0;
+  }
+  get collider() { return this.rig.colC; }
+  setState(s) {
+    if ((this.state === 'pet' || this.state === 'hand') && s !== this.state) this.voice.petOff();
+    if (this.state === 'eat' && s !== 'eat' && this.food && this.food.eater === this) this.food.eater = null;
+    this.state = s; this.stateT = 0;
+    if (s === 'idle') { this.idleDur = this.behavior === 'static' ? 1e9 : 1.5 + Math.random() * 3.5; this.lookAtCam = Math.random() < 0.6; }
+  }
+  busy() { return this.state === 'appear' || this.state === 'fall' || this.state === 'land' || this.state === 'eat'; }
+  // 可以被「食物」或「主人」吸引過去的狀態（正在被摸、被推、正在吃的時候不會）
+  free() { return this.state === 'idle' || (this.state === 'walk' && !this.goal); }
+  turnTo(want, dt, rate) { const r = this.root.rotation; r.y += clamp(angleDiff(want, r.y), -rate * dt, rate * dt); }
+  tap() { if (this.busy() || this.state === 'hand') return; this.setState('tapped'); this.voice.tap(); }
+  pet() {
+    if (this.busy() || this.state === 'pushed' || this.state === 'hand') return;
+    this.petTimer = 0.8;
+    if (this.state !== 'pet') { this.setState('pet'); this.voice.petOn(); }
+  }
+  push(dx, dz, speed) {
+    if (this.busy()) return;
+    this.goal = null; this.vel.set(dx * speed, dz * speed); this.setState('pushed'); this.voice.push();
+  }
+  tryWander(a) {
+    const p = this.root.position;
+    for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2, d = (0.08 + Math.random() * 0.42) * this.sizeK;
+      const tx = p.x + Math.sin(ang) * d, tz = p.z + Math.cos(ang) * d;
+      if (a.path(tx, tz)) { this.goal = null; this.target.set(tx, 0, tz); this.setState('walk'); return; }
+    }
+    this.idleDur = this.stateT + 1.2;
+  }
+  goTo(lx, ly, lz, extra = null, quiet = false) {   // 跑到 (lx, ly, lz)（座標相對於牠的家）
+    if (this.busy() || this.behavior === 'static') return false;
+    this.goal = { x: lx, y: ly, z: lz, ...extra }; this.target.set(lx, 0, lz); this.setState('walk');
+    if (!quiet) this.voice.tap();
+    return true;
+  }
+  // 伸手摸（親密度 100%）：pt 是手的位置（相對於家）
+  handOn(pt) {
+    if (this.busy() || this.state === 'pushed' || this.state === 'fall') return false;
+    this.handPt.copy(pt); this.handT = 0.7;
+    if (this.state !== 'hand') { this.goal = null; this.setState('hand'); this.soundT = 0; if (this.interact === 'rub') this.voice.petOn(); else this.voice.hello(); }
+    return true;
+  }
+  startFall(a, jump = false) {
+    this.setState('fall'); this.vy = jump ? 0.9 : 0.25; this.fallFrom = this.groundY; this.fallTarget = null;
+    a.onFall?.(jump);
+  }
+  follow(a, dt) { if (this.behavior !== 'fly' && a.spotY !== null) this.groundY += (a.spotY - this.groundY) * Math.min(1, dt * 14); }
+  wantAt(G, a, blocked = false) {
+    this.wantPt = { x: G.x, y: G.y, z: G.z }; this.setState('want'); this.voice.whine();
+    if (G.food) G.food.skip.set(this, performance.now() + 7000);   // 一陣子之後再試
+    a.onWant?.(G, blocked);
+  }
+  update(dt, camLocal, a) {
+    this.time += dt; this.stateT += dt; this.petTimer -= dt; this.petCool -= dt;
+    if (this.state !== 'pet') this.petHold = Math.max(0, this.petHold - dt * 0.5);
+    const r = this.root, p = r.position, t = this.time, dog = this.isDog, B = this.behavior, A = this.A;
+    A.t = t; A.legSwing = 0; A.bob = 0; A.jump = 0; A.roll = 0; A.squash = 0; A.squint = false; A.headPitch = 0; A.lookCam = false;
+    A.tongue = false; A.earPerk = 0; A.moving = false; A.tailAmp = dog ? 0.25 : 0.35; A.tailSpeed = dog ? 5 : 2.2;
+    A.lean = 0; A.rear = 0; A.chew = false; A.lick = false; A.headTilt = 0; A.headYaw = null;
+    const camYaw = Math.atan2(camLocal.x - p.x, camLocal.z - p.z);
+    let ground = true;
+
+    switch (this.state) {
+      case 'appear': {
+        const k = Math.min(1, this.stateT / 0.45);
+        r.scale.setScalar(this.rig.baseScale * Math.max(0.001, easeOutBack(k)));
+        A.lookCam = true;
+        if (k >= 1) this.setState('idle');
+        break;
+      }
+      case 'idle':
+        A.lookCam = this.lookAtCam; A.tongue = dog && this.lookAtCam;
+        if (this.stateT > 0.3 && (this.foodCheck -= dt) < 0) { this.foodCheck = 0.4; if (a.seekFood?.()) break; }
+        if (this.kind === 'custom' && this.lookAtCam && B !== 'static') this.turnTo(camYaw, dt, 1.2);   // 模型沒有可以轉的頭，就整隻轉過來看你
+        if (this.stateT > this.idleDur) this.tryWander(a);
+        break;
+      case 'walk': {
+        if (!this.goal && (this.foodCheck -= dt) < 0) { this.foodCheck = 0.4; if (a.seekFood?.()) break; }   // 散步中看到飼料
+        const G = this.goal;
+        if (G?.food) {                                   // 飼料可能還在滾，目標跟著飼料走
+          if (!G.food.alive || (G.food.eater && G.food.eater !== this)) { this.goal = null; this.setState('idle'); break; }
+          G.x = G.food.pos.x - a.home.position.x; G.y = G.food.pos.y - a.home.position.y; G.z = G.food.pos.z - a.home.position.z;
+          this.target.set(G.x, 0, G.z);
+        }
+        const dx = this.target.x - p.x, dz = this.target.z - p.z, d = Math.hypot(dx, dz);
+        const run = !!G && d > 0.15, f = run ? 1.7 : 1;
+        if (d < (G ? (G.stop || 0.03) : 0.012)) {
+          this.goal = null;
+          if (G && Math.abs(G.y - this.groundY) > 0.07 && B !== 'fly') { if (G.food) this.wantAt(G, a); else this.setState('idle'); break; }   // 走到了，但東西在上面或下面
+          if (G?.food) { if (G.food.state === 'rest') { this.food = G.food; G.food.eater = this; this.setState('eat'); } else this.setState('idle'); break; }
+          if (G?.owner) { this.soundT = 0; this.setState('greet'); break; }
+          if (G) { this.lookAtCam = true; this.idleDur = 2.5; }
+          this.setState('idle'); break;
+        }
+        const want = Math.atan2(dx, dz); this.turnTo(want, dt, run ? 6 : 4);
+        A.moving = true;
+        if (B === 'hop') A.jump = Math.abs(Math.sin(t * 7.5 * f)) * 0.028 * this.sizeK;
+        else if (B === 'walk') { A.legSwing = Math.sin(t * 16 * f) * (run ? 0.85 : 0.65); A.bob = Math.abs(Math.sin(t * 16 * f)) * (run ? 0.009 : 0.005); }
+        if (dog) { A.tailAmp = 0.5; A.tailSpeed = 10; }
+        if (Math.abs(angleDiff(want, r.rotation.y)) < 0.6) {
+          const sp = (run ? RUN_SPEED : WALK_SPEED) * this.sizeK * (B === 'fly' ? 1.4 : B === 'hop' ? 1.15 : 1);
+          const step = Math.min(d, sp * dt), nx = p.x + dx / d * step, nz = p.z + dz / d * step;
+          const code = a.check(nx, nz);
+          if (code === 0) { p.x = nx; p.z = nz; this.follow(a, dt); }
+          else if (code === 1 && this.goal && B !== 'fly' && this.goal.y < this.groundY - 0.08 && this.groundY - this.goal.y < 1.3) {
+            this.vel.set(dx / d * 0.32, dz / d * 0.32); this.startFall(a, true);       // 目的地在下面 → 跳下去
+          } else if (code === 2 && G?.food) { this.goal = null; this.wantAt(G, a, true); }                              // 想吃但被擋住
+          else if (code === 2 && this.goal) { this.goal = null; this.setState('bonk'); this.voice.bonk(); a.onBlocked?.(G); }   // 被東西擋住
+          else if (code === 1 && G?.food) { this.goal = null; this.wantAt(G, a); }                                       // 飼料在上不去的地方
+          else if (code === 1 && this.goal) { this.goal = null; this.setState('teeter'); a.onNoPath?.(G); }                     // 前面沒路
+          else { this.goal = null; this.setState('idle'); }
+        }
+        break;
+      }
+      case 'tapped': {
+        const k = this.stateT / 0.5;
+        if (k < 1) A.jump = Math.sin(Math.PI * k) * 0.035 * this.sizeK;
+        A.headPitch = -0.35; A.lookCam = true; A.tailAmp = 0.7; A.tailSpeed = dog ? 16 : 6; A.earPerk = 1; A.tongue = dog;
+        if (B !== 'static') this.turnTo(camYaw, dt, 5);
+        if (this.stateT > 1.0) this.setState('idle');
+        break;
+      }
+      case 'pet':
+        A.squint = true; A.lookCam = true;
+        this.petHold += dt;
+        if (this.petHold >= 1.5 && this.petCool <= 0) { this.petHold = 0; this.petCool = RULES.petCooldownSec; a.onPetted?.(); }
+        if (dog) { A.tailAmp = 0.75; A.tailSpeed = 18; A.headPitch = -0.15; A.tongue = true; A.roll = Math.sin(t * 3) * 0.05; }
+        else { A.tailAmp = 0.18; A.tailSpeed = 1.1; A.headPitch = 0.15; A.roll = Math.sin(t * 2.2) * 0.06; }
+        if (this.petTimer <= 0) this.setState('idle');
+        break;
+      case 'pushed': {
+        const sp = this.vel.length();
+        A.legSwing = Math.sin(t * 24) * 0.8; A.tailAmp = 0.8; A.tailSpeed = 8;
+        const nx = p.x + this.vel.x * dt, nz = p.z + this.vel.y * dt;
+        const code = a.check(nx, nz);
+        if (code === 0) { p.x = nx; p.z = nz; this.follow(a, dt); }
+        else if (code === 1 && B !== 'fly') {
+          if (sp > FALL_SPEED) { p.x = nx; p.z = nz; this.startFall(a); break; }
+          this.vel.set(0, 0); this.setState('teeter'); break;      // 停在桌邊，嚇一跳
+        } else if (code === 2) { this.vel.set(0, 0); this.setState('bonk'); this.voice.bonk(); break; }   // 撞到東西
+        else this.vel.set(0, 0);
+        this.vel.multiplyScalar(Math.exp(-3.2 * dt));
+        if (sp < 0.02) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2.5; }
+        break;
+      }
+      case 'teeter':
+        A.roll = Math.sin(t * 22) * 0.22 * Math.exp(-this.stateT * 2.5); A.legSwing = Math.sin(t * 30) * 0.9 * Math.exp(-this.stateT * 2);
+        A.squint = this.stateT < 0.5; A.earPerk = 1; A.lookCam = true;
+        if (this.stateT > 1.1) { this.setState('idle'); this.lookAtCam = true; }
+        break;
+      case 'bonk': {
+        const k = this.stateT / 0.35;
+        if (k < 1) A.jump = Math.sin(Math.PI * k) * 0.02 * this.sizeK;
+        A.squint = true; A.roll = Math.sin(t * 25) * 0.1 * Math.exp(-this.stateT * 4);
+        if (this.stateT > 0.8) { this.setState('idle'); this.lookAtCam = true; }
+        break;
+      }
+      case 'eat': {                                       // 低頭吃飼料
+        const F = this.food;
+        if (!F || !F.alive) { this.food = null; this.setState('idle'); break; }
+        const fx = F.pos.x - a.home.position.x - p.x, fz = F.pos.z - a.home.position.z - p.z;
+        this.turnTo(Math.atan2(fx, fz), dt, 4);
+        A.lean = 0.28; A.headPitch = 0.75 + Math.sin(t * 11) * 0.12; A.chew = true; A.earPerk = 0.3;
+        A.tailAmp = dog ? 0.6 : 0.25; A.tailSpeed = dog ? 12 : 3;
+        F.eatK = Math.min(1, this.stateT / 2.6);
+        if ((this.soundT -= dt) < 0) { this.soundT = 0.55 + Math.random() * 0.3; this.voice.chew(); }
+        if (this.stateT > 2.6) { this.food = null; a.onAte?.(F); this.setState('happy'); this.voice.hello(); }
+        break;
+      }
+      case 'happy': {                                     // 吃完很開心：跳兩下、搖尾巴
+        const k = this.stateT / 0.42;
+        if (k < 2) A.jump = Math.abs(Math.sin(Math.PI * k)) * 0.03 * this.sizeK;
+        A.lookCam = true; A.squint = true; A.tailAmp = 0.9; A.tailSpeed = dog ? 18 : 7; A.earPerk = 1; A.tongue = dog;
+        if (B !== 'static') this.turnTo(camYaw, dt, 4);
+        if (this.stateT > 1.6) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2; }
+        break;
+      }
+      case 'want': {                                      // 想吃，但過不去／上不去：看著飼料、嗚嗚叫
+        const W = this.wantPt;
+        if (W) { const yaw = Math.atan2(W.x - p.x, W.z - p.z); if (B !== 'static') this.turnTo(yaw, dt, 3); A.headYaw = angleDiff(yaw, r.rotation.y); }
+        A.headPitch = W && W.y > this.groundY + 0.05 ? -0.35 : 0.25; A.earPerk = 0.2; A.tailAmp = 0.12; A.tailSpeed = 2;
+        A.roll = Math.sin(t * 3) * 0.04;
+        if (this.stateT > 2.6) { this.wantPt = null; this.setState('idle'); this.idleDur = 2; }
+        break;
+      }
+      case 'greet': {                                     // 親密度 80%：叫牠名字 → 跑過來抬頭對你叫
+        if (B !== 'static') this.turnTo(camYaw, dt, 5);
+        A.lookCam = true; A.headPitch = -0.45; A.earPerk = 1; A.tailAmp = 0.9; A.tailSpeed = dog ? 18 : 6; A.tongue = dog;
+        const k = this.stateT;
+        if (k < 0.25 || (k > 0.8 && k < 1.05)) A.jump = Math.sin(Math.PI * ((k % 0.8) / 0.25)) * 0.012;
+        if ((this.soundT -= dt) < 0 && k < 1.5) { this.soundT = 0.8; this.voice.hello(); }
+        if (k > 2.4) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 3; }
+        break;
+      }
+      case 'hand': {                                      // 親密度 100%：伸手摸 → 狗舔手、貓蹭手
+        this.handT -= dt;
+        if (this.handT <= 0) { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2; a.onHandEnd?.(); break; }
+        const H = this.handPt, hx = H.x - p.x, hz = H.z - p.z, hd = Math.hypot(hx, hz), yaw = Math.atan2(hx, hz);
+        const reach = this.radius * 0.8 + (this.interact === 'rub' ? 0.015 : 0.035);
+        if (B !== 'static') this.turnTo(this.interact === 'rub' && hd < reach + 0.02 ? yaw + Math.sin(t * 1.6) * 0.5 : yaw, dt, 4);   // 貓：身體側過去蹭
+        if (hd > reach && B !== 'static' && Math.abs(angleDiff(yaw, r.rotation.y)) < 0.9) {    // 靠近手
+          const step = Math.min(hd - reach, WALK_SPEED * 1.3 * this.sizeK * dt), nx = p.x + hx / hd * step, nz = p.z + hz / hd * step;
+          if (a.check(nx, nz) === 0) { p.x = nx; p.z = nz; this.follow(a, dt); A.legSwing = Math.sin(t * 16) * 0.5; A.moving = true; }
+        }
+        const up = H.y - (this.groundY + this.hover + this.rig.height * 0.75);
+        A.headYaw = angleDiff(yaw, r.rotation.y);
+        if (this.interact === 'lick') {
+          A.rear = clamp(up * 3.2, 0, 0.55); A.headPitch = -0.35 - clamp(up * 2, 0, 0.3) + Math.sin(t * 13) * 0.08;
+          A.tongue = true; A.lick = true; A.squint = Math.sin(t * 1.3) > 0; A.tailAmp = 0.95; A.tailSpeed = 20; A.earPerk = 0.6;
+          if ((this.soundT -= dt) < 0) { this.soundT = 0.24 + Math.random() * 0.12; this.voice.lick(); }
+        } else if (this.interact === 'rub') {
+          A.headTilt = Math.sin(t * 2.4) * 0.38; A.roll = Math.sin(t * 2.4) * 0.16; A.headPitch = -0.15 - clamp(up * 1.5, 0, 0.25);
+          A.squint = true; A.tailAmp = 0.22; A.tailSpeed = 1.6; A.rear = clamp(up * 1.5, 0, 0.2);
+        } else {
+          A.headPitch = -0.2 + Math.sin(t * 3) * 0.15; A.squint = true; A.headTilt = Math.sin(t * 2) * 0.2;
+          if ((this.soundT -= dt) < 0) { this.soundT = 1.6; this.voice.tap(); }
+        }
+        break;
+      }
+      case 'fall': {
+        ground = false;
+        this.vy -= GRAVITY * dt;
+        p.x += this.vel.x * dt; p.z += this.vel.y * dt; p.y += this.vy * dt;
+        A.legSwing = Math.sin(t * 30); A.squint = true; A.earPerk = 1; A.tailAmp = 1; A.tailSpeed = 14;
+        const tgt = a.landY(p.x, p.z, this.fallFrom);
+        this.fallTarget = tgt;
+        if (tgt !== null && p.y <= tgt) {
+          p.y = tgt; this.groundY = tgt; this.vy = 0; this.vel.set(0, 0);
+          this.setState('land'); this.voice.land(); a.onLand?.(this.fallFrom - tgt);
+        } else if (p.y < this.fallFrom - 3.0) {   // 下面沒有掃描到任何東西 → 咻一下回到原本的地方
+          p.set(this.safe.x, this.safe.y, this.safe.z); this.groundY = this.safe.y;
+          r.scale.setScalar(0.001); this.setState('appear'); this.voice.hello(); a.onRespawn?.();
+        }
+        break;
+      }
+      case 'land': {
+        const k = Math.min(1, this.stateT / 0.45);
+        A.squash = Math.sin(Math.PI * k) * 0.28 * (1 - k * 0.3); A.squint = k < 0.6; A.lookCam = true;
+        if (this.stateT > 0.7) {
+          if (this.goal) { this.target.set(this.goal.x, 0, this.goal.z); this.setState('walk'); }   // 跳下來之後繼續跑過去
+          else { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2.5; }
+        }
+        break;
+      }
+    }
+
+    if (ground) {
+      p.y = this.groundY + this.hover;
+      if (this.state === 'idle' || this.state === 'walk') this.safe.set(p.x, this.groundY, p.z);
+    }
+    A.state = this.state; A.camRel = angleDiff(camYaw, r.rotation.y);
+    this.rig.update(dt, A);
+    // 影子貼在腳下的平面
+    const s = r.scale.x || 1;
+    let shY = this.groundY;
+    if (this.state === 'fall') shY = this.fallTarget;
+    this.shadow.visible = shY !== null && (B !== 'fly' || a.check === undefined || true);
+    if (shY !== null) this.shadow.position.y = (shY - p.y) / s + 0.002 / s;
+    const lift = Math.max(0, A.jump + (p.y - (shY ?? p.y))), sh = clamp(1 - lift * 5, 0.35, 1);
+    this.shadow.scale.set(this.rig.shadowS[0] * sh, 1, this.rig.shadowS[1] * sh);
+  }
+}
+
+/* ================= 狀態 ================= */
+let mode = 'none';            // 'xr' | 'preview' | 'none'
+let session = null, refSpace = null, hitSource = null;
+const active = [];            // 場上的寵物：{ def, pet, home, anchor, check, landY, downSrc, downY }
+let pending = null, sawPlane = false, hitKind = '無';
+let depthState = '—', depthOn = false, depthFrame = 0;
+const camWorld = new THREE.Matrix4(), camProjInv = new THREE.Matrix4(), camPos = new THREE.Vector3();
+const hitMat = new THREE.Matrix4(), hitPos = new THREE.Vector3(), hitQuat = new THREE.Quaternion(), upV = new THREE.Vector3();
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), camLocal = new THREE.Vector3();
+const ray = new THREE.Ray(), sphere = new THREE.Sphere();
+const worldX = a => a.home.position.x + a.pet.root.position.x;
+const worldZ = a => a.home.position.z + a.pet.root.position.z;
+const worldGround = a => a.home.position.y + a.pet.groundY;
+let lastPet = null, pruneT = 0;
+
+// 寵物 a 能不能站在 (lx, lz)？（座標相對於牠的家）
+// 回傳 0＝可以、1＝那裡沒有地面（桌緣）、2＝有障礙物、3＝別隻寵物擋著
+function checkSpot(a, lx, lz, baseY) {
+  const pet = a.pet, wx = a.home.position.x + lx, wz = a.home.position.z + lz, wy = baseY ?? worldGround(a);
+  a.spotY = null;
+  for (const b of active) {
+    if (b === a || !b.pet || b.pet.state === 'fall' || Math.abs(worldGround(b) - wy) > 0.1) continue;
+    const bx = worldX(b), bz = worldZ(b), dn = Math.hypot(wx - bx, wz - bz), lim = (pet.radius + b.pet.radius) * 1.15;
+    if (dn < lim && dn < Math.hypot(worldX(a) - bx, worldZ(a) - bz)) return 3;
+  }
+  const R = pet.radius * 0.85;
+  const lo = pet.behavior === 'fly' ? wy + pet.hover - 0.01 : wy + OBST_MIN, hi = wy + pet.hover + OBST_MAX;
+  for (const [ox, oz] of [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R], [R * .7, R * .7], [-R * .7, R * .7], [R * .7, -R * .7], [-R * .7, -R * .7]])
+    if (field.blocked(wx + ox, wz + oz, lo, hi)) return 2;
+  if (Math.max(Math.abs(wx - camPos.x), Math.abs(wz - camPos.z)) > SCAN_R) return 1;   // 超出你身邊 5 公尺
+  if (pet.behavior === 'fly') { a.spotY = wy - a.home.position.y; return 0; }
+  const cy = field.surfaceY(wx, wz, wy, STEP_H);       // 腳下的地面（小台階可以直接走上走下）
+  if (cy === null) return 1;
+  const m = Math.max(0.022, pet.radius * 0.55);
+  for (const [ox, oz] of [[m, 0], [-m, 0], [0, m], [0, -m]])
+    if (field.surfaceY(wx + ox, wz + oz, cy, STEP_H) === null) return 1;
+  a.spotY = cy - a.home.position.y;
+  return 0;
+}
+// 從現在的位置直直走到 (tx, tz) 一路上都可以走嗎？（會跟著台階高度走）
+function pathOK(a, tx, tz) {
+  const p = a.pet.root.position, d = Math.hypot(tx - p.x, tz - p.z), n = Math.max(2, Math.ceil(d / (CELL * 0.8)));
+  let y = worldGround(a);
+  for (let k = 1; k <= n; k++) {
+    if (checkSpot(a, p.x + (tx - p.x) * k / n, p.z + (tz - p.z) * k / n, y) !== 0) return false;
+    y = a.spotY + a.home.position.y;
+  }
+  return true;
+}
+// 掉下去的時候，下面的地面在哪裡？（回傳相對於家的高度）
+function landingY(a, lx, lz, fromLocal) {
+  const wx = a.home.position.x + lx, wz = a.home.position.z + lz, from = a.home.position.y + fromLocal;
+  const y = field.belowNear(wx, wz, from);
+  if (y !== null) return y - a.home.position.y;
+  if (a.downY !== null && a.downY !== undefined && a.downY < from - 0.06) return a.downY - a.home.position.y;
+  return null;
+}
+
+/* ================= 召喚與收回 ================= */
+async function requestSummon(def) {
+  initAudio(); hidePicker();
+  if (!def) return;
+  let model = null;
+  if (def.species === 'custom') {
+    hint(`${def.name}準備中…`);
+    model = await getModel(def);
+    if (!model) { hint(`這支手機上找不到「${def.name}」的模型檔，請回列表按「編輯」重新選擇 GLB 檔`); return; }
+    ensureEnv();
+  }
+  const voice = await makeVoice(def);
+  pending = { def, model, voice, t: performance.now() };
+  if (mode === 'xr' && !reticle.visible) hint(`正在找桌面…請對準桌面慢慢移動手機，${def.name}就會出來`);
+}
+function removePet(id) {
+  const i = active.findIndex(a => a.def.id === id); if (i < 0) return;
+  const a = active[i]; active.splice(i, 1);
+  a.pet.voice.petOff();
+  scene.remove(a.home);
+  if (a.anchor) { try { a.anchor.delete(); } catch {} }
+  if (a.downSrc) { try { a.downSrc.cancel(); } catch {} }
+}
+function clearPets() { for (const a of [...active]) removePet(a.def.id); pantGain && actx && pantGain.gain.setTargetAtTime(0, actx.currentTime, 0.1); }
+function placePet(pd, pos, hit) {
+  const { def, model, voice } = pd;
+  removePet(def.id);
+  while (active.length >= MAX_PETS) removePet(active[0].def.id);
+  const a = { def, pet: null, home: new THREE.Group(), anchor: null, downSrc: null, downY: null };
+  a.home.position.copy(pos); scene.add(a.home);
+  if (mode === 'xr') {
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) field.add(pos.x + dx * CELL, pos.y, pos.z + dz * CELL, 2, true);
+    if (hit && hit.createAnchor) hit.createAnchor().then(x => { if (active.includes(a)) a.anchor = x; else x.delete(); }).catch(() => {});
+  }
+  a.pet = new Pet(def, model, voice);
+  a.check = (lx, lz, by) => checkSpot(a, lx, lz, by);
+  a.path = (tx, tz) => pathOK(a, tx, tz);
+  a.spotY = null;
+  a.onBlocked = G => hint(G?.owner ? `${def.name}想過去找你，但被擋住了～` : `${def.name}被擋住了，過不去～`);
+  a.onNoPath = G => hint(G?.owner ? `${def.name}想過去找你，但前面沒有路（或還沒掃描到）` : `${def.name}停在邊邊：前面沒有地面，或是還沒掃描到`);
+  a.seekFood = () => seekFood(a);
+  a.onWant = (G, blocked) => hint(blocked ? `${def.name}想吃，但被擋住過不去…` : G.y > a.pet.groundY + 0.05 ? `飼料在比較高的地方，${def.name}上不去…` : `${def.name}到不了飼料那裡…`);
+  a.onAte = F => {
+    removeFood(F); spendFood();
+    const st = statsOf(def), before = affNow(st);
+    setFull(st, fullNow(st) + RULES.feedFull); st.aff = clamp(st.aff + RULES.feedAff, 0, 100);
+    savePets(); spawnHearts(a, 3); showStats(a);
+    hint(`${def.name}吃完了！飽食度 ${pct(fullNow(st))}・親密度 ${pct(st.aff)}` + unlockMsg(before, st.aff, def.name));
+  };
+  a.onPetted = () => {
+    const st = statsOf(def), before = affNow(st), r = petAffGain(st);
+    if (r.g > 0) { savePets(); spawnHearts(a, 1); hint(`❤️ 親密度 +${r.g}%（現在 ${pct(st.aff)}）・今天摸摸還能再加 ${Math.max(0, RULES.petAffPerDay - st.petGain)}%` + unlockMsg(before, st.aff, def.name)); }
+    else hint(r.why === 'cap' ? `${def.name}很舒服～（親密度 ${RULES.petAffCap}% 以上，摸摸不會再增加，要靠餵食）` : `${def.name}很舒服～（今天摸摸加的親密度已經到上限 ${RULES.petAffPerDay}%）`);
+    if (statsA === a) renderStats();
+  };
+  a.onHandEnd = () => { a.handMsgT = 0; };
+  a.landY = (lx, lz, from) => landingY(a, lx, lz, from);
+  a.onFall = jump => {
+    hint(jump ? `${def.name}跳下去了！` : `啊～${def.name}掉下去了！`);
+    if (mode === 'xr' && session && refSpace && window.XRRay) {   // 從牠的位置往正下方打一條射線找地面（地圖沒掃到時用）
+      a.downY = null;
+      const o = tmpV.copy(a.pet.root.position).add(a.home.position);
+      session.requestHitTestSource({ space: refSpace, offsetRay: new XRRay({ x: o.x, y: o.y - 0.02, z: o.z }, { x: 0, y: -1, z: 0 }) })
+        .then(src => { if (active.includes(a)) { try { a.downSrc?.cancel(); } catch {} a.downSrc = src; } else src.cancel(); }).catch(() => {});
+    }
+  };
+  a.onLand = h => { hint(h > 0.25 ? `${def.name}安全降落！在下面找到牠了` : `${def.name}跳下來了`); };
+  a.onRespawn = () => hint(`下面還沒掃描到地面，${def.name}先咻一下回來了。把桌子旁邊的地板也掃一掃吧！`);
+  camLocal.copy(camPos).sub(a.home.position);
+  a.pet.root.rotation.y = Math.atan2(camLocal.x, camLocal.z);
+  a.home.add(a.pet.root);
+  active.push(a); lastPet = a;
+  voice.hello();
+  hint(`${def.name}來了！點牠打招呼・慢慢滑＝摸摸・快速一甩＝推牠・點地上＝叫牠過去`);
+}
+function previewSpot() {
+  const spots = [[0, 0.04], [-0.17, 0.05], [0.05, 0.12], [-0.05, -0.1], [-0.25, -0.08], [0.25, 0.12]];
+  for (const [x, z] of spots) if (active.every(a => Math.hypot(worldX(a) - x, worldZ(a) - z) > 0.12)) return new THREE.Vector3(x, 0, z);
+  return new THREE.Vector3((Math.random() - 0.5) * 0.4, 0, 0.05 + Math.random() * 0.12);
+}
+
+/* ================= 飼料：丟出去、掉在真實的地面上、寵物跑過去吃 ================= */
+const foods = [];
+const kibbleGeo = new THREE.SphereGeometry(1, 10, 7);
+let kibbleMats = null;
+function makePile() {
+  kibbleMats ||= [toon(0x9a5b2a), toon(0xb8743a), toon(0x7d4a22)];
+  const g = new THREE.Group(), bits = [];
+  for (let i = 0; i < 11; i++) {
+    const ang = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * 0.019;
+    const m = new THREE.Mesh(kibbleGeo, kibbleMats[i % 3]);
+    m.position.set(Math.cos(ang) * rr, 0.004 + (i > 7 ? 0.006 : 0), Math.sin(ang) * rr);
+    m.scale.set(0.0068, 0.0044, 0.0068); m.rotation.set(Math.random(), Math.random() * 3, Math.random());
+    g.add(m); bits.push(m);
+  }
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(0.03, 20).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
+  sh.position.y = 0.0015; g.add(sh);
+  return { g, bits, sh };
+}
+function throwFood() {
+  if (mode === 'none') return;
+  initAudio(); hidePicker();
+  if (food <= 0) { hint('飼料用完了'); return; }
+  if (food - foods.length <= 0) { hint('飼料都丟出去了，等牠們吃掉再丟'); return; }
+  if (foods.length >= RULES.maxFoodOnGround) { hint(`地上已經有 ${foods.length} 包飼料了，等牠們吃完再丟吧`); return; }
+  const fwd = new THREE.Vector3(0, 0, -1).transformDirection(camWorld);
+  const F = { ...makePile(), pos: camPos.clone().addScaledVector(fwd, 0.15), vel: fwd.clone().multiplyScalar(1.3), state: 'fly', t: 0,
+    alive: true, eater: null, eatK: 0, skip: new Map() };
+  F.pos.y -= 0.05;
+  // 往畫面中間（準星）丟，畫一條拋物線落在那裡；畫面中間沒有掃描到地面就直直往前丟
+  setRay(innerWidth / 2, innerHeight / 2);
+  const T = field.pick(ray);
+  if (T) {
+    T.x += (Math.random() - 0.5) * 0.06; T.z += (Math.random() - 0.5) * 0.06;
+    const dx = T.x - F.pos.x, dy = T.y - F.pos.y, dz = T.z - F.pos.z, t = clamp(0.35 + Math.hypot(dx, dz) * 0.22, 0.4, 1.0);
+    F.vel.set(dx / t, (dy + 0.5 * GRAVITY * t * t) / t, dz / t);
+  } else F.vel.y += 0.8;
+  F.sh.visible = false; F.g.position.copy(F.pos); scene.add(F.g); foods.push(F); renderFood();
+  noiseBurst(700, 0.22, 0.18, 0.7);
+  hint('飼料丟出去了！');
+}
+function removeFood(F) {
+  F.alive = false; scene.remove(F.g);
+  const i = foods.indexOf(F); if (i >= 0) foods.splice(i, 1);
+  renderFood();
+}
+function clearFoods() { for (const F of [...foods]) removeFood(F); }
+// 從 yTop 掉到 yBot 的途中，穿過的最高的平面
+function crossSurface(x, z, yTop, yBot) {
+  const L = field.cells.get(field.key(x, z)); if (!L) return null;
+  let best = null;
+  for (const l of L) if (l.h && l.n >= SURF_N && l.y <= yTop + 0.005 && l.y >= yBot - 0.005 && (best === null || l.y > best)) best = l.y;
+  return best;
+}
+function stepFood(F, h) {
+  const p = F.pos, v = F.vel;
+  if (F.state === 'fly') {
+    v.y -= GRAVITY * h;
+    const nx = p.x + v.x * h, ny = p.y + v.y * h, nz = p.z + v.z * h;
+    if (field.wall(nx, nz, ny - 0.03, ny + 0.03) && !field.wall(p.x, p.z, p.y - 0.03, p.y + 0.03)) {   // 撞到牆、家具側面 → 彈回來
+      v.x *= -0.35; v.z *= -0.35; return;
+    }
+    if (v.y < 0) {
+      const sy = crossSurface(nx, nz, p.y, ny);
+      if (sy !== null) {
+        p.set(nx, sy, nz);
+        if (v.y < -1.3) { v.y = -v.y * 0.25; v.x *= 0.55; v.z *= 0.55; noiseBurst(2200, 0.05, 0.22, 2); }   // 彈一下
+        else { v.y = 0; v.x *= 0.5; v.z *= 0.5; F.state = 'slide'; noiseBurst(2600, 0.06, 0.25, 2); }
+        return;
+      }
+    }
+    p.set(nx, ny, nz);
+    if (F.t > 4 || p.y < camPos.y - SCAN_R) F.state = 'lost';
+  } else if (F.state === 'slide') {                     // 在地上滾，滾到邊邊會掉下去
+    const nx = p.x + v.x * h, nz = p.z + v.z * h;
+    if (field.blocked(nx, nz, p.y + 0.01, p.y + 0.05)) { v.x *= -0.3; v.z *= -0.3; }
+    else {
+      let sy = field.surfaceY(nx, nz, p.y, 0.012);
+      if (sy === null && field.surfaceY(nx + v.x * 0.04 / (Math.hypot(v.x, v.z) || 1), nz + v.z * 0.04 / (Math.hypot(v.x, v.z) || 1), p.y, 0.012) !== null) sy = p.y;   // 地圖上的小洞，不算邊緣
+      if (sy === null) {
+        if (field.belowNear(nx, nz, p.y) !== null) { p.x = nx; p.z = nz; F.state = 'fly'; v.y = 0; return; }   // 邊緣下面有地面 → 掉下去
+        v.set(0, 0, 0); F.state = 'rest'; onFoodRest(F); return;                                                  // 前面還沒掃描到 → 停在這裡
+      }
+      p.set(nx, sy, nz);
+    }
+    const fr = Math.exp(-4.5 * h); v.x *= fr; v.z *= fr;
+    if (Math.hypot(v.x, v.z) < 0.03) { F.state = 'rest'; v.set(0, 0, 0); onFoodRest(F); }
+  }
+}
+function onFoodRest(F) {
+  if (!active.length) return;
+  if (active.every(a => isFull(statsOf(a.def)))) hint('大家都吃飽了（飽食度 100%），飼料先放在地上，餓了再吃');
+}
+function updateFoods(dt) {
+  for (const F of [...foods]) {
+    F.t += dt;
+    const n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
+    for (let k = 0; k < n && (F.state === 'fly' || F.state === 'slide'); k++) stepFood(F, h);
+    if (F.state === 'lost') { removeFood(F); hint('飼料掉到還沒掃描到的地方，不見了（沒有扣飼料）'); continue; }
+    F.g.position.copy(F.pos);
+    if (F.state === 'fly') { F.g.rotation.x += dt * 9; F.g.rotation.z += dt * 6; } else F.g.rotation.set(0, F.g.rotation.y, 0);
+    F.sh.visible = F.state !== 'fly';
+    const left = Math.ceil(F.bits.length * (1 - F.eatK)); F.bits.forEach((b, j) => { b.visible = j < left; });
+  }
+}
+// 寵物 a 有沒有想吃的飼料？有的話就跑過去
+function seekFood(a) {
+  const pet = a.pet; if (!foods.length || !pet.free()) return false;
+  if (isFull(statsOf(a.def))) return false;
+  const now = performance.now(), wx = worldX(a), wz = worldZ(a), wy = worldGround(a);
+  let best = null, bd = Infinity;
+  for (const F of foods) {
+    if (!F.alive || F.state === 'fly' || (F.eater && F.eater !== pet) || (F.skip.get(pet) || 0) > now) continue;
+    const d = Math.hypot(F.pos.x - wx, F.pos.z - wz) + Math.abs(F.pos.y - wy) * 0.5;
+    if (d < bd && d < SCAN_R * 1.5) { bd = d; best = F; }
+  }
+  if (!best) return false;
+  if (pet.behavior === 'static') {           // 擺著不動的：飼料要在旁邊才吃得到
+    if (bd < pet.radius + 0.07 && best.state === 'rest') { pet.food = best; best.eater = pet; pet.setState('eat'); return true; }
+    best.skip.set(pet, now + 5000); return false;
+  }
+  const h = a.home.position;
+  return pet.goTo(best.pos.x - h.x, best.pos.y - h.y, best.pos.z - h.z, { food: best, stop: pet.radius * 0.95 + 0.02 }, true);
+}
+const unlockMsg = (before, after, name) =>
+  before < RULES.handAff && after >= RULES.handAff ? `　🎉 親密度 100%！伸手摸${name}看看` :
+  before < RULES.callAff && after >= RULES.callAff ? `　🎉 親密度 ${RULES.callAff}%！叫「${name}」牠會跑過來` : '';
+
+/* ---------- 愛心（親密度增加時從頭上冒出來） ---------- */
+const heartTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#ff5d84'; x.strokeStyle = '#fff'; x.lineWidth = 5;
+  x.beginPath(); x.moveTo(32, 54); x.bezierCurveTo(4, 36, 6, 10, 22, 10); x.bezierCurveTo(28, 10, 32, 15, 32, 20);
+  x.bezierCurveTo(32, 15, 36, 10, 42, 10); x.bezierCurveTo(58, 10, 60, 36, 32, 54); x.closePath(); x.stroke(); x.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const hearts = [];
+function spawnHearts(a, n) {
+  for (let i = 0; i < n; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: heartTex, transparent: true, depthWrite: false, opacity: 0 }));
+    s.scale.setScalar(0.03);
+    s.position.set(worldX(a) + (Math.random() - 0.5) * 0.06, worldGround(a) + a.pet.hover + a.pet.rig.height * 1.05, worldZ(a) + (Math.random() - 0.5) * 0.06);
+    scene.add(s); hearts.push({ s, t: -i * 0.28 });
+  }
+}
+function updateHearts(dt) {
+  for (let i = hearts.length - 1; i >= 0; i--) {
+    const h = hearts[i]; h.t += dt; if (h.t < 0) continue;
+    h.s.position.y += dt * 0.07; h.s.material.opacity = h.t < 0.2 ? h.t / 0.2 : Math.max(0, 1 - (h.t - 0.2) / 1.1);
+    if (h.t > 1.3) { scene.remove(h.s); h.s.material.dispose(); hearts.splice(i, 1); }
+  }
+}
+function clearHearts() { for (const h of hearts) scene.remove(h.s); hearts.length = 0; }
+
+/* ---------- 點寵物出現的狀態卡 ---------- */
+let statsA = null, statsT = 0, statsR = 0;
+function showStats(a) { statsA = a; statsT = performance.now(); renderStats(); $('stats').classList.add('show'); }
+function hideStats() { statsA = null; $('stats').classList.remove('show'); }
+function meter(cls, label, v) {
+  const m = document.createElement('div'); m.className = 'meter ' + cls;
+  const lab = document.createElement('div'); lab.className = 'lab';
+  const a = document.createElement('span'); a.textContent = label; const b = document.createElement('b'); b.textContent = pct(v);
+  lab.append(a, b);
+  const tr = document.createElement('div'); tr.className = 'track'; const f = document.createElement('div'); f.className = 'fill'; f.style.width = clamp(v, 0, 100) + '%'; tr.append(f);
+  m.append(lab, tr); return m;
+}
+function renderStats() {
+  const a = statsA, box = $('stats');
+  if (!a || !active.includes(a)) { hideStats(); return; }
+  const st = statsOf(a.def), af = affNow(st), fu = fullNow(st);
+  box.textContent = '';
+  const nm = document.createElement('div'); nm.className = 'nm';
+  const n = document.createElement('span'); n.textContent = `${EMOJI[a.def.species] || '🐾'} ${a.def.name}`;
+  const hb = document.createElement('button'); hb.textContent = '說明'; hb.onclick = openHelpModal;
+  nm.append(n, hb);
+  const perk = document.createElement('div'); perk.className = 'perk';
+  perk.textContent = (af >= RULES.handAff ? `🤚 伸手到牠旁邊摸摸看（或用手指按住牠不放）`
+    : af >= RULES.callAff ? `📣 叫「${a.def.name}」牠會跑過來・到 100% 可以伸手摸牠`
+    : `到 ${RULES.callAff}%：叫名字牠會跑過來`)
+    + (fu >= 99.5 ? '・現在吃飽了，不會吃飼料' : fu < 30 ? '・肚子餓了，丟飼料給牠吧' : '');
+  box.append(nm, meter('aff', '❤️ 親密度', af), meter('full', '🍖 飽食度', fu), perk);
+}
+
+/* ---------- 親密度 80%：叫名字會跑過來 ---------- */
+function callByName(def) {
+  const a = active.find(x => x.def.id === def.id); if (!a) return false;
+  const st = statsOf(def), af = affNow(st), name = def.name, pet = a.pet;
+  showStats(a);
+  if (af < RULES.callAff) { pet.tap(); hint(`${name}聽到了，看了你一眼～（親密度 ${pct(af)}，到 ${RULES.callAff}% 叫名字牠才會跑過來）`); return true; }
+  if (pet.busy() || pet.behavior === 'static' || pet.state === 'fall') { pet.voice.hello(); hint(`${name}聽到了，正在忙，等一下再叫牠`); return true; }
+  // 你面前 45 公分的地上
+  const fx = -camWorld.elements[8], fz = -camWorld.elements[10], fl = Math.hypot(fx, fz) || 1;
+  const tx = camPos.x + fx / fl * 0.45, tz = camPos.z + fz / fl * 0.45, gy = worldGround(a);
+  let ty = field.surfaceY(tx, tz, gy, STEP_H);
+  if (ty === null) ty = field.below(tx, tz, camPos.y - 0.15);
+  if (ty === null || pet.behavior === 'fly') ty = gy;
+  const h = a.home.position;
+  if (Math.hypot(tx - worldX(a), tz - worldZ(a)) < 0.12 && Math.abs(ty - gy) < 0.05) { pet.goal = null; pet.soundT = 0; pet.setState('greet'); }
+  else pet.goTo(tx - h.x, ty - h.y, tz - h.z, { owner: true, stop: 0.04 }, true);
+  pet.voice.hello();
+  hint(`${name}聽到你叫牠，跑過來了！`);
+  return true;
+}
+
+/* ---------- 親密度 100%：伸手摸 ---------- */
+const handTex = (() => {   // 手機沒有深度感測時，按住寵物會出現一隻卡通手
+  const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d');
+  x.fillStyle = '#ffd3b0'; x.strokeStyle = '#c98b62'; x.lineWidth = 3;
+  const cap = (cx, cy, w, h, r = 0) => { x.save(); x.translate(cx, cy); x.rotate(r); x.beginPath(); x.roundRect(-w / 2, -h / 2, w, h, w / 2); x.fill(); x.stroke(); x.restore(); };
+  cap(26, 34, 13, 34, -0.18); cap(40, 26, 13, 40, -0.05); cap(54, 26, 13, 40, 0.05); cap(68, 34, 13, 32, 0.18); cap(78, 62, 13, 30, 0.9);
+  x.beginPath(); x.ellipse(48, 62, 27, 24, 0, 0, Math.PI * 2); x.fill(); x.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const handSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: handTex, transparent: true, depthWrite: false, opacity: 0.92 }));
+handSprite.scale.setScalar(0.055); handSprite.visible = false; handSprite.renderOrder = 7; scene.add(handSprite);
+function pressHand(a) {   // 用手指按住寵物＝伸手
+  const st = statsOf(a.def);
+  if (affNow(st) < RULES.handAff) {
+    if (!g.holdMsg) { g.holdMsg = true; showStats(a); hint(`親密度到 100% 才能伸手摸${a.def.name}（現在 ${pct(affNow(st))}）`); }
+    return;
+  }
+  const pet = a.pet, cx = camPos.x - worldX(a), cz = camPos.z - worldZ(a), cl = Math.hypot(cx, cz) || 1;
+  const reachOut = pet.radius + 0.07, sx = -cz / cl * 0.03, sz = cx / cl * 0.03;   // 手在牠前面、稍微偏一邊、比頭高一點
+  tmpV.set(worldX(a) + cx / cl * reachOut + sx, worldGround(a) + pet.hover + pet.rig.height + 0.04, worldZ(a) + cz / cl * reachOut + sz);
+  if (!g.hand) { g.hand = tmpV.clone(); }          // 手放下去之後就不動，寵物自己靠過來
+  handSprite.position.copy(g.hand); handSprite.visible = true;
+  if (pet.handOn(tmpV2.copy(g.hand).sub(a.home.position)) && !g.handMsg) { g.handMsg = true; hint(interactHint(a)); }
+}
+const interactHint = a => ({ lick: `${a.def.name}在舔你的手～`, rub: `${a.def.name}用頭蹭你的手～`, nuzzle: `${a.def.name}輕輕頂你的手～` })[a.pet.interact];
+// 有深度感測的手機：偵測真的手伸到寵物旁邊
+function detectHands() {
+  for (const a of active) {
+    const pet = a.pet;
+    if (affNow(statsOf(a.def)) < RULES.handAff || !(pet.state === 'idle' || pet.state === 'hand' || pet.state === 'tapped' || pet.state === 'pet')) { a.handBase = undefined; continue; }
+    const cx = worldX(a), cz = worldZ(a), gy = worldGround(a) + pet.hover, R = 0.12 + pet.radius, top = gy + pet.rig.height * 1.4 + 0.14;
+    let n = 0, sx = 0, sy = 0, sz = 0;
+    for (let k = 0; k < DN; k++) {
+      if (!dOK[k]) continue;
+      const x = dP[k * 3], y = dP[k * 3 + 1], z = dP[k * 3 + 2];
+      if (y < gy + 0.035 || y > top || Math.hypot(x - cx, z - cz) > R) continue;
+      n++; sx += x; sy += y; sz += z;
+    }
+    const base = a.handBase ?? n;
+    if (n >= 6 && n > base * 1.8 + 4) {             // 突然多出一團東西＝手伸過來了
+      tmpV.set(sx / n, sy / n, sz / n).sub(a.home.position);
+      if (pet.handOn(tmpV) && !a.handMsgT) { a.handMsgT = 1; hint(interactHint(a)); }
+    } else { a.handBase = base * 0.9 + n * 0.1; }
+  }
+}
+
+/* ---------- 掃描地圖做成的遮擋（深度圖之外的第二層，比較穩定） ---------- */
+const OCC_MAX = 30000;
+const mapOcc = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL * 0.9, 0.05, CELL * 0.9), new THREE.MeshBasicMaterial({ colorWrite: false }), OCC_MAX);
+mapOcc.renderOrder = -99; mapOcc.frustumCulled = false; mapOcc.count = 0; mapOcc.visible = false; scene.add(mapOcc);
+let mapOccT = 0;
+function updateMapOcc() {
+  let i = 0;
+  for (const [k, L] of field.cells) {
+    if (i >= OCC_MAX) break;
+    const xi = Math.round(k / 65536), zi = k - xi * 65536, x = xi * CELL, z = zi * CELL;
+    if (mode === 'xr' && (Math.abs(x - camPos.x) > SCAN_R || Math.abs(z - camPos.z) > SCAN_R)) continue;
+    for (const l of L) {
+      if (l.h || l.n < OBST_N * 2.5) continue;
+      if (L.some(s => s.h && s.n >= SURF_N && l.y - s.y >= -0.01 && l.y - s.y < 0.05)) continue;   // 貼著地面的雜訊不要
+      mObj.position.set(x, l.y, z); mObj.updateMatrix(); mapOcc.setMatrixAt(i++, mObj.matrix);
+      if (i >= OCC_MAX) break;
+    }
+  }
+  mapOcc.count = i; mapOcc.instanceMatrix.needsUpdate = true;
+}
+
+/* ================= 深度感測：每隔一幀讀一次，把看到的東西記到場域地圖 ================= */
+const DN = DEPTH_COLS * DEPTH_ROWS, dP = new Float32Array(DN * 3), dD = new Float32Array(DN), dOK = new Uint8Array(DN);
+function readDepth(frame, view) {
+  let di;
+  try { di = frame.getDepthInformation(view); }
+  catch (e) { depthOn = false; depthState = '無法使用'; occMesh.visible = false; return null; }
+  if (!di) { depthState = '等待中'; return null; }
+  depthState = '開';
+  return di;
+}
+function sampleDepth(frame, view, di) {
+  di = di || readDepth(frame, view); if (!di) return;
+  const jx = 0.15 + Math.random() * 0.7, jy = 0.15 + Math.random() * 0.7;   // 每次取樣位置稍微錯開，地圖才不會有洞
+  for (let j = 0; j < DEPTH_ROWS; j++) for (let i = 0; i < DEPTH_COLS; i++) {
+    const n = j * DEPTH_COLS + i, u = (i + jx) / DEPTH_COLS, v = (j + jy) / DEPTH_ROWS;
+    let d = 0; try { d = di.getDepthInMeters(u, v); } catch {}
+    if (!(d > 0.12 && d < DEPTH_MAX)) { dOK[n] = 0; continue; }
+    tmpV.set(u * 2 - 1, 1 - v * 2, 0.5).applyMatrix4(camProjInv);     // 相機座標中的方向
+    tmpV.multiplyScalar(d / -tmpV.z).applyMatrix4(camWorld);           // 換成世界座標
+    if (Math.abs(tmpV.x - camPos.x) > SCAN_R || Math.abs(tmpV.z - camPos.z) > SCAN_R || Math.abs(tmpV.y - camPos.y) > SCAN_R) { dOK[n] = 0; continue; }
+    dP[n * 3] = tmpV.x; dP[n * 3 + 1] = tmpV.y; dP[n * 3 + 2] = tmpV.z; dD[n] = d; dOK[n] = 1;
+  }
+  for (let j = 0; j < DEPTH_ROWS; j++) for (let i = 0; i < DEPTH_COLS; i++) {
+    const n = j * DEPTH_COLS + i; if (!dOK[n]) continue;
+    const d = dD[n], w = clamp(1.3 - d * 0.25, 0.3, 1), tol = clamp(0.015 + 0.0035 * d * d, 0.02, 0.1);
+    const st = d < 2 ? 2 : 3;   // 遠的地方用比較遠的鄰居算方向，比較不會被雜訊騙
+    const nr = i + st < DEPTH_COLS ? n + st : n - st, nd = j + st < DEPTH_ROWS ? n + st * DEPTH_COLS : n - st * DEPTH_COLS;
+    if (!(dOK[nr] && dOK[nd])) continue;   // 邊緣不確定的點不要
+    const ax = dP[nr * 3] - dP[n * 3], ay = dP[nr * 3 + 1] - dP[n * 3 + 1], az = dP[nr * 3 + 2] - dP[n * 3 + 2];
+    const bx = dP[nd * 3] - dP[n * 3], by = dP[nd * 3 + 1] - dP[n * 3 + 1], bz = dP[nd * 3 + 2] - dP[n * 3 + 2];
+    const la = Math.hypot(ax, ay, az), lb = Math.hypot(bx, by, bz), gap = 0.06 + d * 0.12 * st / 2;
+    let horiz;
+    if (la > gap * 2.5 || lb > gap * 2.5) {          // 鄰居差很遠＝物體邊緣：前面那一點是障礙物的邊，後面的不要
+      if (dD[nr] < d - 0.1 || dD[nd] < d - 0.1) continue;
+      horiz = false;
+    } else {
+      const cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx, cl = Math.hypot(cx, cy, cz);
+      if (cl < 1e-8) continue;
+      horiz = Math.abs(cy) / cl > 0.82;
+    }
+    field.add(dP[n * 3], dP[n * 3 + 1], dP[n * 3 + 2], w, horiz, tol);
+  }
+  if (active.length) detectHands();
+}
+
+/* ================= 每一幀 ================= */
+let lastT = performance.now(), fpsN = 0, fpsT = 0, fps = 0;
+function loop(time, frame) {
+  const now = performance.now(); const dt = clamp((now - lastT) / 1000, 0, 0.05); lastT = now;
+  fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
+  let hit = null, horizontal = false;
+
+  if (frame && mode === 'xr') {
+    const vp = frame.getViewerPose(refSpace);
+    if (vp) {
+      const v = vp.views[0];
+      camWorld.fromArray(v.transform.matrix);
+      camProjInv.fromArray(v.projectionMatrix).invert();
+      camPos.setFromMatrixPosition(camWorld);
+      if (depthOn) {
+        const di = readDepth(frame, v);
+        if (di) { updateOcclusion(di, v); if (++depthFrame & 1) sampleDepth(frame, v, di); }
+      } else occMesh.visible = false;
+    }
+    if (hitSource) {
+      const res = frame.getHitTestResults(hitSource);
+      if (res.length) {
+        const hp = res[0].getPose(refSpace);
+        if (hp) {
+          hit = res[0];
+          hitMat.fromArray(hp.transform.matrix);
+          hitPos.setFromMatrixPosition(hitMat);
+          const o = hp.transform.orientation; hitQuat.set(o.x, o.y, o.z, o.w);
+          const flat = upV.set(0, 1, 0).applyQuaternion(hitQuat).y > 0.8;
+          horizontal = flat || (camPos.y - hitPos.y > 0.12);
+          hitKind = flat ? '平面' : (horizontal ? '特徵點' : '牆/直立面');
+          if (horizontal && !flat) { hitQuat.identity(); hitMat.compose(hitPos, hitQuat, tmpV.set(1, 1, 1)); }
+          reticle.visible = true; reticle.matrix.copy(hitMat);
+          reticle.material.color.set(horizontal ? 0x7dffb0 : 0xffffff);
+          reticle.material.opacity = active.length ? 0.45 : 0.9;
+          if (horizontal) {
+            field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
+            if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 🐾`); }
+          }
+        }
+      } else { reticle.visible = false; hitKind = '無'; }
+    }
+    for (const a of active) {
+      if (a.anchor && frame.trackedAnchors && frame.trackedAnchors.has(a.anchor)) {
+        const ap = frame.getPose(a.anchor.anchorSpace, refSpace);
+        if (ap) a.home.position.set(ap.transform.position.x, ap.transform.position.y, ap.transform.position.z);
+      }
+      if (a.downSrc) {
+        const res = frame.getHitTestResults(a.downSrc);
+        if (res.length) { const hp = res[0].getPose(refSpace); if (hp) a.downY = hp.transform.position.y; try { a.downSrc.cancel(); } catch {} a.downSrc = null; }
+      }
+    }
+    if (pending) {
+      if (hit && horizontal) { placePet(pending, hitPos, hit); pending = null; }
+      else if (now - pending.t > 12000) { pending = null; hint('還找不到桌面：開亮一點的燈、手機離桌面 40～60 公分、斜斜往下拍，再慢慢左右移動'); }
+      else if (now - pending.t > 5000) hint('還在找…把手機拿高一點、斜著對準桌面，慢慢左右移動');
+    }
+  } else if (mode === 'preview') {
+    camera.updateMatrixWorld();
+    camWorld.copy(camera.matrixWorld); camProjInv.copy(camera.projectionMatrixInverse); camPos.setFromMatrixPosition(camWorld);
+    if (pending) { const pd = pending; pending = null; placePet(pd, previewSpot(), null); }
+  }
+
+  for (const a of active) { camLocal.copy(camPos).sub(a.home.position); a.pet.update(dt, camLocal, a); }
+  if (mode !== 'none') { updateFoods(dt); updateHearts(dt); }
+  if (g && g.on && active.includes(g.on) && !g.petted && g.dist < 14 && now - g.st > 450) { g.held = true; pressHand(g.on); }
+  else if (handSprite.visible && !(g && g.hand)) handSprite.visible = false;
+  if (statsA && now - statsR > 500) { statsR = now; renderStats(); if (now - statsT > 7000 && !$('helpModal').classList.contains('show')) hideStats(); }
+  if (occ.on && mode === 'xr' && now - mapOccT > 700) { mapOccT = now; updateMapOcc(); }
+  mapOcc.visible = occ.on && mode === 'xr';   // 預覽模式的桌子杯子本來就是 3D 的，不需要
+  if (mode === 'xr' && now - pruneT > 1500) { pruneT = now; field.prune(camPos.x, camPos.z, active.map(a => ({ x: worldX(a), z: worldZ(a) }))); }
+  if (goalMark.visible) {
+    const k = (now - goalMarkT) / 1400; goalMark.material.opacity = 0.9 * (1 - k); goalMark.scale.setScalar(1 + k * 0.6);
+    if (k >= 1) goalMark.visible = false;
+  }
+  if (showMap && now - mapT > 300) { mapT = now; updateMapMesh(); }
+  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・深度：${depthState}・遮擋：${!occ.on ? '關' : occMesh.visible ? '開' : '等深度'}・地圖 ${field.cells.size} 格（半徑 ${SCAN_R} 公尺）・場上 ${active.length} 隻`;
+  if (mode !== 'none') renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(loop);
+
+/* ================= 觸控：點、摸摸、推 ================= */
+function setRay(x, y) {
+  tmpV.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1, 0.5).applyMatrix4(camProjInv).applyMatrix4(camWorld);
+  ray.origin.copy(camPos); ray.direction.copy(tmpV).sub(camPos).normalize();
+}
+function petAt(x, y) {
+  if (!active.length || mode === 'none') return null;
+  setRay(x, y);
+  let best = null, bestD = Infinity;
+  for (const a of active) {
+    a.pet.root.updateMatrixWorld();
+    sphere.center.copy(a.pet.collider); a.pet.rig.obj.localToWorld(sphere.center);
+    sphere.radius = a.pet.rig.colR;
+    if (ray.intersectsSphere(sphere)) { const d = sphere.center.distanceTo(camPos); if (d < bestD) { bestD = d; best = a; } }
+  }
+  return best;
+}
+let g = null;
+const touch = $('touch');
+touch.addEventListener('pointerdown', e => {
+  initAudio(); hidePicker();
+  g = { sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, st: performance.now(), on: petAt(e.clientX, e.clientY), dist: 0, petted: false, samples: [] };
+  g.samples.push({ x: e.clientX, y: e.clientY, t: g.st });
+  try { touch.setPointerCapture(e.pointerId); } catch {}
+});
+touch.addEventListener('pointermove', e => {
+  if (!g) return;
+  const now = performance.now(), dx = e.clientX - g.lx, dy = e.clientY - g.ly;
+  g.dist += Math.hypot(dx, dy); g.lx = e.clientX; g.ly = e.clientY;
+  g.samples.push({ x: e.clientX, y: e.clientY, t: now });
+  while (g.samples.length > 2 && now - g.samples[0].t > 100) g.samples.shift();
+  if (g.on && g.dist > 12 && active.includes(g.on)) {
+    const s0 = g.samples[0], v = Math.hypot(e.clientX - s0.x, e.clientY - s0.y) / Math.max(1, now - s0.t);
+    if (v < 0.8 && petAt(e.clientX, e.clientY) === g.on) { g.on.pet.pet(); g.petted = true; }
+  } else if (!g.on && mode === 'preview') { orbit += dx * 0.006; orbitH = clamp(orbitH - dy * 0.004, 0.25, 1.4); placePreviewCamera(); }
+});
+function endGesture() {
+  if (!g) return;
+  const now = performance.now(), dt = now - g.st, a = g.on;
+  if (!a && g.dist < 12 && dt < 350 && active.length && mode !== 'none') { hideStats(); callPetTo(g.lx, g.ly); }
+  handSprite.visible = false;
+  if (a && active.includes(a)) {
+    lastPet = a;
+    if (g.held) { /* 按住＝伸手，放開就結束 */ }
+    else if (g.dist < 12 && dt < 350) { a.pet.tap(); showStats(a); }
+    else {
+      const s0 = g.samples[0], vx = (g.lx - s0.x) / Math.max(1, now - s0.t), vy = (g.ly - s0.y) / Math.max(1, now - s0.t);
+      const v = Math.hypot(vx, vy);
+      if (v > 0.6 && (!g.petted || dt < 450)) {
+        const right = tmpV.setFromMatrixColumn(camWorld, 0); right.y = 0; right.normalize();
+        const fwd = tmpV2.setFromMatrixColumn(camWorld, 2).negate(); fwd.y = 0; fwd.normalize();
+        const wx = right.x * vx - fwd.x * vy, wz = right.z * vx - fwd.z * vy, len = Math.hypot(wx, wz) || 1;
+        a.pet.push(wx / len, wz / len, clamp(v * 0.35, 0.2, 0.6));
+      }
+    }
+  }
+  g = null;
+}
+function callPetTo(x, y) {
+  setRay(x, y);
+  const pt = field.pick(ray);
+  if (!pt) { hint('那裡還沒掃描到地面（或被擋住了），慢慢移動手機掃一下再點'); return; }
+  const a = active.includes(lastPet) ? lastPet : active[active.length - 1];
+  const lx = pt.x - a.home.position.x, ly = pt.y - a.home.position.y, lz = pt.z - a.home.position.z;
+  if (a.pet.goTo(lx, ly, lz)) {
+    showGoalMark(pt);
+    const dy = ly - a.pet.groundY;
+    hint(dy > 0.08 ? `那裡比較高，${a.def.name}可能上不去…` : dy < -0.08 ? `${a.def.name}要跳下去了！` : `${a.def.name}跑過去了～`);
+  }
+}
+touch.addEventListener('pointerup', endGesture);
+touch.addEventListener('pointercancel', endGesture);
+
+/* ================= 召喚選單 ================= */
+const picker = $('picker');
+function hidePicker() { picker.classList.remove('show'); }
+function showPicker() {
+  const gEl = $('pickGrid'); gEl.textContent = '';
+  for (const p of pets) {
+    const on = active.some(a => a.def.id === p.id);
+    const b = document.createElement('button');
+    if (on) { b.className = 'call'; b.textContent = `📣 叫${p.name}`; b.onclick = () => { hidePicker(); callByName(p); }; }
+    else { b.textContent = `${EMOJI[p.species]} ${p.name}`; b.onclick = () => requestSummon(p); }
+    gEl.append(b);
+  }
+  if (!pets.length) { const s = document.createElement('div'); s.textContent = '你還沒有寵物，先離開回到列表新增一隻'; gEl.append(s); }
+  if (active.length) { const c = document.createElement('button'); c.className = 'clear'; c.textContent = '全部收回'; c.onclick = () => { clearPets(); hidePicker(); hint('都回家了～再召喚一次吧'); }; gEl.append(c); }
+  picker.classList.add('show');
+}
+$('summon').addEventListener('click', () => { initAudio(); picker.classList.contains('show') ? hidePicker() : showPicker(); });
+
+/* ================= 語音召喚：「召喚＋名字」 ================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const norm = s => s.replace(/[\s，。！？、,.!?「」『』"'～~]/g, '').toLowerCase();
+function matchCommand(txt) {
+  const t = norm(txt);
+  if (/收回|回去|回家|再見|拜拜/.test(t)) return { type: 'clear' };
+  let best = null;
+  for (const p of pets) { const n = norm(p.name); if (n && t.includes(n) && (!best || n.length > best.len)) best = { p, len: n.length }; }
+  if (best) return { type: 'summon', def: best.p };
+  const body = t.replace(/^.*?(召喚|召唤|叫|呼叫)/, ''), common = /[小阿大老]/;
+  let fbm = null;
+  for (const p of pets) {
+    const chars = [...norm(p.name)]; if (chars.length < 2) continue;
+    const key = chars.filter(c => !common.test(c)); if (!key.length) continue;
+    const sc = key.filter(c => body.includes(c)).length / key.length;
+    if (sc >= 0.5 && (!fbm || sc > fbm.sc)) fbm = { p, sc };
+  }
+  if (fbm) return { type: 'summon', def: fbm.p };
+  if (/貓|猫|喵|咪/.test(t)) { const p = pets.find(x => x.species === 'cat'); if (p) return { type: 'summon', def: p }; }
+  if (/狗|汪/.test(t)) { const p = pets.find(x => x.species === 'dog'); if (p) return { type: 'summon', def: p }; }
+  return null;
+}
+let rec = null, listening = false, pressT = 0, fired = false;
+const micBtn = $('mic');
+function startListen() {
+  initAudio(); hidePicker();
+  if (!SR) { speechEl.textContent = '這個瀏覽器不支援語音辨識，請按 🐾 召喚'; return; }
+  if (listening) return;
+  fired = false;
+  rec = new SR(); rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 5;
+  rec.onresult = ev => {
+    let txt = '', isFinal = false;
+    for (let i = ev.resultIndex; i < ev.results.length; i++) { txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) isFinal = true; }
+    speechEl.textContent = '聽到：「' + txt + '」';
+    if (!isFinal || fired) return;
+    for (let i = ev.resultIndex; i < ev.results.length && !fired; i++) {
+      for (let k = 0; k < ev.results[i].length && !fired; k++) {
+        const c = matchCommand(ev.results[i][k].transcript);
+        if (c) { fired = true; if (c.type === 'clear') { clearPets(); hint('都回家了～再召喚一次吧'); } else if (!callByName(c.def)) requestSummon(c.def); }
+      }
+    }
+    if (!fired) {
+      if (/召喚|召唤|叫|呼叫/.test(txt) && pets.length) { speechEl.textContent += '　沒聽出是誰，請直接點選 👇'; showPicker(); }
+      else speechEl.textContent += `　沒聽懂，試著說「召喚${pets[0]?.name || ''}」`;
+    }
+  };
+  rec.onerror = ev => {
+    const m = { 'not-allowed': '沒有麥克風權限：請先離開 AR，在列表頁按「允許麥克風」', 'service-not-allowed': '語音辨識無法使用，請改按 🐾 召喚',
+      'no-speech': '沒聽到聲音，再試一次', 'network': '語音辨識需要網路連線', 'audio-capture': '抓不到麥克風，請改按 🐾 召喚' };
+    speechEl.textContent = m[ev.error] || ('語音辨識錯誤：' + ev.error);
+  };
+  rec.onend = () => { listening = false; micBtn.classList.remove('on'); micBtn.textContent = '🎤 按住說話'; };
+  try { rec.start(); listening = true; micBtn.classList.add('on'); micBtn.textContent = '🎤 聆聽中…'; speechEl.textContent = `請說「召喚${pets[0]?.name || '＋名字'}」`; }
+  catch { speechEl.textContent = '語音辨識無法啟動，請改按 🐾 召喚'; }
+}
+micBtn.addEventListener('pointerdown', e => {
+  e.preventDefault(); pressT = performance.now();
+  if (micPerm === 'denied') { speechEl.textContent = '麥克風被封鎖了：請離開 AR，到 Chrome 網址列左邊的圖示 →「權限」→ 允許麥克風'; return; }
+  startListen();
+});
+const micUp = () => { if (listening && rec && performance.now() - pressT > 350) rec.stop(); };
+micBtn.addEventListener('pointerup', micUp);
+micBtn.addEventListener('pointercancel', micUp);
+micBtn.addEventListener('contextmenu', e => e.preventDefault());
+
+$('exit').addEventListener('click', () => { if (session) session.end(); else backHome(); });
+$('feed').addEventListener('click', throwFood);
+$('overlay').addEventListener('beforexrselect', e => e.preventDefault());
+
+/* ================= 開始 AR ================= */
+const supportEl = $('support').firstElementChild, arBtn = $('arBtn');
+(async () => {
+  if (!window.isSecureContext) { supportEl.textContent = '⚠️ 這個網址不是 HTTPS，AR 無法啟動。'; return; }
+  if (!navigator.xr) { supportEl.innerHTML = '⚠️ 這個瀏覽器不支援 AR。請在 <b>Android 手機上用 Chrome</b> 開啟，或先看預覽。'; return; }
+  let ok = false; try { ok = await navigator.xr.isSessionSupported('immersive-ar'); } catch {}
+  if (!ok) { supportEl.innerHTML = '⚠️ 目前無法啟動 AR。請確認用 <b>Chrome</b> 開啟，並已在 Play 商店更新「<b>Google Play Services for AR</b>」。'; return; }
+  supportEl.textContent = '✅ 這支手機可以使用 AR'; arBtn.disabled = false;
+})();
+
+arBtn.addEventListener('click', async () => {
+  initAudio();
+  const base = { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection'], domOverlay: { root: $('overlay') } };
+  $('overlay').style.display = 'block';
+  try {
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', { ...base, optionalFeatures: [...base.optionalFeatures, 'depth-sensing'],
+        depthSensing: { usagePreference: ['cpu-optimized'], dataFormatPreference: ['luminance-alpha', 'float32'] } });
+    } catch (e1) { session = await navigator.xr.requestSession('immersive-ar', base); }
+  } catch (err) {
+    $('overlay').style.display = 'none';
+    supportEl.textContent = '⚠️ AR 啟動失敗：' + (err.message || err) + '。請確認已允許相機權限。';
+    return;
+  }
+  mode = 'xr'; field.clear(); sawPlane = false;
+  let feats = []; try { feats = [...(session.enabledFeatures || [])]; } catch {}
+  depthOn = feats.length ? feats.includes('depth-sensing') : true;
+  depthState = depthOn ? '等待中' : '這支手機沒開';
+  scene.background = null; previewSet.visible = false;
+  show('none');
+  hint(depthOn ? '慢慢轉一圈、走一走，掃描身邊 5 公尺內的地板、桌子和家具…' + (micPerm === 'granted' ? '' : '（語音要先在列表頁允許麥克風）')
+    : '這支手機沒有深度感測：只能用平面偵測，範圍和遮擋效果會比較有限');
+  session.addEventListener('end', onSessionEnd);
+  if (!session.domOverlayState) session.addEventListener('select', () => requestSummon(pets[0]));
+  await renderer.xr.setSession(session);
+  refSpace = renderer.xr.getReferenceSpace();
+  const viewer = await session.requestReferenceSpace('viewer');
+  try { hitSource = await session.requestHitTestSource({ space: viewer, entityTypes: ['plane', 'point'] }); }
+  catch { hitSource = await session.requestHitTestSource({ space: viewer }); }
+});
+function backHome() {
+  clearPets(); clearFoods(); clearHearts(); hideStats(); $('helpModal').classList.remove('show'); handSprite.visible = false; mapOcc.count = 0;
+  mode = 'none'; pending = null; reticle.visible = false; hidePicker();
+  showMap = false; mapMesh.visible = false; $('mapBtn').classList.remove('on');
+  renderer.domElement.style.display = 'none'; scene.background = null; previewSet.visible = false;
+  $('overlay').style.display = 'none'; speechEl.textContent = ''; dbgEl.textContent = '';
+  renderHome(); show('homeScr'); checkMic();
+}
+function onSessionEnd() { hitSource = null; session = null; depthOn = false; backHome(); }
+
+/* ================= 預覽模式 ================= */
+let orbit = 0, orbitH = 0.62;
+function placePreviewCamera() {
+  const d = clamp(0.34 / (Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect), 0.7, 1.6);
+  camera.position.set(Math.sin(orbit) * d, d * orbitH, Math.cos(orbit) * d); camera.lookAt(0, -0.05, 0);
+}
+$('pvBtn').addEventListener('click', () => {
+  initAudio();
+  mode = 'preview'; orbit = 0; orbitH = 0.62; placePreviewCamera();
+  buildPreviewField();
+  scene.background = new THREE.Color(0xe9e2d8); previewSet.visible = true;
+  renderer.domElement.style.display = 'block';
+  show('none'); $('overlay').style.display = 'block';
+  hint('預覽模式：按 🐾 召喚・拖曳空白處轉視角・點地板或桌面＝叫牠過去（點地板牠會跳下桌）');
+});
+addEventListener('resize', () => {
+  if (mode === 'xr') return;
+  renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  if (mode === 'preview') placePreviewCamera();
+});
+renderer.domElement.style.display = 'none';
+
+/* ================= 啟動 ================= */
+pets = readLocal(LS_GUEST) || oldVersionPets() || defaultPets();
+if (!localStorage.getItem(LS_GUEST)) try { localStorage.setItem(LS_GUEST, JSON.stringify({ pets })); } catch {}
+loadFoodLocal();
+renderHome(); show('homeScr');
+initFirebase();
+// 從「刪除帳號」網頁連過來：直接打開帳號與資料頁
+if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
+// 可以安裝成 App（離線快取）
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
+window.__ar = { camera, active, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
+  foods, throwFood, callByName, statsOf, fullNow, food: () => food, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
+addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
+</script>
+</body>
+</html>

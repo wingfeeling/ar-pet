@@ -422,7 +422,7 @@ import { RULES, SPECIES, PRODUCTS } from './js/catalog.js';
 /* ================= 可調參數 ================= */
 const PET_SCALE   = 1.1;    // 內建寵物的大小（1.0 ≈ 貓身長 13 公分；各種類再乘上 catalog.js 的 scale）
 const WALK_SPEED  = 0.07;   // 走路速度（公尺/秒）
-const MAX_PETS    = RULES.maxPets;   // 同時最多召喚幾隻
+const MAX_PETS    = RULES.maxSummon;   // 同時最多召喚幾隻
 const FALL_SPEED  = 0.28;   // 推的速度超過這個（公尺/秒）碰到桌緣就會掉下去
 const GRAVITY     = 9.8;
 // 場域地圖
@@ -589,8 +589,7 @@ function loadTestShop() {
 function saveTestShop() { try { localStorage.setItem(testShopKey(), JSON.stringify(testShop)); } catch {} }
 const owns = sp => sp === 'custom' || !SPECIES[sp] || SPECIES[sp].free || cloudOwned.includes(sp) || testShop.owned.includes(sp);
 const fixedCount = () => pets.filter(p => p.fixed).length;
-const slotCap = () => Math.max(0, RULES.maxPets - fixedCount());                         // 空位最多幾個
-const slotTotal = () => Math.min(slotCap(), RULES.baseSlots + cloudSlots + testShop.slots);
+const slotTotal = () => RULES.baseSlots + cloudSlots + testShop.slots;   // 空位可以一直買，沒有上限
 const slotUsed = () => pets.filter(p => !p.fixed).length;
 const slotFree = () => slotTotal() - slotUsed();
 
@@ -699,8 +698,7 @@ function grantTest(p) {
 // 現在能不能買（買過的寵物不能再買；空位到上限不能再買）
 function canBuy(p) {
   if (p.kind === 'pet') return owns(p.species) ? '已擁有' : '';
-  if (p.kind === 'set') return owns(p.species) ? '已擁有' : slotTotal() >= slotCap() ? '空位已滿，請單買寵物' : '';
-  if (p.kind === 'slot') return slotTotal() >= slotCap() ? `已經到上限（最多 ${RULES.maxPets} 隻）` : '';
+  if (p.kind === 'pet' || p.kind === 'set') return owns(p.species) ? '已擁有' : '';
   return '';
 }
 let playPrices = {};   // Google Play 回傳的價格（App 裡才有）
@@ -764,7 +762,7 @@ function renderShop(focus) {
     pb.append(row);
   }
   // 空位
-  $('shopSlotNote').textContent = `預設寵物不佔空位。現在有 ${slotTotal()} 個空位（用了 ${slotUsed()} 個），寵物最多 ${RULES.maxPets} 隻。`;
+  $('shopSlotNote').textContent = `預設寵物不佔空位。現在有 ${slotTotal()} 個空位（用了 ${slotUsed()} 個）。空位可以一直加，同時最多召喚 ${MAX_PETS} 隻。`;
   const sb = $('shopSlots'); sb.textContent = '';
   const slot = PRODUCTS.find(p => p.kind === 'slot');
   if (slot) { const { row } = prodRow('🏠', slot.label, canBuy(slot) || '多養一隻寵物'); row.id = 'shop_slot'; row.append(buyBtn(slot)); sb.append(row); }
@@ -926,10 +924,9 @@ function renderHome() {
     const li = document.createElement('li'); li.className = 'empty'; li.textContent = '＋ 空位：按這裡新增寵物';
     li.onclick = () => openEditor(null); list.append(li);
   }
-  $('slotLine').textContent = `空位：用了 ${slotUsed()} / ${slotTotal()} 個（預設寵物不佔空位，最多 ${RULES.maxPets} 隻）`;
+  $('slotLine').textContent = `空位：用了 ${slotUsed()} / ${slotTotal()} 個（預設寵物不佔空位・同時最多召喚 ${MAX_PETS} 隻）`;
   const add = $('addPet');
-  add.textContent = slotFree() > 0 ? '＋ 新增寵物' : slotTotal() >= slotCap() ? `已經到上限（最多 ${RULES.maxPets} 隻）` : '＋ 加一個空位';
-  add.disabled = slotFree() <= 0 && slotTotal() >= slotCap();
+  add.textContent = slotFree() > 0 ? '＋ 新增寵物' : '＋ 加一個空位';
   $('exampleName').textContent = pets[0] ? `「召喚${pets[0].name}」` : '「召喚小橘」';
   renderFood(); renderFree();
 }
@@ -2637,6 +2634,7 @@ function clearPets() { for (const a of [...active]) removePet(a.def.id); pantGai
 function placePet(pd, pos, hit) {
   const { def, model, voice } = pd;
   removePet(def.id);
+  if (active.length >= MAX_PETS) hint(`同時最多召喚 ${MAX_PETS} 隻，${active[0].def.name}先回家休息了`);
   while (active.length >= MAX_PETS) removePet(active[0].def.id);
   const a = { def, pet: null, home: new THREE.Group(), anchor: null, downSrc: null, downY: null };
   a.home.position.copy(pos); scene.add(a.home);

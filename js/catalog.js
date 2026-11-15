@@ -9,7 +9,7 @@ export const RULES = {
   freeFoodDays: 3,         // 每隔幾天免費送飼料（不會累積，打開 App 時領）
   freeFoodAmount: 1,       // 每次免費送幾包（改這裡的話，firestore.rules 裡的 +1 也要一起改）
   baseSlots: 1,            // 預設寵物以外，一開始有幾個空位
-  maxPets: 6,              // 寵物清單最多幾隻（含預設寵物），也是同時最多召喚幾隻
+  maxSummon: 6,            // 同時最多召喚幾隻（太多隻手機會卡）；空位可以一直買，沒有上限
   maxFoodOnGround: 3,      // 地上最多同時放幾包還沒吃的飼料
 
   // 飽食度（0～100）

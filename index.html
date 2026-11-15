@@ -15,7 +15,22 @@
   :root{--accent:#f2994a;--accent2:#e0832f;--ink:#2b2118;--bg:#fff8f0;--card:#fff;--line:#eddcc8;--mute:#8a6a4c;--ok:#2e9e5b;--bad:#c0392b}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-  canvas{position:fixed;inset:0;display:none;touch-action:none}
+  canvas{position:fixed;inset:0;display:none;touch-action:none;z-index:1}
+  #selfieVid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;z-index:0;background:#000}
+  /* 📷 拍照・自拍 */
+  #camUI{display:none;position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));align-items:center;justify-content:center;gap:14px;padding:0 10px}
+  #camUI.show{display:flex}
+  #camUI button{border:0;border-radius:16px;font-size:15px;font-weight:700;padding:12px 10px;background:rgba(255,255,255,.92);color:var(--ink);min-width:52px}
+  #camUI #camShot{width:74px;height:74px;border-radius:50%;padding:0;background:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.45);font-size:26px}
+  #camUI #camShot.wait{background:#e74c3c;color:#fff}
+  #countdown{position:absolute;top:38%;left:0;right:0;text-align:center;font-size:120px;font-weight:800;pointer-events:none;text-shadow:0 3px 18px rgba(0,0,0,.6)}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
+  #photoModal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.82);padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  #photoModal.show{display:flex}
+  #photoModal img{max-width:100%;max-height:calc(100% - 80px);border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+  #photoModal .row{display:flex;gap:10px}
+  #photoModal button{border:0;border-radius:14px;font-size:15px;font-weight:700;padding:12px 16px;background:#fff;color:var(--ink)}
+  #photoModal #photoSave{background:var(--accent);color:#fff}
   .screen{max-width:520px;margin:0 auto;padding:26px 18px 70px;line-height:1.65;display:none}
   .screen.show{display:block}
   h1{font-size:1.45rem;margin:0}
@@ -198,11 +213,13 @@
   <div class="row" id="support"><span>檢查手機是否支援 AR…</span></div>
   <button id="arBtn" class="big primary" disabled>開始 AR</button>
   <button id="pvBtn" class="big ghost">先看預覽（不開鏡頭）</button>
+  <button id="selfieBtn" class="big ghost">🤳 自拍模式（前鏡頭）</button>
   <ul class="tips">
     <li>請用 <b>Android 手機的 Chrome</b> 開啟。</li>
     <li>進入後慢慢轉一圈、走一走，<b>身邊 5 公尺內的地板、桌子、家具都可以掃</b>。掃得越完整，寵物能跳過去的地方越多。</li>
     <li>寵物會被真實的東西擋住：走到椅子、桌腳後面會被遮住，撞到家具會停下來。</li>
     <li>寵物會自己跳上跳下，在桌子、椅子、地板之間走動。<b>貓跳得最高</b>（往上約 1 公尺），<b>狗</b>約 50 公分，<b>羊駝</b>約 40 公分，<b>水豚</b>約 30 公分。<b>倉鼠</b>很小又怕摔，只會上下 10 幾公分的高度。</li>
+    <li>按下方的 📷 可以<b>拍照</b>，⏱ 可以設定<b>倒數 5 秒或 10 秒</b>；按「🤳 自拍」會換成前鏡頭，寵物會站在畫面下方陪你一起入鏡。</li>
     <li>按住 🎤 說「<b>召喚＋寵物名字</b>」，例如<span id="exampleName">「召喚小橘」</span>；也可以按右下角 ☰ →「召喚」選。說「收回」會讓牠們回家。</li>
     <li>點牠＝打招呼，也會看到牠的<b>親密度</b>和<b>飽食度</b>；親密度 100% 時伸手給牠，會有<b>親密互動</b>；<b>把手伸到牠身上＝摸摸</b>（手機沒有深度感測時，改成用手指在牠身上慢慢來回滑）；用手指從牠身上快速一甩＝推牠。</li>
     <li>按 🍖 會把飼料往前丟，肚子餓的寵物會跑過去吃。</li>
@@ -379,6 +396,7 @@
 </section>
 
 <!-- ============ AR 畫面上的介面 ============ -->
+<video id="selfieVid" playsinline muted></video>
 <div id="overlay">
   <div id="touch"></div>
   <div id="hint">慢慢移動手機，掃描桌面…</div>
@@ -390,8 +408,13 @@
   <div id="bar">
     <button id="mic">🎤 按住說話</button>
     <button id="feed" title="丟飼料">🍖 5</button>
+    <button id="camBtn" title="拍照">📷</button>
     <button id="menuBtn" title="功能選單" aria-haspopup="true" aria-expanded="false">☰</button>
   </div>
+  <div id="camUI"><button id="camTimer">⏱ 不倒數</button><button id="camShot" aria-label="拍照">📷</button><button id="camFlip">🤳 自拍</button><button id="camClose" aria-label="關閉">✕</button></div>
+  <div id="countdown"></div>
+  <div id="flash"></div>
+  <div id="photoModal"><img id="photoImg" alt="剛拍的照片"><div class="row"><button id="photoSave">💾 儲存</button><button id="photoShare">分享</button><button id="photoClose">再拍一張</button></div></div>
   <div id="menu" role="menu">
     <button id="mHome" role="menuitem"><span class="ic">🏠</span>回寵物列表</button>
     <button id="mSummon" role="menuitem"><span class="ic">🐾</span>召喚</button>
@@ -2647,7 +2670,7 @@ function placePet(pd, pos, hit) {
   a.path = (tx, tz) => pathOK(a, tx, tz);
   a.spotY = null;
   a.onBlocked = G => hint(G?.owner ? `${def.name}想過去找你，但被擋住了～` : `${def.name}被擋住了，過不去～`);
-  a.onNoPath = G => hint(G?.owner ? `${def.name}想過去找你，但前面沒有路（或還沒掃描到）` : `${def.name}停在邊邊：前面沒有地面，或是還沒掃描到`);
+  a.onNoPath = G => mode === 'selfie' ? 0 : hint(G?.owner ? `${def.name}想過去找你，但前面沒有路（或還沒掃描到）` : `${def.name}停在邊邊：前面沒有地面，或是還沒掃描到`);
   a.seekFood = () => seekFood(a);
   a.onWant = (G, blocked) => hint(blocked ? `${def.name}想吃，但被擋住過不去…` : G.y > a.pet.groundY + 0.05 ? `飼料在比較高的地方，${def.name}上不去…` : `${def.name}到不了飼料那裡…`);
   a.onAte = F => {
@@ -2956,7 +2979,7 @@ function pressHand(a) {   // 用手指按住寵物＝伸手
 const interactHint = a => ({ lick: `${a.def.name}在舔你的手～`, rub: `${a.def.name}用頭蹭你的手～`, nuzzle: `${a.def.name}輕輕頂你的手～` })[a.pet.interact] || '';
 // 有深度感測的手機：偵測真的手伸到寵物身上（手離身體 5 公分內＝摸到）
 // 只在寵物附近的畫面範圍密集取樣（每邊 HG 點），不管離多遠，取樣間距都在 1～2 公分左右
-const handTrack = () => mode === 'xr' && depthOn && depthState === '開';
+const handTrack = () => mode === 'xr' && ((depthOn && depthState === '開') || VIS.state === 'on');
 const HG = 16, camView = new THREE.Matrix4(), camProj = new THREE.Matrix4(), _hv = new THREE.Vector3(), _hp = new THREE.Vector3();
 // 寵物身體當成一個直立的圓柱：中心、半徑、上下範圍（世界座標）
 function bodyOf(a) {
@@ -2968,6 +2991,7 @@ function detectHands(di) {
   for (const a of active) {
     const pet = a.pet; a.touchNow = false;
     if (pet.busy() || pet.state === 'pushed' || pet.state === 'fall') { a.touchF = 0; continue; }
+    if (performance.now() - (a.visT || 0) < 400) continue;                     // 鏡頭已經認出手了，就用鏡頭的結果
     const b = bodyOf(a), R = b.r + TOUCH_TOL;
     // 寵物周圍（含 5 公分）投影到畫面上的範圍
     let u0 = 1, u1 = 0, v0 = 1, v1 = 0, behind = false;
@@ -3128,6 +3152,9 @@ function loop(time, frame) {
           if (active.length) detectHands(di);   // 手每一幀都檢查，反應才快
         }
       } else occMesh.visible = false;
+      if (camOn && active.length) visionHands(frame, v, frameDI, now);
+      handOcc.visible = occ.on && now - VIS.seenT < 220;
+      if (photoReq) { const r = photoReq; photoReq = null; let c = null; try { c = xrPhoto(v); } catch (e) { console.warn('photo', e); } r(c); }
     }
     if (hitSource) {
       const res = frame.getHitTestResults(hitSource);
@@ -3187,10 +3214,10 @@ function loop(time, frame) {
       else if (now - pending.t > 20000) { pending = null; hint('還找不到平面：開亮一點的燈、手機離平面 40～60 公分、斜斜往下拍，慢慢左右移動。素色、反光、太暗的表面比較難找'); }
       else if (now - pending.t > 5000) hint(hitKind === '被擋住' ? '準星前面有東西擋著，換個角度對準要放的平面' : '還在找…把手機拿高一點、斜著對準平面，慢慢左右移動');
     }
-  } else if (mode === 'preview') {
+  } else if (mode === 'preview' || mode === 'selfie') {
     camera.updateMatrixWorld();
     camWorld.copy(camera.matrixWorld); camProjInv.copy(camera.projectionMatrixInverse); camPos.setFromMatrixPosition(camWorld);
-    if (pending) { const pd = pending; pending = null; placePet(pd, previewSpot(), null); }
+    if (pending) { const pd = pending; pending = null; placePet(pd, mode === 'selfie' ? selfieSpot() : previewSpot(), null); }
   }
 
   for (const a of active) { camLocal.copy(camPos).sub(a.home.position); a.pet.update(dt, camLocal, a); }
@@ -3206,7 +3233,7 @@ function loop(time, frame) {
     if (k >= 1) goalMark.visible = false;
   }
   if (showMap && now - mapT > 300) { mapT = now; updateMapMesh(); }
-  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・深度：${depthState}・遮擋：${!occ.on ? '關' : occMesh.visible ? '開' : '等深度'}・地圖 ${field.cells.size} 格（半徑 ${SCAN_R} 公尺）・場上 ${active.length} 隻`;
+  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・深度：${depthState}・遮擋：${!occ.on ? '關' : occMesh.visible ? '開' : '等深度'}・地圖 ${field.cells.size} 格（半徑 ${SCAN_R} 公尺）・場上 ${active.length} 隻・手部辨識：${({ off: '關', loading: '載入中', on: VIS.hands.length ? `看到 ${VIS.hands.length} 隻手` : '開', fail: '失敗' })[VIS.state]}${camOn ? '' : '（沒有相機畫面）'}`;
   if (mode !== 'none') renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(loop);
@@ -3390,6 +3417,301 @@ micBtn.addEventListener('contextmenu', e => e.preventDefault());
 $('feed').addEventListener('click', throwFood);
 $('overlay').addEventListener('beforexrselect', e => e.preventDefault());
 
+/* ================= 鏡頭畫面：拍照、手部辨識都要用 =================
+   AR 模式下網頁本來拿不到相機畫面，要開 camera-access 才能讀到。
+   這裡把相機畫面畫到一張小圖上再讀出來（倒過來畫，讀出來就是正的）。 */
+let camOn = false, glBinding = null, camGL = null;
+function makeCamGL(gl) {
+  const sh = (t, src) => { const o = gl.createShader(t); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5); gl_Position = vec4(p, 0.0, 1.0); }'));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, 'precision mediump float; varying vec2 uv; uniform sampler2D t; void main(){ gl_FragColor = vec4(texture2D(t, uv).rgb, 1.0); }'));
+  gl.linkProgram(pr);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  return { pr, buf, ap: gl.getAttribLocation(pr, 'p'), ut: gl.getUniformLocation(pr, 't'), fb: gl.createFramebuffer(), tex: null, w: 0, h: 0 };
+}
+function grabCam(tex, W, H) {     // 回傳 W×H 的 RGBA（由上往下）
+  const gl = renderer.getContext(), prevRT = renderer.getRenderTarget();
+  const C = camGL || (camGL = makeCamGL(gl));
+  if (gl.bindVertexArray) gl.bindVertexArray(null);
+  if (C.w !== W || C.h !== H) {
+    if (C.tex) gl.deleteTexture(C.tex);
+    C.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, C.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, C.fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, C.tex, 0);
+    C.w = W; C.h = H;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, C.fb); gl.viewport(0, 0, W, H);
+  gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.disable(gl.SCISSOR_TEST); gl.disable(gl.STENCIL_TEST); gl.colorMask(true, true, true, true);
+  gl.useProgram(C.pr); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(C.ut, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, C.buf); gl.enableVertexAttribArray(C.ap); gl.vertexAttribPointer(C.ap, 2, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const out = new Uint8ClampedArray(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, out);
+  gl.disableVertexAttribArray(C.ap);
+  renderer.resetState(); renderer.setRenderTarget(prevRT);
+  return out;
+}
+const pxCanvas = (px, W, H, c) => { c = c || document.createElement('canvas'); if (c.width !== W) c.width = W; if (c.height !== H) c.height = H; c.getContext('2d').putImageData(new ImageData(px, W, H), 0, 0); return c; };
+
+/* ================= 用鏡頭畫面辨識手（MediaPipe） =================
+   深度感測對「突然伸進來、一直在動的手」反應很慢，所以另外用 AI 直接在畫面上找手：
+   找到手的 21 個關節 → 用手的大小估計離手機多遠 → 在那裡放一隻看不見的「手」擋住寵物，
+   倉鼠也可以站上去、被你拿起來。 */
+const VIS = { state: 'off', lm: null, hands: [], t: 0, seenT: 0, canvas: document.createElement('canvas') };
+const MP_VER = '1.2.3';
+async function loadHandAI() {
+  if (VIS.state !== 'off') return;
+  VIS.state = 'loading';
+  if (typeof globalThis.dbg !== 'function') globalThis.dbg = () => {};   // 某些版本的 MediaPipe 會呼叫這個除錯函式
+  try {
+    const mp = await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
+    const fs = await mp.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`);
+    const opt = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: d },
+      runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+    try { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('GPU')); } catch { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('CPU')); }
+    VIS.state = 'on';
+  } catch (e) { console.warn('hand ai', e); VIS.state = 'fail'; }
+}
+const HAND_BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+const SIZE_PAIRS = [[0,5],[0,9],[0,13],[0,17],[5,17],[5,9],[9,13],[13,17],[5,13],[9,17]];
+const HOCC_MAX = 420;
+const handOcc = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 7), new THREE.MeshBasicMaterial({ colorWrite: false }), HOCC_MAX);
+handOcc.renderOrder = -98; handOcc.frustumCulled = false; handOcc.count = 0; handOcc.visible = false; scene.add(handOcc);
+const _hm = new THREE.Object3D(), _ha = new THREE.Vector3(), _hb = new THREE.Vector3(), _hc = new THREE.Vector3();
+// 一隻手：畫面上的 21 點 + 手本身的 3D 形狀（公尺）→ 世界座標
+function handWorld(lm, wl, di) {
+  const R = lm.map(p => { const v = new THREE.Vector3(p.x * 2 - 1, 1 - p.y * 2, 0.5).applyMatrix4(camProjInv); return v.multiplyScalar(1 / -v.z); });
+  const est = [];
+  for (const [i, j] of SIZE_PAIRS) {
+    const Lw = Math.hypot(wl[i].x - wl[j].x, wl[i].y - wl[j].y, wl[i].z - wl[j].z), Lp = R[i].distanceTo(R[j]);
+    if (Lp > 1e-4) est.push(Lw / Lp);
+  }
+  if (!est.length) return null;
+  est.sort((a, b) => a - b);
+  let Z = est[Math.min(1, est.length - 1)];          // 斜著的骨頭在畫面上會變短，所以取比較小的估計
+  if (di) {                                          // 深度感測剛好也看到手的話，兩個一起參考
+    const ds = [];
+    for (const k of [0, 5, 9, 13, 17]) { let d = 0; try { d = di.getDepthInMeters(lm[k].x, lm[k].y); } catch {} if (d > 0.1 && d < 3) ds.push(d); }
+    if (ds.length >= 3) { ds.sort((a, b) => a - b); const dm = ds[ds.length >> 1]; if (dm > Z * 0.75 && dm < Z * 1.3) Z = (Z + dm) / 2; }
+  }
+  Z = clamp(Z, 0.1, 1.6);
+  const zc = (wl[0].z + wl[5].z + wl[9].z + wl[13].z + wl[17].z) / 5;
+  const pts = R.map((r, i) => r.clone().multiplyScalar(Math.max(0.06, Z + (wl[i].z - zc))).applyMatrix4(camWorld));
+  const palm = new THREE.Vector3(); for (const k of [0, 5, 9, 13, 17]) palm.add(pts[k]); palm.multiplyScalar(0.2);
+  const n = _ha.copy(pts[5]).sub(pts[0]).cross(_hb.copy(pts[17]).sub(pts[0])).normalize().clone();
+  return { pts, palm, n, flat: Math.abs(n.y), Z };
+}
+function buildHandOcc(hands) {
+  let i = 0;
+  const put = (p, r) => { if (i >= HOCC_MAX) return; _hm.position.copy(p); _hm.scale.setScalar(r * 1.12); _hm.updateMatrix(); handOcc.setMatrixAt(i++, _hm.matrix); };
+  for (const h of hands) {
+    const P = h.pts;
+    for (const [a, b] of HAND_BONES) {
+      const r = a <= 4 && b <= 4 ? 0.011 : (a === 0 || b === 0 || (a % 4 === 1 && b % 4 === 1)) ? 0.013 : 0.0095;
+      const n = Math.max(1, Math.ceil(P[a].distanceTo(P[b]) / 0.007));
+      for (let k = 0; k <= n; k++) put(_hc.copy(P[a]).lerp(P[b], k / n), r);
+    }
+    for (let u = 0; u <= 1.001; u += 0.2) for (let v = 0.15; v <= 1.001; v += 0.2) put(_hc.copy(P[5]).lerp(P[17], u).sub(P[0]).multiplyScalar(v).add(P[0]), 0.017);   // 手掌
+    _ha.copy(P[0]).sub(P[9]).normalize();                                                                                         // 手腕和手臂（往手指的反方向延伸）
+    for (let s = 0; s <= 0.32; s += 0.022) put(_hc.copy(P[0]).addScaledVector(_ha, s), 0.024 + s * 0.03);
+  }
+  handOcc.count = i; handOcc.instanceMatrix.needsUpdate = true;
+}
+function visionHands(frame, view, di, now) {
+  if (VIS.state !== 'on' || !glBinding || !view.camera) return;
+  if (now - VIS.t < 90) return;                       // 一秒大約辨識 10 次
+  VIS.t = now;
+  let tex = null; try { tex = glBinding.getCameraImage(view.camera); } catch {}
+  if (!tex) return;
+  const cw = view.camera.width, ch = view.camera.height, k = 288 / Math.max(cw, ch), W = Math.round(cw * k), H = Math.round(ch * k);
+  let res = null;
+  try { pxCanvas(grabCam(tex, W, H), W, H, VIS.canvas); res = VIS.lm.detectForVideo(VIS.canvas, now); } catch (e) { console.warn('hand detect', e); return; }
+  const hands = [];
+  for (let n = 0; n < (res?.landmarks?.length || 0); n++) { const h = handWorld(res.landmarks[n], res.worldLandmarks[n], di); if (h) hands.push(h); }
+  VIS.hands = hands;
+  if (hands.length) { VIS.seenT = now; buildHandOcc(hands); handPlay(hands, now); }
+}
+// 辨識到的手 → 摸寵物、親密互動、倉鼠站上來
+function handPlay(hands, now) {
+  for (const a of active) {
+    const pet = a.pet; if (!pet || pet.busy() || pet.state === 'pushed' || pet.state === 'fall') continue;
+    const b = bodyOf(a), aff = affNow(statsOf(a.def)) >= RULES.handAff;
+    const rel = v => tmpV.copy(v).sub(a.home.position);
+    for (const h of hands) {
+      const stand = _hc.copy(h.palm).addScaledVector(upV.set(0, 1, 0), 0.012);
+      if (pet.aloft() && pet.interact === 'climb') {          // 已經在手上：手去哪牠就去哪（可以把牠拿起來）
+        if (h.palm.distanceTo(tmpV2.copy(a.home.position).add(pet.root.position)) < 0.25 && h.flat > 0.25) { pet.handOn(rel(stand)); a.visT = now; }
+        continue;
+      }
+      let touch = null;
+      for (const p of h.pts) {
+        if (p.y < b.y0 - 0.02 || p.y > b.y1 + TOUCH_TOL) continue;
+        if (Math.hypot(p.x - b.x, p.z - b.z) < b.r + TOUCH_TOL) { touch = p; break; }
+      }
+      if (aff && pet.interact === 'climb') {                 // 倉鼠：手掌平放在牠旁邊就會爬上來
+        const dh = Math.hypot(h.palm.x - b.x, h.palm.z - b.z);
+        if (h.flat > 0.55 && dh < b.r + 0.12 && h.palm.y > b.y0 - 0.04 && h.palm.y < b.y1 + 0.06) {
+          if (pet.handOn(rel(stand))) { a.visT = now; if (!a.handMsgT) { a.handMsgT = 1; hint(`${a.def.name}爬到你手上了！手掌保持平平的，慢慢移動就能帶著牠走`); } }
+        }
+        continue;
+      }
+      if (!touch) continue;
+      a.visT = now;
+      if (aff) { if (pet.handOn(rel(touch)) && !a.handMsgT) { const m = interactHint(a); if (m) { a.handMsgT = 1; hint(m); } } }
+      else { pet.pet(); if (!a.touchMsg) hint(`摸到${a.def.name}了～繼續摸一下`); a.touchMsg = 90; }
+    }
+  }
+}
+
+/* ================= 📷 拍照・自拍（倒數 5 秒／10 秒） ================= */
+const camUI = $('camUI'), cdEl = $('countdown'), photoModal = $('photoModal');
+const TIMERS = [0, 5, 10];
+let camTimer = 0, shooting = 0, photoReq = null, photoBlob = null, photoURL = null, selfieNext = null, selfieStream = null;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function beep(f, len = 0.09, vol = 0.18) {
+  if (!actx) return;
+  const o = actx.createOscillator(), gn = actx.createGain(), t = actx.currentTime;
+  o.frequency.value = f; gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(gn).connect(actx.destination); o.start(t); o.stop(t + len + 0.02);
+}
+function openCam() {
+  initAudio(); hideMenu(); hidePicker();
+  camUI.classList.add('show'); $('bar').style.display = 'none';
+  $('camFlip').textContent = mode === 'selfie' ? '📷 後鏡頭' : '🤳 自拍';
+  $('camFlip').style.display = mode === 'preview' ? 'none' : '';
+  if (mode === 'xr' && !camOn) hint('這支手機的 AR 不提供相機畫面，拍出來只會有寵物。可以改用手機的截圖，或用 🤳 自拍');
+}
+function closeCam() { shooting = 0; cdEl.textContent = ''; $('camShot').classList.remove('wait'); $('camShot').textContent = '📷'; camUI.classList.remove('show'); $('bar').style.display = ''; }
+$('camBtn').addEventListener('click', openCam);
+$('camClose').addEventListener('click', closeCam);
+$('camTimer').addEventListener('click', () => {
+  camTimer = TIMERS[(TIMERS.indexOf(camTimer) + 1) % TIMERS.length];
+  $('camTimer').textContent = camTimer ? `⏱ ${camTimer} 秒` : '⏱ 不倒數';
+});
+$('camShot').addEventListener('click', async () => {
+  if (shooting) { shooting = 0; cdEl.textContent = ''; $('camShot').classList.remove('wait'); $('camShot').textContent = '📷'; hint('取消倒數'); return; }
+  const id = shooting = performance.now();
+  if (camTimer) { $('camShot').classList.add('wait'); $('camShot').textContent = '✕'; }
+  for (let s = camTimer; s > 0; s--) {
+    if (shooting !== id) return;
+    cdEl.textContent = s; beep(s <= 3 ? 990 : 740);
+    await sleep(1000);
+  }
+  if (shooting !== id) return;
+  shooting = 0; cdEl.textContent = ''; $('camShot').classList.remove('wait'); $('camShot').textContent = '📷';
+  const c = await takePhoto();
+  if (!c) { hint('拍照失敗了，再試一次'); return; }
+  beep(1600, 0.05, 0.25); setTimeout(() => beep(1200, 0.07, 0.2), 60);
+  const fl = $('flash'); fl.style.transition = 'none'; fl.style.opacity = '0.9'; requestAnimationFrame(() => { fl.style.transition = 'opacity .4s'; fl.style.opacity = '0'; });
+  photoBlob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+  if (!photoBlob) { hint('拍照失敗了，再試一次'); return; }
+  if (photoURL) URL.revokeObjectURL(photoURL);
+  photoURL = URL.createObjectURL(photoBlob); $('photoImg').src = photoURL;
+  $('photoShare').style.display = navigator.canShare && navigator.canShare({ files: [new File([photoBlob], 'p.jpg', { type: 'image/jpeg' })] }) ? '' : 'none';
+  photoModal.classList.add('show');
+});
+const photoName = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `AR寵物_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}.jpg`; };
+$('photoSave').addEventListener('click', () => {
+  if (!photoURL) return;
+  const el = document.createElement('a'); el.href = photoURL; el.download = photoName(); document.body.appendChild(el); el.click(); el.remove();
+  hint('照片已儲存（在手機的「下載」資料夾或相簿裡）');
+});
+$('photoShare').addEventListener('click', async () => {
+  if (!photoBlob) return;
+  try { await navigator.share({ files: [new File([photoBlob], photoName(), { type: 'image/jpeg' })], title: 'AR 寵物' }); } catch {}
+});
+$('photoClose').addEventListener('click', () => photoModal.classList.remove('show'));
+
+// 把 3D 寵物畫到一張透明的圖上（W×H）
+let photoRT = null;
+const photoCam = new THREE.PerspectiveCamera(); photoCam.matrixAutoUpdate = false;
+function renderLayer(cam, W, H) {
+  if (!photoRT || photoRT.width !== W || photoRT.height !== H) {
+    photoRT?.dispose(); photoRT = new THREE.WebGLRenderTarget(W, H, { samples: 4 }); photoRT.texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  const prevRT = renderer.getRenderTarget(), xrOn = renderer.xr.enabled, cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+  const vis = [reticle.visible, goalMark.visible, mapMesh.visible]; reticle.visible = goalMark.visible = mapMesh.visible = false;
+  renderer.xr.enabled = false;
+  renderer.setRenderTarget(photoRT); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, cam);
+  const px = new Uint8ClampedArray(W * H * 4); renderer.readRenderTargetPixels(photoRT, 0, 0, W, H, px);
+  renderer.setRenderTarget(prevRT); renderer.setClearColor(cc, ca); renderer.xr.enabled = xrOn;
+  [reticle.visible, goalMark.visible, mapMesh.visible] = vis;
+  const flip = new Uint8ClampedArray(W * H * 4), row = W * 4;     // 讀出來是上下顛倒的
+  for (let y = 0; y < H; y++) flip.set(px.subarray((H - 1 - y) * row, (H - y) * row), y * row);
+  return pxCanvas(flip, W, H);
+}
+function photoSize(w, h) { const k = Math.min(1, 1600 / Math.max(w, h)); return [Math.round(w * k), Math.round(h * k)]; }
+function takePhoto() {
+  if (mode === 'xr') {
+    if (!session) return Promise.resolve(null);
+    return new Promise(r => { photoReq = r; setTimeout(() => { if (photoReq === r) { photoReq = null; r(null); } }, 1500); });
+  }
+  const dpr = Math.min(devicePixelRatio, 2), [W, H] = photoSize(innerWidth * dpr, innerHeight * dpr);
+  if (mode === 'preview') return Promise.resolve(renderLayer(camera, W, H));
+  if (mode === 'selfie') {
+    const v = $('selfieVid'), c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d'), vw = v.videoWidth || W, vh = v.videoHeight || H, s = Math.max(W / vw, H / vh);
+    ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(v, (W - vw * s) / 2, (H - vh * s) / 2, vw * s, vh * s); ctx.restore();   // 跟螢幕上一樣是鏡像的
+    ctx.drawImage(renderLayer(camera, W, H), 0, 0);
+    return Promise.resolve(c);
+  }
+  return Promise.resolve(null);
+}
+// AR：在每一幀裡面拍（相機畫面只有在那一幀裡讀得到）
+function xrPhoto(view) {
+  let W = 0, H = 0, c = null;
+  if (camOn && glBinding && view.camera) {
+    let tex = null; try { tex = glBinding.getCameraImage(view.camera); } catch {}
+    if (tex) { [W, H] = photoSize(view.camera.width, view.camera.height); c = pxCanvas(grabCam(tex, W, H), W, H); }
+  }
+  if (!c) { const dpr = Math.min(devicePixelRatio, 2); [W, H] = photoSize(innerWidth * dpr, innerHeight * dpr); c = document.createElement('canvas'); c.width = W; c.height = H; }
+  photoCam.matrix.copy(camWorld); photoCam.projectionMatrix.copy(camProj); photoCam.projectionMatrixInverse.copy(camProjInv); photoCam.updateMatrixWorld(true);
+  c.getContext('2d').drawImage(renderLayer(photoCam, W, H), 0, 0);
+  return c;
+}
+
+/* ---------- 🤳 自拍模式：前鏡頭沒有 AR 定位，寵物站在畫面下方的一個小舞台上 ---------- */
+const SELFIE = { w: 0.2, d: 0.12 };
+function buildSelfieField() {
+  field.clear();
+  for (let x = -SELFIE.w; x <= SELFIE.w; x += CELL) for (let z = -SELFIE.d; z <= SELFIE.d; z += CELL) field.add(x, 0, z, 25, true);
+}
+function placeSelfieCamera() {   // 鏡頭平視，舞台落在畫面下方約 3/4 的地方（快門按鈕上面）
+  camera.fov = 58; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  const tn = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), d = clamp(0.24 / (tn * camera.aspect), 0.5, 1.2);
+  camera.position.set(0, 0.55 * d * tn, d); camera.lookAt(0, 0.55 * d * tn, 0);
+}
+function selfieSpot() {
+  const spots = [[0, 0.03], [-0.12, 0], [0.12, 0], [-0.06, -0.07], [0.06, -0.07], [0, -0.1]];
+  for (const [x, z] of spots) if (active.every(a => Math.hypot(worldX(a) - x, worldZ(a) - z) > 0.1)) return new THREE.Vector3(x, 0, z);
+  return new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.16);
+}
+async function startSelfie(defs = []) {
+  initAudio();
+  if (!navigator.mediaDevices?.getUserMedia) { alert('這個瀏覽器不能開相機'); return; }
+  try { selfieStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }); }
+  catch (e) { alert('打不開前鏡頭：' + (e.message || e) + '。請允許相機權限再試一次。'); return; }
+  const v = $('selfieVid'); v.srcObject = selfieStream; v.style.display = 'block'; try { await v.play(); } catch {}
+  mode = 'selfie'; buildSelfieField(); placeSelfieCamera();
+  scene.background = null; previewSet.visible = false;
+  renderer.domElement.style.display = 'block';
+  show('none'); $('overlay').style.display = 'block';
+  hint(defs.length ? '自拍模式：按 📷 拍照，可以設定倒數 5 秒或 10 秒' : '自拍模式：按 ☰ →「召喚」叫寵物出來，再按 📷 拍照');
+  for (const d of defs) { await requestSummon(d); await sleep(60); }
+  openCam();
+}
+function stopSelfie() {
+  if (selfieStream) { selfieStream.getTracks().forEach(t => t.stop()); selfieStream = null; }
+  const v = $('selfieVid'); v.srcObject = null; v.style.display = 'none';
+  camera.fov = 55; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+$('selfieBtn').addEventListener('click', () => startSelfie());
+$('camFlip').addEventListener('click', () => {
+  if (mode === 'xr' && session) { selfieNext = active.map(a => a.def); session.end(); return; }
+  if (mode === 'selfie') { backHome(); arBtn.click(); }
+});
+
 /* ================= 開始 AR ================= */
 const supportEl = $('support').firstElementChild, arBtn = $('arBtn');
 (async () => {
@@ -3402,7 +3724,7 @@ const supportEl = $('support').firstElementChild, arBtn = $('arBtn');
 
 arBtn.addEventListener('click', async () => {
   initAudio();
-  const base = { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection'], domOverlay: { root: $('overlay') } };
+  const base = { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection', 'camera-access'], domOverlay: { root: $('overlay') } };
   $('overlay').style.display = 'block';
   try {
     try {
@@ -3417,6 +3739,8 @@ arBtn.addEventListener('click', async () => {
   mode = 'xr'; field.clear(); sawPlane = false;
   let feats = []; try { feats = [...(session.enabledFeatures || [])]; } catch {}
   depthOn = feats.length ? feats.includes('depth-sensing') : true;
+  camOn = feats.includes('camera-access') && typeof XRWebGLBinding !== 'undefined';
+  glBinding = null; VIS.hands = []; handOcc.count = 0;
   depthState = depthOn ? '等待中' : '這支手機沒開';
   scene.background = null; previewSet.visible = false;
   show('none');
@@ -3426,19 +3750,22 @@ arBtn.addEventListener('click', async () => {
   if (!session.domOverlayState) session.addEventListener('select', () => requestSummon(pets[0]));
   await renderer.xr.setSession(session);
   refSpace = renderer.xr.getReferenceSpace();
+  if (camOn) { try { glBinding = new XRWebGLBinding(session, renderer.getContext()); loadHandAI(); } catch (e) { camOn = false; console.warn('camera-access', e); } }
   const viewer = await session.requestReferenceSpace('viewer');
   try { hitSource = await session.requestHitTestSource({ space: viewer, entityTypes: ['plane', 'point'] }); }
   catch { hitSource = await session.requestHitTestSource({ space: viewer }); }
 });
 function backHome() {
   clearPets(); clearFoods(); clearHearts(); hideStats(); $('helpModal').classList.remove('show'); handSprite.visible = false; mapOcc.count = 0;
+  if (mode === 'selfie') stopSelfie();
+  closeCam(); photoModal.classList.remove('show'); handOcc.count = 0; handOcc.visible = false;
   mode = 'none'; pending = null; reticle.visible = false; hidePicker(); hideMenu();
   showMap = false; mapMesh.visible = false; $('mapBtn').classList.remove('on');
   renderer.domElement.style.display = 'none'; scene.background = null; previewSet.visible = false;
   $('overlay').style.display = 'none'; speechEl.textContent = ''; dbgEl.textContent = '';
   renderHome(); show('homeScr'); checkMic();
 }
-function onSessionEnd() { hitSource = null; session = null; depthOn = false; backHome(); }
+function onSessionEnd() { hitSource = null; session = null; depthOn = false; camOn = false; glBinding = null; photoReq?.(null); photoReq = null; const nx = selfieNext; selfieNext = null; backHome(); if (nx) startSelfie(nx); }
 
 /* ================= 預覽模式 ================= */
 let orbit = 0, orbitH = 0.62;
@@ -3459,6 +3786,7 @@ addEventListener('resize', () => {
   if (mode === 'xr') return;
   renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   if (mode === 'preview') placePreviewCamera();
+  if (mode === 'selfie') placeSelfieCamera();
 });
 renderer.domElement.style.display = 'none';
 
@@ -3473,7 +3801,7 @@ initFirebase();
 if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
-window.__ar = { camera, active, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
+window.__ar = { camera, active, VIS, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
   foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, owns, slotFree, slotTotal, renderShop, openEditor, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>

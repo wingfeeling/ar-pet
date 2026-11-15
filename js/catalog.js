@@ -98,6 +98,21 @@ export const SPECIES = {
       yuzu:  { label: '頭頂橘子水豚', fur: 0xae7e52, dark: 0x7e5737, cream: 0xc99c70, eye: 0x1c1412, yuzu: true },
     },
   },
+  /* ================= 幻獸系列 =================
+     series：系列名稱（商店會分開顯示）・behavior：'fly' 會飛
+     鳳凰的飛行高度：手機的水平面 ～ 手機往上 2 公尺之間；也會降落、停在桌子椅子上。
+     親密互動 'climb'：飛到你的手上（手掌平放）。以後會加上「自拍模式停在你的肩膀上」。 */
+  phoenix: {
+    label: '鳳凰', emoji: '🔥', series: '幻獸', voice: 'phoenix', interact: 'climb', behavior: 'fly', free: false, productId: 'pet_phoenix', price: 64, rig: 'toon',
+    desc: '【幻獸系列】全身燃著溫暖火光的小鳳凰。會在空中飛翔，也會降落在桌子、椅子上，左右張望、眨眨眼睛。',
+    acts: ['look', 'stretch', 'look', 'yawn'],
+    scale: 1, speed: 1.1, jump: { up: 2.0, down: 3.0, gap: 1.2 }, wander: 0.4, words: '鳳凰|凤凰|火鳥|火鸟|不死鳥|不死鸟',
+    palettes: {
+      flame: { label: '烈焰鳳凰', fur: 0xe8452c, dark: 0xc22a1f, cream: 0xffc65a, gold: 0xffb02e, tip: 0xffe27a, eye: 0x2a120c },
+      azure: { label: '青焰鳳凰', fur: 0x2f8fe0, dark: 0x1d5fb8, cream: 0x9fe3ff, gold: 0x5fd3ff, tip: 0xd8fbff, eye: 0x0e1830 },
+      dawn:  { label: '晨曦鳳凰', fur: 0xf28aa0, dark: 0xd9607e, cream: 0xffe2b0, gold: 0xffc46b, tip: 0xfff1b8, eye: 0x2a120c },
+    },
+  },
   /* 以後要賣的新種類，照這個格式加就好，例如：
   rabbit: {
     label: '兔子', emoji: '🐰', voice: 'none', interact: 'nuzzle', free: false, productId: 'pet_rabbit',

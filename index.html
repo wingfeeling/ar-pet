@@ -1573,6 +1573,16 @@ function tone(f0, f1, dur, gain, { type = 'sine', delay = 0, vib = 0, lp = 0, f2
   g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05);
 }
 const SYNTH = {
+  phoenix: (() => {   // 鳳凰：清亮的鳥鳴，像小號一樣往上揚
+    const cr = (r, d = 0, p = 1, dur = 0.16, g = 0.2) => tone(1250 * p * r, 1900 * p * r, dur, g, { type: 'triangle', delay: d, vib: 14, f2: 1500 * p * r });
+    return {
+      hello: r => { cr(r); cr(r, 0.17, 1.15); cr(r, 0.34, 1.3, 0.28); }, tap: r => cr(r, 0, 1.2, 0.12),
+      push: r => tone(1800 * r, 2600 * r, 0.18, 0.22, { type: 'sawtooth', lp: 3200 }), land: r => cr(r, 0, 0.9, 0.08, 0.12),
+      bonk: r => cr(r, 0, 1.3, 0.1), whine: r => tone(1700 * r, 1100 * r, 0.45, 0.16, { type: 'triangle', vib: 8 }),
+      pet: r => { cr(r, 0, 1.05, 0.1, 0.12); cr(r, 0.12, 1.12, 0.1, 0.1); }, petGap: 1.6,
+      yawn: r => tone(1300 * r, 800 * r, 0.5, 0.08, { type: 'triangle' }),
+    };
+  })(),
   hamster: (() => {   // 吱吱叫
     const sq = (r, d = 0, p = 1, g = 0.2) => tone(3000 * p * r, 3900 * p * r, 0.07, g, { delay: d });
     return {
@@ -1977,6 +1987,153 @@ class ToonRig {
   }
 }
 
+/* ================= 🔥 幻獸系列：鳳凰（程式畫的，羽毛、火焰尾巴、會飛會停） ================= */
+class PhoenixRig {
+  constructor(def) {
+    const P = pal(def), k = PET_SCALE * (SPECIES.phoenix?.scale || 1);
+    this.def = def; this.obj = new THREE.Group(); this.body = new THREE.Group(); this.obj.add(this.body);
+    this.baseScale = k; this.radius = 0.045 * k; this.height = 0.15 * k;
+    this.colC = new THREE.Vector3(0, 0.075, 0); this.colR = 0.085 * k; this.shadowS = [0.045, 0.06];
+    const mat = (c, e = 0, ei = 0.5) => { const m = toon(c); if (e) { m.emissive = new THREE.Color(e); m.emissiveIntensity = ei; } return m; };
+    const main = mat(P.fur, P.fur, 0.18), wingM = mat(P.dark, P.dark, 0.15), chest = mat(P.cream, P.cream, 0.25), gold = mat(P.gold, P.gold, 0.35);
+    const tipM = mat(P.tip, P.tip, 0.9), beakM = mat(0xf2c14e, 0, 0), legM = mat(0x8a5a2b);
+    const glowM = new THREE.MeshBasicMaterial({ color: P.tip, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+    const ink = new THREE.MeshBasicMaterial({ color: P.eye }), white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const add = (par, geo, m, p, s, r) => { const o = new THREE.Mesh(geo, m); if (p) o.position.set(...p); if (s) o.scale.set(...s); if (r) o.rotation.set(...r); par.add(o); return o; };
+    const grp = (par, p, r) => { const g = new THREE.Group(); if (p) g.position.set(...p); if (r) g.rotation.set(...r); par.add(g); return g; };
+    // 一片羽毛：一頭圓、一頭尖的葉片形
+    const featherGeo = (() => { const g = new THREE.SphereGeometry(1, 12, 8); const a = g.attributes.position;
+      for (let i = 0; i < a.count; i++) { const z = a.getZ(i); const w = 1 - Math.max(0, z) * 0.75; a.setX(i, a.getX(i) * w); a.setY(i, a.getY(i) * w); a.setZ(i, z + 1); }   // 往 +z 長、尖端在前
+      g.computeVertexNormals(); return g; })();
+    const B = this.body;
+    // 身體：胖胖的水滴形，胸口是金色
+    add(B, SPH, main, [0, 0.07, 0], [0.04, 0.042, 0.05]);
+    add(B, SPH, chest, [0, 0.064, 0.022], [0.031, 0.034, 0.03]);
+    // 腳：細細的金棕色腳和爪子
+    this.legs = [-1, 1].map(s => { const l = grp(B, [s * 0.016, 0.04, 0.004]);
+      add(l, new THREE.CylinderGeometry(0.0032, 0.0028, 0.036, 6), legM, [0, -0.018, 0]);
+      for (const a of [-0.5, 0, 0.5]) add(l, new THREE.CylinderGeometry(0.0022, 0.0016, 0.014, 5), legM, [Math.sin(a) * 0.005, -0.036, Math.cos(a) * 0.005 + 0.002], null, [Math.PI / 2 - 0.2, 0, -a]);
+      return l; });
+    // 頭
+    this.neck = grp(B, [0, 0.1, 0.03]);
+    this.head = grp(this.neck, [0, 0.022, 0.006]);
+    const H = this.head;
+    add(H, SPH, main, [0, 0, 0], [0.032, 0.031, 0.031]);
+    add(H, SPH, chest, [0, -0.008, 0.016], [0.02, 0.016, 0.016]);
+    // 嘴：上下兩片，打哈欠時下嘴張開
+    add(H, new THREE.ConeGeometry(0.008, 0.024, 10).rotateX(Math.PI / 2), beakM, [0, -0.002, 0.036], [1, 0.75, 1], [0.25, 0, 0]);
+    this.jaw = grp(H, [0, -0.006, 0.026]); add(this.jaw, new THREE.ConeGeometry(0.006, 0.016, 10).rotateX(Math.PI / 2), beakM, [0, 0, 0.008], [1, 0.6, 1], [0.15, 0, 0]);
+    // 眼睛（會眨）＋眼尾金色眼線
+    this.eyeH = 0.0085;
+    this.eyes = [-1, 1].map(s => { const e = add(H, SPH, ink, [s * 0.017, 0.006, 0.024], [0.0065, this.eyeH, 0.005]);
+      add(e, SPH, white, [0.3, 0.4, 0.75], [0.38, 0.33, 0.3]); add(e, SPH, white, [-0.3, -0.4, 0.8], [0.16, 0.15, 0.15]); return e; });
+    for (const s of [-1, 1]) add(H, featherGeo, gold, [s * 0.024, 0.009, 0.014], [0.0028, 0.0018, 0.008], [0, s * 2.5, 0]);
+    add(H, SPH, new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.45, depthWrite: false }), [0.021, -0.006, 0.021], [0.006, 0.004, 0.002], [0, 0.7, 0]);
+    add(H, SPH, new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.45, depthWrite: false }), [-0.021, -0.006, 0.021], [0.006, 0.004, 0.002], [0, -0.7, 0]);
+    // 頭冠：5 根往後彎的羽毛，尖端會發光
+    this.crest = [];
+    [[-0.5, 0.032], [-0.22, 0.042], [0, 0.048], [0.22, 0.042], [0.5, 0.032]].forEach(([a, len], i) => {
+      const g = grp(H, [Math.sin(a) * 0.012, 0.026, -0.004], [-0.55 - Math.abs(a) * 0.3, 0, -a * 0.9]);
+      const f = grp(g, [0, 0, 0], [-Math.PI / 2, 0, 0]);
+      add(f, featherGeo, i === 2 ? gold : main, [0, 0, 0], [0.0035, 0.002, len * 0.5]);
+      add(f, SPH, tipM, [0, 0, len * 0.95], [0.0045, 0.0045, 0.0045]);
+      this.crest.push(g);
+    });
+    // 翅膀：每邊 3 層羽毛，肩膀當轉軸
+    this.wings = [-1, 1].map(s => {
+      const w = grp(B, [s * 0.034, 0.088, 0.006]), inner = grp(w);
+      const rows = [[0.032, 6, main, 0.0058], [0.048, 6, wingM, 0.0052], [0.066, 7, gold, 0.0046]];
+      rows.forEach(([len, n, m, wd], r) => { for (let i = 0; i < n; i++) {
+        const u = i / (n - 1);                                  // 羽毛從「往外」到「往後」展開成扇形
+        const f = grp(inner, [s * (0.004 + u * 0.01), -r * 0.002, -u * 0.014], [0, s * (Math.PI / 2 + 0.1 + u * 1.15), 0]);
+        add(f, featherGeo, m, [0, 0, 0], [wd, 0.0018, len * (0.55 + 0.45 * Math.sin(u * Math.PI * 0.85 + 0.3))]);
+        if (r === 2) add(f, SPH, tipM, [0, 0, len * (1.1 + 0.9 * Math.sin(u * Math.PI * 0.85 + 0.3))], [0.0035, 0.002, 0.006]);
+      } });
+      return w;
+    });
+    // 尾巴：7 根長長的火焰尾羽，尾端有發光的眼狀斑
+    this.tail = []; const T = grp(B, [0, 0.062, -0.044]);
+    for (let i = 0; i < 7; i++) {
+      const u = (i - 3) / 3, len = 0.13 - Math.abs(u) * 0.035;
+      const g1 = grp(T, [u * 0.008, 0, 0], [0.55 - Math.abs(u) * 0.08, Math.PI + u * 0.42, 0]);
+      const g2 = grp(g1, [0, 0, len * 0.5]);
+      add(g1, featherGeo, i % 2 ? main : wingM, [0, 0, 0], [0.0045, 0.0018, len * 0.27]);
+      add(g2, featherGeo, i === 3 ? gold : main, [0, 0, 0], [0.006, 0.0016, len * 0.26]);
+      add(g2, SPH, gold, [0, 0, len * 0.46], [0.011, 0.0022, 0.013]);
+      add(g2, SPH, tipM, [0, 0.0012, len * 0.46], [0.006, 0.0022, 0.007]);
+      const gl = add(g2, SPH, glowM, [0, 0, len * 0.46], [0.016, 0.006, 0.018]); gl.renderOrder = 3;
+      this.tail.push({ g1, g2, u, ph: i * 0.7 });
+    }
+    // 身上飄出來的火星
+    this.sparks = []; const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
+      const gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,220,1)'); gr.addColorStop(0.35, 'rgba(255,190,80,.85)'); gr.addColorStop(1, 'rgba(255,90,30,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
+    for (let i = 0; i < 10; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+      sp.userData = { life: Math.random() * 1.2, v: new THREE.Vector3() }; sp.scale.setScalar(0.008); this.obj.add(sp); this.sparks.push(sp);
+    }
+    this.nextBlink = 1.5; this.blinkUntil = 0; this.flyK = 0; this.flap = 0; this.lookT = 0; this.lookYaw = 0;
+  }
+  update(dt, A) {
+    const t = A.t, k6 = Math.min(1, dt * 6), fly = this.flyK += ((A.fly ? 1 : 0) - this.flyK) * Math.min(1, dt * 5);
+    // 翅膀：飛的時候拍動（往上拍快、往下慢），停著的時候收在身體兩側；伸懶腰＝張開翅膀
+    const spread = Math.max(A.rear, A.legF < 0 ? -A.legF : 0, A.squint ? 0.15 : 0);
+    this.flap += dt * (A.moving ? 13 : 10) * fly;
+    const beat = Math.sin(this.flap) * 0.9 + 0.25;
+    this.wings.forEach((w, i) => { const s = i ? 1 : -1;
+      const o = Math.min(1, fly + spread), up = fly * beat * 0.9 + spread * 0.5;               // o：0＝收起來貼在身體兩側，1＝張開
+      w.rotation.z += (s * (-1.45 * (1 - o) + up * o) - w.rotation.z) * Math.min(1, dt * 14);
+      w.rotation.y = 0; w.rotation.x = 0.65 * (1 - o);                                          // 收起來時羽毛斜斜往後下方
+      w.scale.setScalar(0.72 + 0.28 * o);
+    });
+    this.legs.forEach(l => { l.rotation.x += ((fly > 0.5 ? 0.9 : 0) - l.rotation.x) * k6; });           // 飛的時候腳往後收
+    // 身體：飛的時候往前傾、跟著拍翅上下起伏
+    const pitch = (A.moving ? 0.3 : 0.08) * fly + A.lean * 0.8 - A.rear * 0.3;
+    this.body.rotation.x += (pitch - this.body.rotation.x) * k6;
+    this.body.rotation.z += (A.roll - this.body.rotation.z) * k6;
+    this.body.position.y = A.jump + A.bob + A.liftY + fly * Math.sin(this.flap + 1.2) * 0.006 + A.lie * -0.012;
+    const sq = A.squash; this.body.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5);
+    // 頭：站著發呆時左右張望（停一下、轉頭、再停一下），不然就看你
+    let yaw;
+    if (A.headYaw !== null) yaw = A.headYaw;
+    else if (A.lookCam) yaw = clamp(A.camRel, -1, 1);
+    else {
+      if ((this.lookT -= dt) < 0) { this.lookT = 0.8 + Math.random() * 1.6; this.lookYaw = fly > 0.5 ? (Math.random() - 0.5) * 0.4 : (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5); }
+      yaw = this.lookYaw;
+    }
+    this.head.rotation.y += (clamp(yaw, -1.1, 1.1) - this.head.rotation.y) * Math.min(1, dt * 7);   // 鳥轉頭很快
+    this.head.rotation.x += (A.headPitch - this.head.rotation.x) * k6;
+    const tilt = A.headTilt !== 0 ? A.headTilt : A.squint ? -0.2 : 0;
+    this.head.rotation.z += (tilt - this.head.rotation.z) * Math.min(1, dt * 4);
+    this.neck.rotation.x += ((A.chew ? 0.9 : 0) - this.neck.rotation.x) * k6;
+    this.jaw.rotation.x = A.yawn * 0.7 + (A.chew ? Math.max(0, Math.sin(t * 14)) * 0.3 : 0);
+    // 頭冠和尾巴：火焰一樣慢慢飄動
+    this.crest.forEach((c, i) => { c.rotation.y = Math.sin(t * 3 + i) * 0.08 * (1 + fly); });
+    for (const f of this.tail) {
+      const sw = Math.sin(t * (1.6 + fly * 2) + f.ph);
+      f.g1.rotation.x = 0.55 - Math.abs(f.u) * 0.08 - fly * 0.45 + sw * 0.05;
+      f.g2.rotation.x = 0.25 + sw * (0.12 + fly * 0.1) - fly * 0.15;
+      f.g2.rotation.y = Math.sin(t * 1.3 + f.ph) * 0.12 + A.tailAmp * 0.1 * Math.sin(t * A.tailSpeed);
+    }
+    // 眨眼
+    if (t > this.nextBlink) { this.blinkUntil = t + 0.13; this.nextBlink = t + 1.8 + Math.random() * 3.5; if (Math.random() < 0.25) this.nextBlink = t + 0.3; }   // 偶爾連眨兩下
+    const eyeY = A.squint ? 0.0018 : (t < this.blinkUntil ? 0.001 : this.eyeH);
+    for (const e of this.eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 20);
+    // 火星：從尾巴和翅膀往上飄
+    for (const sp of this.sparks) {
+      const u = sp.userData; u.life -= dt;
+      if (u.life <= 0) {
+        u.life = 0.8 + Math.random() * 0.8; u.max = u.life;
+        const fromTail = Math.random() < 0.6;
+        sp.position.set((Math.random() - 0.5) * 0.05, fromTail ? 0.05 + Math.random() * 0.03 : 0.09, fromTail ? -0.08 - Math.random() * 0.07 : (Math.random() - 0.5) * 0.03);
+        u.v.set((Math.random() - 0.5) * 0.02, 0.03 + Math.random() * 0.03, (Math.random() - 0.5) * 0.02);
+      }
+      sp.position.addScaledVector(u.v, dt);
+      const lk = u.life / (u.max || 1); sp.material.opacity = Math.sin(lk * Math.PI) * 0.85; sp.scale.setScalar(0.004 + 0.006 * lk);
+    }
+  }
+}
+
 class ModelRig {
   constructor(m, def) {
     this.behavior = def.behavior;
@@ -2025,16 +2182,17 @@ class ModelRig {
 class Pet {
   constructor(def, model, voice) {
     this.def = def; this.kind = def.species; this.isDog = this.kind === 'dog' || (this.kind === 'custom' && def.voice === 'dog');
-    this.behavior = this.kind === 'custom' ? def.behavior : 'walk';
+    this.behavior = this.kind === 'custom' ? def.behavior : (SPECIES[this.kind]?.behavior || 'walk');
     this.voice = voice;
-    this.rig = this.kind === 'custom' ? new ModelRig(model, def) : new ToonRig(def);
+    this.rig = this.kind === 'custom' ? new ModelRig(model, def) : this.kind === 'phoenix' ? new PhoenixRig(def) : new ToonRig(def);
+    this.soar = false; this.altOff = 0.3;
     this.root = new THREE.Group(); this.root.add(this.rig.obj);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
     this.shadow.scale.set(this.rig.shadowS[0], 1, this.rig.shadowS[1]); this.root.add(this.shadow);
     this.radius = this.rig.radius;
     this.sizeK = this.kind === 'custom' ? clamp(def.size / 0.15, 0.6, 2.2) : (SPECIES[this.kind]?.speed ?? 1);
-    this.hover = this.behavior === 'fly' ? Math.max(0.05, this.rig.height * 0.6) : 0;
+    this.hover = this.kind === 'phoenix' ? 0 : this.behavior === 'fly' ? Math.max(0.05, this.rig.height * 0.6) : 0;
     this.root.scale.setScalar(0.001);
     this.time = Math.random() * 10; this.state = 'appear'; this.stateT = 0; this.idleDur = 2;
     this.target = new THREE.Vector3(); this.vel = new THREE.Vector2(); this.vy = 0;
@@ -2054,6 +2212,11 @@ class Pet {
     if (s !== 'pet' && s !== 'belly') this.petLong = 0;
     if (this.state === 'eat' && s !== 'eat' && this.food && this.food.eater === this) this.food.eater = null;
     this.state = s; this.stateT = 0;
+    if (this.kind === 'phoenix') {                     // 鳳凰：出發時大多飛起來；停下來後有時候降落、站在東西上
+      if (s === 'walk') { if (Math.random() < 0.75) { this.soar = true; this.altOff = 0.05 + Math.random() * 0.6; } }
+      else if (s === 'idle') { if (this.soar && Math.random() < 0.5) this.soar = false; }
+      else if (s !== 'jump' && s !== 'crouch' && s !== 'act') this.soar = false;
+    }
     if (s === 'idle') { this.idleDur = this.behavior === 'static' ? 1e9 : 1.5 + Math.random() * 3.5; this.lookAtCam = Math.random() < 0.6; }
   }
   busy() { return this.state === 'appear' || this.state === 'fall' || this.state === 'land' || this.state === 'eat' || this.state === 'crouch' || this.state === 'jump'; }
@@ -2478,6 +2641,16 @@ class Pet {
       }
     }
 
+    if (this.kind === 'phoenix') {
+      // 飛行高度：手機的水平面 ～ 手機往上 2 公尺之間（太低的地方至少離地 12 公分）
+      if (this.goal?.food || this.goal?.owner || this.goal?.intim) this.soar = false;
+      const lo = Math.max(0.12, camLocal.y - this.groundY), hi = Math.max(lo, camLocal.y + 2 - this.groundY);
+      const want = this.soar && (this.state === 'walk' || this.state === 'idle') ? clamp(camLocal.y - this.groundY + this.altOff, lo, hi) : 0;
+      this.hover += (want - this.hover) * Math.min(1, dt * 1.5);
+      if (want === 0 && this.hover < 0.003) this.hover = 0;
+      A.fly = this.hover > 0.012 || this.state === 'jump' || this.state === 'climb' || this.state === 'fall' || this.state === 'appear';
+      if (A.fly && this.state === 'walk') A.legSwing = 0;
+    }
     if (ground) {
       p.y = this.groundY + this.hover;
       if (this.state === 'idle' || this.state === 'walk') this.safe.set(p.x, this.groundY, p.z);
@@ -2927,7 +3100,7 @@ function goIntim(a, kind) {
   return true;
 }
 const intimHint = (name, k) => ({
-  climb: `${name}爬到你手上了！手慢慢移動，牠會乖乖待著`, sleep: `${name}在你旁邊睡著了…💤`,
+  climb: `${name}到你手上了！手慢慢移動，牠會乖乖待著`, sleep: `${name}在你旁邊睡著了…💤`,
   hum: `${name}靠到你面前，對你嗯嗯叫～`, down: `${name}從你手上下來了`,
 })[k] || '';
 
@@ -3552,7 +3725,7 @@ function handPlay(hands, now) {
       if (aff && pet.interact === 'climb') {                 // 倉鼠：手掌平放在牠旁邊就會爬上來
         const dh = Math.hypot(h.palm.x - b.x, h.palm.z - b.z);
         if (h.flat > 0.55 && dh < b.r + 0.12 && h.palm.y > b.y0 - 0.04 && h.palm.y < b.y1 + 0.06) {
-          if (pet.handOn(rel(stand))) { a.visT = now; if (!a.handMsgT) { a.handMsgT = 1; hint(`${a.def.name}爬到你手上了！手掌保持平平的，慢慢移動就能帶著牠走`); } }
+          if (pet.handOn(rel(stand))) { a.visT = now; if (!a.handMsgT) { a.handMsgT = 1; hint(`${a.def.name}${a.pet.kind === 'phoenix' ? '飛到' : '爬到'}你手上了！手掌保持平平的，慢慢移動就能帶著牠走`); } }
         }
         continue;
       }

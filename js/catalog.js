@@ -104,7 +104,7 @@ export const SPECIES = {
      親密互動 'climb'：飛到你的手上（手掌平放）。以後會加上「自拍模式停在你的肩膀上」。 */
   phoenix: {
     label: '鳳凰', emoji: '🔥', series: '幻獸', voice: 'phoenix', interact: 'climb', behavior: 'fly', free: false, productId: 'pet_phoenix', price: 64, rig: 'toon',
-    desc: '【幻獸系列】全身燃著溫暖火光的小鳳凰。會在空中飛翔，也會降落在桌子、椅子上，左右張望、眨眨眼睛。',
+    desc: '【幻獸系列】身形修長、拖著飄逸長尾羽的火焰神鳥。會在空中飛翔，也會降落在桌子、椅子上，左右張望、眨眨眼睛。',
     acts: ['look', 'stretch', 'look', 'yawn'],
     scale: 1, speed: 1.1, jump: { up: 2.0, down: 3.0, gap: 1.2 }, wander: 0.4, words: '鳳凰|凤凰|火鳥|火鸟|不死鳥|不死鸟',
     palettes: {

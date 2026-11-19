@@ -492,9 +492,10 @@ const TOUCH_TOL   = 0.05;   // 手離寵物身體 5 公分內算「摸到」
 const STARVE_AFF  = 1;      // 飽食度 0% 以後，親密度每小時減少多少
 // 付款模式：'test'＝測試（按購買不會扣錢，東西只加在這支手機）
 //          'live'＝正式付款：從 Google Play 安裝的 App 用 Google Play 付款，網頁版用綠界 ECPay
-//          （雲端函式部署好、綠界測試付款成功後，再改成 'live'。綠界是測試環境還是正式收款，在 functions/.env 的 ECPAY_MODE 切換）
+//          （付款伺服器部署好、綠界測試付款成功後，再改成 'live'。綠界是測試環境還是正式收款，在 server/wrangler.toml 的 ECPAY_MODE 切換）
 const SHOP_MODE   = 'test';
-const FN_REGION   = 'asia-east1';   // 雲端函式放在台灣機房，要和 functions/index.js 的 REGION 一樣
+// 付款伺服器（Cloudflare Workers）的網址：Cloudflare 第一次自動部署完，把 Worker 頁面上的 https://….workers.dev 網址貼在這裡（結尾不要加 /）
+const PAY_API     = 'https://ar-pet-pay.YOUR-SUBDOMAIN.workers.dev';
 const PLAY_URL    = 'https://play.google.com/store/apps/details?id=io.github.wingfeeling.arpet';   // 上架後改成正式的商店網址
 
 const $ = id => document.getElementById(id);
@@ -679,7 +680,7 @@ async function checkFreeFood(cloudAt) {
 }
 
 /* ================= 商店 =================
-   付款這一步做成可以替換的：'test' 測試・'play' Google Play（App）・'web' 綠界 ECPay（網頁版）。
+   付款這一步做成可以替換的：'test' 測試・'play' Google Play（App）・'web' 綠界 ECPay（網頁版）。付款伺服器放在 Cloudflare Workers（server 資料夾）。
    Google Play：付款 → 拿到付款憑證 → 交給伺服器跟 Google 確認 → 伺服器把東西加進帳號 → App 重新讀取
    綠界：伺服器建立訂單 → 跳到綠界付款頁 → 綠界通知伺服器付款成功 → 伺服器把東西加進帳號 → 回到 App 等訂單變成「已付款」
    ★ 加東西這一步只在伺服器做，手機不能自己加（firestore.rules 擋住了）。 */
@@ -711,19 +712,24 @@ const Billing = {
     }
   },
 };
-// 呼叫雲端函式（functions/index.js）
-let fnApi = null;
-async function cloudFn(name) {
-  if (!fnApi) { const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js'); fnApi = { m, f: m.getFunctions(fb.app, FN_REGION) }; }
-  return fnApi.m.httpsCallable(fnApi.f, name);
+// 呼叫付款伺服器（server/src/index.js）：帶上 Firebase 的登入憑證，伺服器才知道是誰在買
+async function payApi(path, body) {
+  if (!fb || !account || !fb.auth.currentUser) throw Object.assign(new Error('請先登入'), { code: 'unauthenticated' });
+  if (/YOUR-SUBDOMAIN/.test(PAY_API)) throw Object.assign(new Error('index.html 的 PAY_API 還沒填上付款伺服器網址'), { code: 'not-configured' });
+  const token = await fb.auth.currentUser.getIdToken();
+  let r;
+  try { r = await fetch(PAY_API + path, { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch (e) { throw Object.assign(new Error('連不到付款伺服器，請檢查網路'), { code: 'network' }); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.message || ('HTTP ' + r.status)), { code: d.error || 'http-' + r.status });
+  return d;
 }
 // 伺服器確認 Google Play 付款
 async function verifyOnServer(productId, token) {
   if (!fb || !account) return false;
   try {
-    const call = await cloudFn('verifyPlayPurchase');
-    const r = await call({ productId, purchaseToken: token });
-    return !!r.data?.ok;
+    const r = await payApi('/play/verify', { productId, purchaseToken: token });
+    return !!r.ok;
   } catch (e) { console.warn('verify', e); return false; }
 }
 /* ---------- 綠界 ECPay（網頁版） ---------- */
@@ -734,8 +740,7 @@ async function ecpayBuy(prod) {
   const agreed = await askBuyConsent(prod);
   if (!agreed) return { ok: false, msg: '已取消購買' };
   try {
-    const call = await cloudFn('ecpayCreateOrder');
-    const { data } = await call({ productId: prod.id, agree: true });
+    const data = await payApi('/ecpay/create', { productId: prod.id, agree: true });
     try { sessionStorage.setItem(ORDER_KEY, data.orderId); } catch {}
     // 用表單把訂單送到綠界的付款頁（整個頁面會跳過去）
     const f = document.createElement('form'); f.method = 'POST'; f.action = data.action; f.acceptCharset = 'UTF-8'; f.style.display = 'none';
@@ -744,7 +749,7 @@ async function ecpayBuy(prod) {
     return { ok: true, msg: '正在前往綠界付款頁…' };
   } catch (e) {
     console.warn('ecpay', e);
-    const why = { 'functions/already-exists': '你已經擁有這隻寵物了', 'functions/unauthenticated': '請先登入', 'functions/not-found': '找不到這個商品，請重新整理頁面' }[e.code];
+    const why = { 'already-exists': '你已經擁有這隻寵物了', 'unauthenticated': '請先登入', 'not-found': '找不到這個商品，請重新整理頁面' }[e.code];
     return { ok: false, msg: why || '無法建立訂單，請稍後再試（' + (e.message || e.code || e) + '）' };
   }
 }

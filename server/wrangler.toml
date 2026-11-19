@@ -1,0 +1,24 @@
+# AR 寵物・付款伺服器（Cloudflare Workers）設定
+# 部署：這個 repo 已經連結 Cloudflare（Workers Builds，根目錄填 server），
+#       每次推上 GitHub 的 main，Cloudflare 會自動重新部署，不用在自己電腦上裝任何東西。
+# ★ name 一定要和 Cloudflare 主控台上的 Worker 名稱一模一樣，不然自動部署會失敗。
+name = "ar-pet-pay"
+main = "src/index.js"
+compatibility_date = "2025-11-01"
+
+# 公開設定（不是祕密，可以放在 GitHub 上）。改這裡 → 推上 GitHub → 自動生效
+[vars]
+FIREBASE_PROJECT_ID = "ar-pet-524e2"
+SITE_URL = "https://wingfeeling.github.io/ar-pet/"
+# 哪些網站可以呼叫這個伺服器，用逗號分開
+ALLOWED_ORIGINS = "https://wingfeeling.github.io"
+# 'stage' 綠界測試環境・'production' 正式收款
+ECPAY_MODE = "stage"
+PLAY_PACKAGE = "io.github.wingfeeling.arpet"
+
+# 祕密不要寫在這裡！到 Cloudflare 主控台 → Workers & Pages → ar-pet-pay → 設定 → 變數和祕密 → 新增，類型選「祕密」：
+#   ECPAY_MERCHANT_ID、ECPAY_HASH_KEY、ECPAY_HASH_IV、GOOGLE_SERVICE_ACCOUNT（整份服務帳戶金鑰 JSON 的內容）
+# 祕密存在 Cloudflare 上，自動部署不會清掉它們。
+
+[observability]
+enabled = true

@@ -1,6 +1,6 @@
 rules_version = '2';
 // AR 寵物・雲端資料庫的安全規則
-// 重點：飼料只能「吃掉 1 包」或「每 3 天領 1 包免費的」；寵物、空位、付款加的飼料只有伺服器（Cloud Functions）能加。
+// 重點：飼料只能「吃掉 1 包」或「每 3 天領 1 包免費的」；寵物、空位、付款加的飼料只有付款伺服器（Cloudflare Workers，用服務帳戶金鑰）能加。
 // 部署：firebase deploy --only firestore:rules（或複製到 Firebase 主控台 → Firestore → 規則）
 service cloud.firestore {
   match /databases/{db}/documents {

@@ -39,13 +39,14 @@
     <tr><td>你自己錄的寵物叫聲、上傳的 3D 模型</td><td>讓寵物發出你的聲音、使用你的模型</td><td>只存在你的手機上，不會上傳</td></tr>
     <tr><td>帳號資料：Email、名稱、大頭貼網址、帳號編號</td><td>登入，讓你換手機時找回寵物</td><td>Google Firebase（登入服務）</td></tr>
     <tr><td>遊戲資料：寵物名字與設定、親密度、飽食度、飼料數量</td><td>保存你的進度</td><td>登入時存在 Google Firebase 雲端資料庫；沒登入時只存在你的手機上</td></tr>
-    <tr><td>購買紀錄（開始販售飼料等商品後）</td><td>確認付款、把買的東西加到你的帳號</td><td>付款由 Google Play 處理，我們只保存訂單編號和買到的東西，<b>拿不到你的信用卡資料</b></td></tr>
+    <tr><td>購買紀錄（開始販售飼料等商品後）</td><td>確認付款、把買的東西加到你的帳號</td><td>網頁版的付款由綠界科技 ECPay 處理，App 版由 Google Play 處理；我們只保存訂單編號、金額和買到的東西，<b>拿不到你的信用卡資料</b></td></tr>
   </table>
   <p>你可以不登入就使用本 App，這時所有資料都只存在你的手機上。</p>
 
   <h2>二、使用的第三方服務</h2>
   <ul>
     <li><b>Google Firebase</b>（Authentication、Cloud Firestore）：登入與雲端存檔。<a href="https://firebase.google.com/support/privacy" rel="noopener">Firebase 隱私權說明</a></li>
+    <li><b>綠界科技 ECPay</b>：處理網頁版的付款。<a href="https://www.ecpay.com.tw/" rel="noopener">綠界官網</a></li>
     <li><b>Google Play 帳款服務</b>：處理 App 內購買。<a href="https://policies.google.com/privacy" rel="noopener">Google 隱私權政策</a></li>
     <li><b>Google ARCore／Chrome</b>：AR 功能與語音辨識。</li>
     <li>jsDelivr 與 Google 的程式庫伺服器：下載 App 需要的程式檔案（這些伺服器會看到你的網路位址，這是一般網頁連線都會有的）。</li>

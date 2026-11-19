@@ -146,6 +146,17 @@
   /* 說明視窗（AR 裡用） */
   #helpModal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.45);padding:calc(18px + env(safe-area-inset-top)) 12px 18px}
   #helpModal.show{display:block}
+  #buyModal{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);padding:calc(40px + env(safe-area-inset-top)) 14px 20px;overflow:auto}
+  #buyModal.show{display:block}
+  #buyModal .box{background:var(--bg);color:var(--ink);border-radius:18px;max-width:440px;margin:0 auto;padding:18px 20px 20px;line-height:1.65;font-size:15px;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+  #buyModal h3{margin:0 0 10px;font-size:1.15rem}
+  #buyModal .buyline{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;border-radius:12px;background:var(--card,#fff);font-size:1.05rem}
+  #buyModal .buyline b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+  #buyModal .agree{display:flex;gap:10px;align-items:flex-start;margin:12px 0 16px;cursor:pointer}
+  #buyModal .agree input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--accent)}
+  #buyModal .buybtns{display:flex;gap:10px}
+  #buyModal .buybtns .big{flex:1;margin:0}
+  #buyModal .buybtns .big:disabled{opacity:.45}
   #helpModal .box{background:var(--bg);color:var(--ink);border-radius:18px;max-width:520px;margin:0 auto;max-height:100%;overflow:auto;padding:16px 18px 20px;line-height:1.65;font-size:15px}
   .helpdoc h2:first-child{margin-top:.2em}
   .helpdoc table{width:100%;border-collapse:collapse;font-size:.92rem;margin:.4em 0}
@@ -378,6 +389,16 @@
   <p>現在有 <b id="shopFood">0</b> 包飼料</p>
   <div id="shopList"></div>
   <div id="shopMsg"></div>
+  <p class="note"><a href="terms.html">購買須知與退款政策</a>・<a href="privacy.html">隱私權政策</a></p>
+  <div id="buyModal" role="dialog" aria-modal="true" aria-labelledby="buyTitle">
+    <div class="box">
+      <h3 id="buyTitle">確認購買</h3>
+      <div class="buyline"><span id="buyItem"></span><b id="buyPrice"></b></div>
+      <p class="note">這是線上數位內容，付款成功後會<b>馬上加進你的帳號</b>。依《通訊交易解除權合理例外情事適用準則》，數位內容一經提供即<b>不適用七天鑑賞期</b>。</p>
+      <label class="agree"><input type="checkbox" id="buyAgree"> 我已閱讀並同意<a href="terms.html" target="_blank" rel="noopener">購買須知與退款政策</a></label>
+      <div class="buybtns"><button id="buyCancel" class="big ghost">取消</button><button id="buyOk" class="big primary" disabled>前往付款</button></div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ 帳號與資料 ============ -->
@@ -469,8 +490,11 @@ const JUMP = Object.fromEntries(Object.entries(SPECIES).filter(([, v]) => v.jump
 const JUMP_WANDER = Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.wander ?? 0.15]));   // 自己散步時，有多少機率會跳到別的高度
 const TOUCH_TOL   = 0.05;   // 手離寵物身體 5 公分內算「摸到」
 const STARVE_AFF  = 1;      // 飽食度 0% 以後，親密度每小時減少多少
-// 付款模式：'test'＝測試（按購買不會扣錢，飼料只加在這支手機）・'play'＝Google Play 付款（App 上架、伺服器驗證做好後才改）
+// 付款模式：'test'＝測試（按購買不會扣錢，東西只加在這支手機）
+//          'live'＝正式付款：從 Google Play 安裝的 App 用 Google Play 付款，網頁版用綠界 ECPay
+//          （雲端函式部署好、綠界測試付款成功後，再改成 'live'。綠界是測試環境還是正式收款，在 functions/.env 的 ECPAY_MODE 切換）
 const SHOP_MODE   = 'test';
+const FN_REGION   = 'asia-east1';   // 雲端函式放在台灣機房，要和 functions/index.js 的 REGION 一樣
 const PLAY_URL    = 'https://play.google.com/store/apps/details?id=io.github.wingfeeling.arpet';   // 上架後改成正式的商店網址
 
 const $ = id => document.getElementById(id);
@@ -591,7 +615,7 @@ function renderFood() {
   const fc = $('foodCount'); if (fc) fc.textContent = totalFood();
   const sf = $('shopFood'); if (sf) sf.textContent = totalFood();
   const left = Math.max(0, totalFood() - (typeof foods !== 'undefined' ? foods.length : 0));
-  const fb2 = $('feed'); if (fb2) fb2.textContent = '🍖' + left;
+  const fb2 = $('feed'); if (fb2) fb2.textContent = (typeof feedIcon !== 'undefined' ? feedIcon : '🍖') + left;
 }
 function spendFood() {
   if (testFood > 0) { testFood--; saveFoodLocal(); renderFood(); return; }
@@ -655,8 +679,10 @@ async function checkFreeFood(cloudAt) {
 }
 
 /* ================= 商店 =================
-   付款這一步做成可以替換的：現在是「測試」，App 上架後改成「Google Play」，商店畫面和加飼料的流程都不用改。
-   正式付款的流程：Google Play 付款 → 拿到付款憑證 → 交給伺服器（雲端函式）跟 Google 確認 → 伺服器把飼料加進帳號 → App 重新讀取飼料數量 */
+   付款這一步做成可以替換的：'test' 測試・'play' Google Play（App）・'web' 綠界 ECPay（網頁版）。
+   Google Play：付款 → 拿到付款憑證 → 交給伺服器跟 Google 確認 → 伺服器把東西加進帳號 → App 重新讀取
+   綠界：伺服器建立訂單 → 跳到綠界付款頁 → 綠界通知伺服器付款成功 → 伺服器把東西加進帳號 → 回到 App 等訂單變成「已付款」
+   ★ 加東西這一步只在伺服器做，手機不能自己加（firestore.rules 擋住了）。 */
 const inPlayApp = () => 'getDigitalGoodsService' in window;   // 從 Play 商店安裝的 App 裡才有
 const Billing = {
   mode() { return SHOP_MODE === 'test' ? 'test' : inPlayApp() ? 'play' : 'web'; },
@@ -666,7 +692,7 @@ const Billing = {
       grantTest(prod);
       return { ok: true, msg: '✅（測試）' + doneMsg(prod) };
     }
-    if (m === 'web') return { ok: false, msg: '網頁版不能購買，請到 App 購買' };
+    if (m === 'web') return ecpayBuy(prod);
     try {                                        // Google Play 付款（上架後才會用到）
       const svc = await window.getDigitalGoodsService('https://play.google.com/billing');
       if (!svc) return { ok: false, msg: '無法連到 Google Play 付款' };
@@ -685,15 +711,82 @@ const Billing = {
     }
   },
 };
-// 伺服器確認付款（要等 Firebase 升級、雲端函式寫好才會有）
+// 呼叫雲端函式（functions/index.js）
+let fnApi = null;
+async function cloudFn(name) {
+  if (!fnApi) { const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js'); fnApi = { m, f: m.getFunctions(fb.app, FN_REGION) }; }
+  return fnApi.m.httpsCallable(fnApi.f, name);
+}
+// 伺服器確認 Google Play 付款
 async function verifyOnServer(productId, token) {
   if (!fb || !account) return false;
   try {
-    const fnMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js');
-    const call = fnMod.httpsCallable(fnMod.getFunctions(), 'verifyPlayPurchase');
+    const call = await cloudFn('verifyPlayPurchase');
     const r = await call({ productId, purchaseToken: token });
     return !!r.data?.ok;
   } catch (e) { console.warn('verify', e); return false; }
+}
+/* ---------- 綠界 ECPay（網頁版） ---------- */
+const ORDER_KEY = 'arpet.pendingOrder';
+async function ecpayBuy(prod) {
+  if (!fb) return { ok: false, msg: '登入功能還沒載入，請重新整理頁面再試一次' };
+  if (!account) { afterLogin = 'shopScr'; show('loginScr'); return { ok: false, msg: '請先登入，買的東西會存在你的帳號裡' }; }
+  const agreed = await askBuyConsent(prod);
+  if (!agreed) return { ok: false, msg: '已取消購買' };
+  try {
+    const call = await cloudFn('ecpayCreateOrder');
+    const { data } = await call({ productId: prod.id, agree: true });
+    try { sessionStorage.setItem(ORDER_KEY, data.orderId); } catch {}
+    // 用表單把訂單送到綠界的付款頁（整個頁面會跳過去）
+    const f = document.createElement('form'); f.method = 'POST'; f.action = data.action; f.acceptCharset = 'UTF-8'; f.style.display = 'none';
+    for (const [k, v] of Object.entries(data.params)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.append(i); }
+    document.body.append(f); f.submit();
+    return { ok: true, msg: '正在前往綠界付款頁…' };
+  } catch (e) {
+    console.warn('ecpay', e);
+    const why = { 'functions/already-exists': '你已經擁有這隻寵物了', 'functions/unauthenticated': '請先登入', 'functions/not-found': '找不到這個商品，請重新整理頁面' }[e.code];
+    return { ok: false, msg: why || '無法建立訂單，請稍後再試（' + (e.message || e.code || e) + '）' };
+  }
+}
+// 購買前的確認視窗：數位內容一經提供就不適用七天鑑賞期，依法要先讓消費者知道並同意
+function askBuyConsent(prod) {
+  return new Promise(res => {
+    const M = $('buyModal'), ok = $('buyOk'), chk = $('buyAgree');
+    $('buyItem').textContent = prod.label;
+    $('buyPrice').textContent = priceOf(prod);
+    chk.checked = false; ok.disabled = true;
+    chk.onchange = () => { ok.disabled = !chk.checked; };
+    const done = v => { M.classList.remove('show'); ok.onclick = $('buyCancel').onclick = null; res(v); };
+    ok.onclick = () => done(chk.checked);
+    $('buyCancel').onclick = () => done(false);
+    M.classList.add('show'); chk.focus();
+  });
+}
+// 從綠界回來（網址帶 ?order=…）：等伺服器收到付款通知，東西加進帳號
+let orderWatch = null;
+function pendingOrderId() {
+  const q = new URLSearchParams(location.search).get('order');
+  let s = null; try { s = sessionStorage.getItem(ORDER_KEY); } catch {}
+  return (q || s || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 20) || null;
+}
+function watchReturnedOrder() {
+  const id = pendingOrderId(); if (!id || !fb || !account || orderWatch) return;
+  if (new URLSearchParams(location.search).has('order')) history.replaceState(null, '', location.pathname);
+  openShop(); shopMsg('⏳ 付款確認中，請稍等…', true);
+  const stop = (msg, ok) => { orderWatch?.(); orderWatch = null; try { sessionStorage.removeItem(ORDER_KEY); } catch {} if (msg) shopMsg(msg, ok); };
+  const timer = setTimeout(() => stop('還沒收到付款結果。如果你已經付款成功，東西會自動加進帳號，晚一點回來看看；有問題請寫信給我們並附上訂單編號 ' + id, false), 120000);
+  orderWatch = fb.fs.onSnapshot(fb.fs.doc(fb.db, 'orders', id), async snap => {
+    const o = snap.data(); if (!o) return;
+    if (o.status === 'paid') {
+      clearTimeout(timer); await refreshFood(); renderShop();
+      const p = PRODUCTS.find(x => x.id === o.productId);
+      stop('✅ 付款成功！' + (p ? doneMsg(p) : ''), true);
+    } else if (o.rtnCode && o.rtnCode !== '1' && o.paymentType && !/^(ATM|CVS|BARCODE)/.test(o.paymentType)) {
+      clearTimeout(timer); stop('付款沒有成功（' + (o.rtnMsg || o.rtnCode) + '），沒有扣款，可以再試一次', false);
+    } else if (o.status === 'pending' && o.paymentType && /^(ATM|CVS|BARCODE)/.test(o.paymentType)) {
+      clearTimeout(timer); stop('已經取得繳費資料，繳費完成後東西會自動加進你的帳號', true);
+    }
+  }, e => { clearTimeout(timer); console.warn('order', e); stop('讀不到訂單狀態，晚一點再回商店看看', false); });
 }
 async function refreshFood() {   // 付款後重新讀取：飼料、買過的寵物、空位
   if (!fb || !account) return;
@@ -741,7 +834,7 @@ function buyBtn(p, cls) {
   if (cls) b.className = cls;
   const why = canBuy(p);
   b.textContent = (p.kind === 'set' ? '套餐 ' : '') + priceOf(p);
-  b.disabled = m === 'web' || !!why;
+  b.disabled = !!why;
   b.onclick = async () => {
     b.disabled = true; shopMsg('處理中…', true);
     const r = await Billing.buy(p);
@@ -764,7 +857,7 @@ function renderShop(focus) {
   const m = Billing.mode();
   $('shopBanner').innerHTML = m === 'test'
     ? '🧪 <b>測試模式</b>：按購買不會真的付款，東西直接加進來。測試買的東西只存在這支手機，不會存到雲端。'
-    : m === 'web' ? `要在 App 裡購買。<a href="${PLAY_URL}">到 Google Play 下載 App</a>，用同一個帳號登入，買的東西兩邊都能用。`
+    : m === 'web' ? `付款由<b>綠界科技 ECPay</b> 處理，我們拿不到你的卡號。買的東西會存在你的帳號，網頁和 App 都能用。${account ? '' : '<br>購買前要先登入。'}　<a href="terms.html">購買須知與退款政策</a>`
     : '付款由 Google Play 處理。買的東西會存在你的帳號，換手機也還在。';
   $('shopMsg').textContent = '';
   // 寵物
@@ -816,7 +909,7 @@ async function initFirebase() {
     const [app, au, fs] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
     const a = app.initializeApp(FIREBASE_CONFIG);
     const auth = au.getAuth(a); auth.languageCode = 'zh-TW';
-    fb = { au, fs, auth, db: fs.getFirestore(a) };
+    fb = { app: a, au, fs, auth, db: fs.getFirestore(a) };
     au.onAuthStateChanged(auth, onAuth);
     return true;
   } catch (e) { console.warn(e); syncNote('⚠️ 登入功能載入失敗，先用這支手機的資料。'); return false; }
@@ -852,9 +945,10 @@ async function onAuth(u) {
     readOwned(data);
     renderHome();
     checkFreeFood(data?.freeFoodAt?.toMillis?.() || 0);
+    if (Billing.mode() === 'web') setTimeout(watchReturnedOrder, 0);   // 剛從綠界付款頁回來
   } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = markFixed(readLocal(LS_GUEST) || defaultPets()); }
   renderHome();
-  if ($('loginScr').classList.contains('show')) { show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); afterLogin = 'homeScr'; }
+  if ($('loginScr').classList.contains('show')) { if (afterLogin === 'shopScr') renderShop(); show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); afterLogin = 'homeScr'; }
 }
 let deleting = false;
 function cloudSave() {
@@ -1291,14 +1385,20 @@ function showGoalMark(p) { goalMark.position.copy(p); goalMark.position.y += 0.0
 const occ = { on: true, tex: null, w: 0, h: 0, la: true, ok: false };
 const occMat = new THREE.ShaderMaterial({
   uniforms: { uDepth: { value: null }, uUvT: { value: new THREE.Matrix4() }, uRaw: { value: 0.001 }, uProj: { value: new THREE.Vector2(-1, -0.02) }, uLA: { value: 1 }, uTexel: { value: new THREE.Vector2(1, 1) },
-    uInvProj: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uG: { value: new THREE.Vector4() }, uGN: { value: 0 } },
+    uInvProj: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uG: { value: new THREE.Vector4() }, uGN: { value: 0 },
+    uPB: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uPD: { value: [0, 1, 2, 3].map(() => new THREE.Vector2()) }, uPN: { value: 0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `
     uniform sampler2D uDepth; uniform mat4 uUvT; uniform float uRaw; uniform vec2 uProj; uniform float uLA; uniform vec2 uTexel;
     uniform mat4 uInvProj; uniform mat4 uCamW; uniform vec4 uG; uniform float uGN;
+    uniform vec4 uPB[4]; uniform vec2 uPD[4]; uniform float uPN;   // 每隻寵物在畫面上的範圍、離鏡頭多遠、身體半徑
     varying vec2 vUv;
-    bool nearG(float y, float tol){
-      return (uGN > 0.5 && abs(y - uG.x) < tol) || (uGN > 1.5 && abs(y - uG.y) < tol) || (uGN > 2.5 && abs(y - uG.z) < tol) || (uGN > 3.5 && abs(y - uG.w) < tol);
+    // 這個點離「寵物腳下的平面」多高（取最近的那個平面）
+    float gDist(float y){
+      float r = 9.0;
+      if (uGN > 0.5) r = min(r, abs(y - uG.x)); if (uGN > 1.5) r = min(r, abs(y - uG.y));
+      if (uGN > 2.5) r = min(r, abs(y - uG.z)); if (uGN > 3.5) r = min(r, abs(y - uG.w));
+      return r;
     }
     float dAt(vec2 p){ vec4 s = texture2D(uDepth, p); float r = uLA > 0.5 ? (s.r * 255.0 + s.g * 65280.0) : s.r; return r * uRaw; }
     void main(){
@@ -1309,13 +1409,37 @@ const occMat = new THREE.ShaderMaterial({
       float w2 = (1.0 - w.x) * w.y * step(0.05, d2), w3 = w.x * w.y * step(0.05, d3), ws = w0 + w1 + w2 + w3;
       if (ws < 0.2) discard;                                  // 這裡沒有深度資料 → 不遮
       float d = (d0 * w0 + d1 * w1 + d2 * w2 + d3 * w3) / ws;
+      // 物體邊緣（例如手指和後面桌面的交界）：不要把前後兩個深度平均成「半空中」，
+      // 直接用比較近的那個 → 手的輪廓會完整擋住寵物，不會在邊緣漏出來
+      float big = 9.0;
+      float n0 = d0 > 0.05 ? d0 : big, n1 = d1 > 0.05 ? d1 : big, n2 = d2 > 0.05 ? d2 : big, n3 = d3 > 0.05 ? d3 : big;
+      float dmin = min(min(n0, n1), min(n2, n3));
+      float dmax = max(max(d0 * step(0.05, d0), d1 * step(0.05, d1)), max(d2 * step(0.05, d2), d3 * step(0.05, d3)));
+      if (dmin < big && dmax - dmin > 0.03 + dmin * 0.04) d = dmin;
       // 算出這個像素在真實世界的高度：
       //   寵物腳下的那個平面 → 多留一點餘量，腳才不會被地面吃掉
       //   其他東西（你的手、杯子、椅背）→ 只留一點點，手伸到寵物前面就會擋住牠
       vec4 q = uInvProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0); vec3 dir = q.xyz / q.w;
       vec3 pw = (uCamW * vec4(dir * (d / -dir.z), 1.0)).xyz;
-      float m = (uGN < 0.5 || nearG(pw.y, 0.03 + d * 0.015)) ? 0.035 + d * 0.025 : 0.012 + d * 0.012;
+      //   以前離地面 4 公分以內都算「地面」，手靠近寵物時通常很低，就被誤當成地面、擋不住；
+      //   現在只有真的貼著平面（約 1.5 公分內）才算地面，中間平滑過渡
+      float gTolA = 0.010 + d * 0.006, gTolB = 0.022 + d * 0.010;
+      float gk = uGN < 0.5 ? 0.0 : smoothstep(gTolA, gTolB, gDist(pw.y));
+      float m = mix(0.035 + d * 0.025, 0.005 + d * 0.008, gk);
       d += m;
+      // 寵物附近的「前後順序」：深度圖很粗（約 160×120），又有一點延遲，
+      // 手在寵物前面幾公分時，量到的深度常常跟寵物差不多，逐點比較就會時擋時不擋。
+      // 所以：在寵物的畫面範圍內、不是地面、而且比寵物身體中心還靠近鏡頭的東西，一律當成「在寵物前面」。
+      if (gk > 0.5) {
+        vec2 ndc = vUv * 2.0 - 1.0;
+        for (int k = 0; k < 4; k++) {
+          if (float(k) >= uPN) break;
+          vec4 bb = uPB[k]; vec2 pd = uPD[k];
+          if (ndc.x < bb.x || ndc.x > bb.y || ndc.y < bb.z || ndc.y > bb.w) continue;
+          float raw = d - m;
+          if (raw < pd.x + pd.y * 0.2 && raw > pd.x - pd.y - 0.25) d = min(d, pd.x - pd.y - 0.01);
+        }
+      }
       gl_FragDepthEXT = clamp(((uProj.x * -d + uProj.y) / d) * 0.5 + 0.5, 0.0, 1.0);
       gl_FragColor = vec4(0.0);
     }`,
@@ -1345,6 +1469,13 @@ function updateOcclusion(di, view) {
   occMat.uniforms.uInvProj.value.copy(camProjInv); occMat.uniforms.uCamW.value.copy(camWorld);
   const gs = []; for (const a of active) { if (!a.pet) continue; gs.push(worldGround(a)); if (a.pet.jp) gs.push(a.home.position.y + a.pet.jp.y1); }
   const G = occMat.uniforms.uG.value; G.set(gs[0] ?? 0, gs[1] ?? 0, gs[2] ?? 0, gs[3] ?? 0); occMat.uniforms.uGN.value = Math.min(4, gs.length);
+  let pn = 0;
+  for (const a of active) {
+    if (pn >= 4 || !a.pet || a.pet.aloft()) continue;
+    const sb = petScreenBox(a); if (!sb) continue;
+    occMat.uniforms.uPB.value[pn].set(sb.x0, sb.x1, sb.y0, sb.y1); occMat.uniforms.uPD.value[pn].set(sb.d, sb.r); pn++;
+  }
+  occMat.uniforms.uPN.value = pn;
   occMesh.visible = true; occ.ok = true;
 }
 
@@ -2896,20 +3027,148 @@ function previewSpot() {
 const foods = [];
 const kibbleGeo = new THREE.SphereGeometry(1, 10, 7);
 let kibbleMats = null;
-function makePile() {
-  kibbleMats ||= [toon(0x9a5b2a), toon(0xb8743a), toon(0x7d4a22)];
+/* 每種寵物的專屬食物（種類寫在 js/catalog.js 的 food）。
+   bits＝吃的時候一塊一塊消失的部分，排在越後面的越先被吃掉。 */
+const FOOD_DEFAULT = { kind: 'kibble', label: '飼料', emoji: '🥣' };
+const foodOf = species => SPECIES[species]?.food || FOOD_DEFAULT;
+const _fm = {};
+const fmat = c => _fm[c] ||= toon(c);
+const FG = {
+  sph: new THREE.SphereGeometry(1, 14, 10),
+  cyl: new THREE.CylinderGeometry(1, 1, 1, 14),
+  cone: new THREE.ConeGeometry(1, 1, 10),
+  blade: new THREE.ConeGeometry(1, 1, 4),
+  wedge: new THREE.CylinderGeometry(1, 1, 1, 10, 1, false, -0.55, 1.1),
+};
+function fpart(parent, geo, color, pos, scl, rot) {
+  const m = new THREE.Mesh(geo, fmat(color));
+  m.position.set(...pos); m.scale.set(...scl); if (rot) m.rotation.set(...rot);
+  parent.add(m); return m;
+}
+const FOOD_BUILD = {
+  kibble(g, bits) {
+    kibbleMats ||= [toon(0x9a5b2a), toon(0xb8743a), toon(0x7d4a22)];
+    for (let i = 0; i < 11; i++) {
+      const ang = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * 0.019;
+      const m = new THREE.Mesh(kibbleGeo, kibbleMats[i % 3]);
+      m.position.set(Math.cos(ang) * rr, 0.004 + (i > 7 ? 0.006 : 0), Math.sin(ang) * rr);
+      m.scale.set(0.0068, 0.0044, 0.0068); m.rotation.set(Math.random(), Math.random() * 3, Math.random());
+      g.add(m); bits.push(m);
+    }
+    return 0.03;
+  },
+  // 狗：帶肉的大骨頭（肉先吃完，最後啃骨頭）
+  bone(g, bits) {
+    const bone = new THREE.Group(); g.add(bone); bits.push(bone);
+    const W = 0xf6efe0;
+    fpart(bone, FG.cyl, W, [0, 0.006, 0], [0.0045, 0.05, 0.0045], [0, 0, Math.PI / 2]);
+    for (const x of [-0.026, 0.026]) for (const z of [-0.0045, 0.0045]) fpart(bone, FG.sph, W, [x, 0.007, z], [0.0068, 0.0068, 0.0068]);
+    for (const [x, sx] of [[-0.011, 0.011], [0, 0.012], [0.011, 0.011]]) {
+      const meat = new THREE.Group(); g.add(meat); bits.push(meat);
+      fpart(meat, FG.sph, 0xb5462e, [x, 0.0075, 0], [sx * 0.62, 0.0078, 0.0085]);
+      fpart(meat, FG.sph, 0xd9744f, [x + 0.002, 0.0115, 0.002], [sx * 0.38, 0.0035, 0.005]);   // 油亮的那一面
+    }
+    g.rotation.y = Math.random() * Math.PI;
+    return 0.034;
+  },
+  // 貓：兩條小魚，從尾巴開始吃
+  fish(g, bits) {
+    for (const [ox, oz, ry, c, b] of [[-0.009, -0.006, 0.3, 0x7fa6c9, 0xdde9f3], [0.01, 0.009, -2.5, 0xe3925a, 0xfbe3cf]]) {
+      const f = new THREE.Group(); f.position.set(ox, 0, oz); f.rotation.y = ry; g.add(f);
+      const head = new THREE.Group(), body = new THREE.Group(), tail = new THREE.Group(); f.add(head, body, tail);
+      fpart(body, FG.sph, c, [0, 0.0055, 0], [0.012, 0.0055, 0.0042]);
+      fpart(body, FG.sph, b, [0, 0.0036, 0], [0.0105, 0.0032, 0.0038]);                   // 白肚子
+      fpart(head, FG.sph, c, [0.0115, 0.0055, 0], [0.0062, 0.0052, 0.0039]);
+      fpart(head, FG.sph, 0x1d1d24, [0.0145, 0.0072, 0.0026], [0.0012, 0.0012, 0.0008]);
+      fpart(head, FG.sph, 0x1d1d24, [0.0145, 0.0072, -0.0026], [0.0012, 0.0012, 0.0008]);
+      fpart(tail, FG.cone, c, [-0.0158, 0.0055, 0], [0.0062, 0.009, 0.0016], [0, 0, Math.PI / 2]);
+      bits.push(head, body, tail);
+    }
+    return 0.03;
+  },
+  // 羊駝：一小捆牧草，用乾草綁起來
+  grass(g, bits) {
+    const band = fpart(g, FG.cyl, 0xd8b45a, [0, 0.006, 0], [0.0072, 0.0032, 0.0072]);
+    bits.push(band);
+    const greens = [0x5fae45, 0x7cc35a, 0x4a9a3a, 0x8fcf6a];
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3, r = 0.0035 + Math.random() * 0.002, lean = 0.25 + Math.random() * 0.35;
+      const h = 0.028 + Math.random() * 0.014;
+      const bl = fpart(g, FG.blade, greens[i % 4], [Math.cos(a) * r, h / 2, Math.sin(a) * r], [0.0018, h, 0.0011], [Math.sin(a) * lean, Math.random() * 3, -Math.cos(a) * lean]);
+      bits.push(bl);
+    }
+    return 0.026;
+  },
+  // 倉鼠：一小堆橡實
+  acorn(g, bits) {
+    const spots = [[0, 0, 0], [0.011, 0, 0.004], [-0.009, 0, 0.008], [0.003, 0, -0.011], [-0.008, 0, -0.006], [0.004, 0.009, 0.001]];
+    for (const [x, y, z] of spots) {
+      const a = new THREE.Group(); a.position.set(x, y, z); a.rotation.set((Math.random() - 0.5) * 1.2, Math.random() * 6, (Math.random() - 0.5) * 1.2); g.add(a);
+      fpart(a, FG.sph, 0xb9773a, [0, 0.0052, 0], [0.0042, 0.0055, 0.0042]);
+      fpart(a, FG.sph, 0xd99a55, [0.0014, 0.0068, 0.0014], [0.0016, 0.002, 0.0016]);      // 亮面
+      fpart(a, FG.sph, 0x6e4a2a, [0, 0.0094, 0], [0.0047, 0.0026, 0.0047]);               // 殼斗（帽子）
+      fpart(a, FG.cyl, 0x5a3a20, [0, 0.0122, 0], [0.0007, 0.0028, 0.0007]);
+      bits.push(a);
+    }
+    return 0.026;
+  },
+  // 水豚：三片西瓜
+  melon(g, bits) {
+    for (const [ry, ox, oz] of [[0, 0, 0.004], [2.1, 0.004, -0.004], [4.2, -0.004, -0.002]]) {
+      const w = new THREE.Group(); w.rotation.y = ry + (Math.random() - 0.5) * 0.3; w.position.set(ox, 0, oz); g.add(w);
+      fpart(w, FG.wedge, 0x2f8a3e, [0, 0.0045, 0], [0.026, 0.009, 0.026]);                // 綠色外皮
+      fpart(w, FG.wedge, 0xf3f6dc, [0, 0.0049, 0], [0.0238, 0.0092, 0.0238]);             // 白色那一層
+      fpart(w, FG.wedge, 0xf0475a, [0, 0.0052, 0], [0.0222, 0.0096, 0.0222]);             // 紅色果肉
+      for (let i = 0; i < 4; i++) {
+        const a = -0.35 + i * 0.23, r = 0.009 + (i % 2) * 0.006;
+        fpart(w, FG.sph, 0x1d1712, [Math.sin(a) * r, 0.0102, Math.cos(a) * r], [0.0011, 0.0006, 0.0018], [0, a, 0]);
+      }
+      bits.push(w);
+    }
+    return 0.034;
+  },
+  // 鳳凰：仙桃（尖尖的桃子＋葉子）
+  peach(g, bits) {
+    for (const [x, z, s] of [[-0.008, 0.003, 1], [0.0095, -0.002, 0.92]]) {
+      const p = new THREE.Group(); p.position.set(x, 0, z); p.scale.setScalar(s); p.rotation.y = Math.random() * 6; g.add(p);
+      fpart(p, FG.sph, 0xffa7b4, [0, 0.0105, 0], [0.0105, 0.0102, 0.0105]);
+      fpart(p, FG.sph, 0xffe3a6, [0.002, 0.0078, 0.0052], [0.0068, 0.0052, 0.0052]);       // 下面偏黃的那一面
+      fpart(p, FG.cone, 0xff8fa3, [0, 0.0215, 0], [0.0055, 0.008, 0.0055]);               // 仙桃尖尖的頭
+      fpart(p, FG.cyl, 0x6b4a2b, [0, 0.0212, -0.004], [0.0007, 0.004, 0.0007]);
+      fpart(p, FG.sph, 0x53a548, [0.004, 0.0215, -0.006], [0.0065, 0.0012, 0.0032], [0, 0.6, 0.4]);
+      fpart(p, FG.sph, 0x6dbb52, [-0.0035, 0.0205, -0.0065], [0.0055, 0.0011, 0.0028], [0, -0.7, -0.35]);
+      bits.push(p);
+    }
+    return 0.032;
+  },
+};
+function makePile(kind = 'kibble') {
   const g = new THREE.Group(), bits = [];
-  for (let i = 0; i < 11; i++) {
-    const ang = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * 0.019;
-    const m = new THREE.Mesh(kibbleGeo, kibbleMats[i % 3]);
-    m.position.set(Math.cos(ang) * rr, 0.004 + (i > 7 ? 0.006 : 0), Math.sin(ang) * rr);
-    m.scale.set(0.0068, 0.0044, 0.0068); m.rotation.set(Math.random(), Math.random() * 3, Math.random());
-    g.add(m); bits.push(m);
-  }
-  const sh = new THREE.Mesh(new THREE.CircleGeometry(0.03, 20).rotateX(-Math.PI / 2),
+  const r = (FOOD_BUILD[kind] || FOOD_BUILD.kibble)(g, bits);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(r, 20).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
   sh.position.y = 0.0015; g.add(sh);
   return { g, bits, sh };
+}
+// 準星對準的地方（丟飼料會落下的位置）離哪一隻寵物最近
+function nearestPetTo(p) {
+  let best = null, bd = Infinity;
+  for (const a of active) { if (!a.pet) continue; const d = Math.hypot(worldX(a) - p.x, worldGround(a) - p.y, worldZ(a) - p.z); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+function aimPoint() {
+  setRay(innerWidth / 2, innerHeight / 2);
+  const T = field.pick(ray);
+  if (T) return T;
+  return camPos.clone().addScaledVector(new THREE.Vector3(0, 0, -1).transformDirection(camWorld), 0.8);
+}
+// 丟飼料按鈕上的圖示：跟著準星附近的寵物換成牠的食物
+let feedIcon = '🍖', feedIconT = 0;
+function updateFeedIcon(now) {
+  if (now - feedIconT < 400) return; feedIconT = now;
+  const a = active.length ? nearestPetTo(aimPoint()) : null;
+  const ic = a ? foodOf(a.def.species).emoji : '🍖';
+  if (ic !== feedIcon) { feedIcon = ic; renderFood(); }
 }
 function throwFood() {
   if (mode === 'none') return;
@@ -2918,7 +3177,8 @@ function throwFood() {
   if (totalFood() - foods.length <= 0) { hint('飼料都丟出去了，等牠們吃掉再丟'); return; }
   if (foods.length >= RULES.maxFoodOnGround) { hint(`地上已經有 ${foods.length} 包飼料了，等牠們吃完再丟吧`); return; }
   const fwd = new THREE.Vector3(0, 0, -1).transformDirection(camWorld);
-  const F = { ...makePile(), pos: camPos.clone().addScaledVector(fwd, 0.15), vel: fwd.clone().multiplyScalar(1.3), state: 'fly', t: 0,
+  const target = nearestPetTo(aimPoint()), fd = target ? foodOf(target.def.species) : FOOD_DEFAULT;
+  const F = { ...makePile(fd.kind), kind: fd.kind, species: target?.def.species || null, pos: camPos.clone().addScaledVector(fwd, 0.15), vel: fwd.clone().multiplyScalar(1.3), state: 'fly', t: 0,
     alive: true, eater: null, eatK: 0, skip: new Map() };
   F.pos.y -= 0.05;
   // 往畫面中間（準星）丟，畫一條拋物線落在那裡；畫面中間沒有掃描到地面就直直往前丟
@@ -2931,7 +3191,7 @@ function throwFood() {
   } else F.vel.y += 0.8;
   F.sh.visible = false; F.g.position.copy(F.pos); scene.add(F.g); foods.push(F); renderFood();
   noiseBurst(700, 0.22, 0.18, 0.7);
-  hint('飼料丟出去了！');
+  hint(target ? `${fd.emoji} 丟了${fd.label}給${target.def.name}！` : '飼料丟出去了！');
 }
 function removeFood(F) {
   F.alive = false; scene.remove(F.g);
@@ -3005,7 +3265,8 @@ function seekFood(a) {
   let best = null, bd = Infinity;
   for (const F of foods) {
     if (!F.alive || F.state === 'fly' || (F.eater && F.eater !== pet) || (F.skip.get(pet) || 0) > now) continue;
-    const d = Math.hypot(F.pos.x - wx, F.pos.z - wz) + Math.abs(F.pos.y - wy) * 0.5;
+    let d = Math.hypot(F.pos.x - wx, F.pos.z - wz) + Math.abs(F.pos.y - wy) * 0.5;
+    if (F.species && F.species !== a.def.species) d += 0.6;   // 比較想吃自己的專屬食物（別人的也會吃，只是排後面）
     if (d < bd && d < SCAN_R * 1.5) { bd = d; best = F; }
   }
   if (!best) return false;
@@ -3399,6 +3660,7 @@ function loop(time, frame) {
   if (g && g.on && active.includes(g.on) && !g.petted && g.dist < 14 && now - g.st > 450 && !handTrack()) { g.held = true; pressHand(g.on); }
   else if (handSprite.visible && !(g && g.hand)) handSprite.visible = false;
   if (statsA && now - statsR > 500) { statsR = now; renderStats(); if (now - statsT > 7000 && !$('helpModal').classList.contains('show')) hideStats(); }
+  if (mode === 'xr' && active.length) updateFeedIcon(now);
   if (occ.on && mode === 'xr' && now - mapOccT > 700) { mapOccT = now; updateMapOcc(); }
   mapOcc.visible = occ.on && mode === 'xr';   // 預覽模式的桌子杯子本來就是 3D 的，不需要
   if (mode === 'xr' && now - pruneT > 1500) { pruneT = now; field.prune(camPos.x, camPos.z, active.map(a => ({ x: worldX(a), z: worldZ(a) }))); }
@@ -3667,7 +3929,7 @@ function handWorld(lm, wl, di) {
   if (di) {                                          // 深度感測剛好也看到手的話，兩個一起參考
     const ds = [];
     for (const k of [0, 5, 9, 13, 17]) { let d = 0; try { d = di.getDepthInMeters(lm[k].x, lm[k].y); } catch {} if (d > 0.1 && d < 3) ds.push(d); }
-    if (ds.length >= 3) { ds.sort((a, b) => a - b); const dm = ds[ds.length >> 1]; if (dm > Z * 0.75 && dm < Z * 1.3) Z = (Z + dm) / 2; }
+    if (ds.length >= 3) { ds.sort((a, b) => a - b); const dm = ds[ds.length >> 1]; if (dm > Z * 0.7 && dm < Z * 1.35) Z = Z * 0.35 + dm * 0.65; }   // 深度感測是量出來的，比用手的大小猜準，所以比重放高
   }
   Z = clamp(Z, 0.1, 1.6);
   const zc = (wl[0].z + wl[5].z + wl[9].z + wl[13].z + wl[17].z) / 5;
@@ -3676,25 +3938,68 @@ function handWorld(lm, wl, di) {
   const n = _ha.copy(pts[5]).sub(pts[0]).cross(_hb.copy(pts[17]).sub(pts[0])).normalize().clone();
   return { pts, palm, n, flat: Math.abs(n.y), Z };
 }
+// 手在寵物「前面」時，把整隻看不見的手沿著視線往鏡頭拉近，保證排在寵物前面。
+// 用手的大小估距離會有 10～20% 的誤差：手離寵物很近時，這個誤差就可能把手算到寵物後面，所以會擋不住。
+// 沿著視線縮放不會改變手在畫面上的形狀，只改變前後順序。
+const _hk = new THREE.Vector3(), _hf = new THREE.Vector3(), _sbv = new THREE.Vector3(), _sbf = new THREE.Vector3(), _sbm = new THREE.Matrix4();
+// 寵物在畫面上的範圍（-1～1 的畫面座標）、身體中心離鏡頭多遠、身體半徑
+function petScreenBox(a) {
+  const b = bodyOf(a);
+  _sbm.copy(camWorld).invert(); _sbf.set(0, 0, -1).transformDirection(camWorld);
+  const d = _sbv.set(b.x, (b.y0 + b.y1) / 2, b.z).sub(camPos).dot(_sbf);
+  if (d < 0.1) return null;
+  let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+  for (const cx of [-1, 1]) for (const cz of [-1, 1]) for (const cy of [b.y0, b.y1]) {
+    _sbv.set(b.x + cx * b.r, cy, b.z + cz * b.r).applyMatrix4(_sbm);
+    if (_sbv.z > -0.03) return null;
+    _sbv.applyMatrix4(camProj);
+    x0 = Math.min(x0, _sbv.x); x1 = Math.max(x1, _sbv.x); y0 = Math.min(y0, _sbv.y); y1 = Math.max(y1, _sbv.y);
+  }
+  return { x0, x1, y0, y1, d, r: b.r };
+}
+function handLayer(h) {
+  if (!active.length) return 1;
+  _hf.set(0, 0, -1).transformDirection(camWorld);
+  const along = p => _hk.copy(p).sub(camPos).dot(_hf);
+  const hd = along(h.palm);
+  let hmax = 0; for (const p of h.pts) hmax = Math.max(hmax, along(p));
+  // 手在畫面上的範圍
+  let u0 = 9, u1 = -9, v0 = 9, v1 = -9;
+  for (const p of h.pts) { _hk.copy(p).applyMatrix4(camView).applyMatrix4(camProj); u0 = Math.min(u0, _hk.x); u1 = Math.max(u1, _hk.x); v0 = Math.min(v0, _hk.y); v1 = Math.max(v1, _hk.y); }
+  let k = 1;
+  for (const a of active) {
+    const pet = a.pet; if (!pet || pet.aloft()) continue;             // 倉鼠／鳳凰在手上時，手要在牠下面，不能拉到前面
+    const sb = petScreenBox(a); if (!sb) continue;
+    const pd = sb.d;
+    if (u1 < sb.x0 || u0 > sb.x1 || v1 < sb.y0 || v0 > sb.y1) continue;   // 畫面上沒有重疊，不用管
+    if (hd > pd + sb.r * 0.35) continue;                               // 手確實在寵物後面（伸到後面去）
+    const front = pd - sb.r - 0.01;                                    // 寵物最靠近鏡頭的那一面再往前 1 公分
+    if (hmax > front && front > 0.08) k = Math.min(k, front / hmax);
+  }
+  return Math.max(0.3, k);
+}
 function buildHandOcc(hands) {
+  camView.copy(camWorld).invert();
   let i = 0;
   const put = (p, r) => { if (i >= HOCC_MAX) return; _hm.position.copy(p); _hm.scale.setScalar(r * 1.12); _hm.updateMatrix(); handOcc.setMatrixAt(i++, _hm.matrix); };
   for (const h of hands) {
-    const P = h.pts;
+    const K = handLayer(h);
+    const P = K < 1 ? h.pts.map(p => p.clone().sub(camPos).multiplyScalar(K).add(camPos)) : h.pts;
+    const putK = (p, r) => put(p, r * K);                     // 拉近了，球也要等比例縮小，畫面上的大小才會一樣
     for (const [a, b] of HAND_BONES) {
       const r = a <= 4 && b <= 4 ? 0.011 : (a === 0 || b === 0 || (a % 4 === 1 && b % 4 === 1)) ? 0.013 : 0.0095;
-      const n = Math.max(1, Math.ceil(P[a].distanceTo(P[b]) / 0.007));
-      for (let k = 0; k <= n; k++) put(_hc.copy(P[a]).lerp(P[b], k / n), r);
+      const n = Math.max(1, Math.ceil(P[a].distanceTo(P[b]) / (0.007 * K)));
+      for (let k = 0; k <= n; k++) putK(_hc.copy(P[a]).lerp(P[b], k / n), r);
     }
-    for (let u = 0; u <= 1.001; u += 0.2) for (let v = 0.15; v <= 1.001; v += 0.2) put(_hc.copy(P[5]).lerp(P[17], u).sub(P[0]).multiplyScalar(v).add(P[0]), 0.017);   // 手掌
+    for (let u = 0; u <= 1.001; u += 0.2) for (let v = 0.15; v <= 1.001; v += 0.2) putK(_hc.copy(P[5]).lerp(P[17], u).sub(P[0]).multiplyScalar(v).add(P[0]), 0.017);   // 手掌
     _ha.copy(P[0]).sub(P[9]).normalize();                                                                                         // 手腕和手臂（往手指的反方向延伸）
-    for (let s = 0; s <= 0.32; s += 0.022) put(_hc.copy(P[0]).addScaledVector(_ha, s), 0.024 + s * 0.03);
+    for (let s = 0; s <= 0.32; s += 0.022) putK(_hc.copy(P[0]).addScaledVector(_ha, s * K), 0.024 + s * 0.03);
   }
   handOcc.count = i; handOcc.instanceMatrix.needsUpdate = true;
 }
 function visionHands(frame, view, di, now) {
   if (VIS.state !== 'on' || !glBinding || !view.camera) return;
-  if (now - VIS.t < 90) return;                       // 一秒大約辨識 10 次
+  if (now - VIS.t < 70) return;                       // 一秒大約辨識 14 次（太慢的話，手移動時遮擋會跟不上）
   VIS.t = now;
   let tex = null; try { tex = glBinding.getCameraImage(view.camera); } catch {}
   if (!tex) return;

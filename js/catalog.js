@@ -41,9 +41,12 @@ export const RULES = {
    scale：體型（貓＝1）・speed：走路速度和散步範圍（貓＝1）
    jump：跳躍能力（公尺，參考真實動物）up＝最高往上跳・down＝最高往下跳・gap＝最遠水平跳
    wander：自己散步時，有多少機率會跳到別的高度
-   words：語音召喚時，聽到這些字就叫這個種類（用 | 隔開）    */
+   words：語音召喚時，聽到這些字就叫這個種類（用 | 隔開）
+   food：丟飼料時，離落點最近的是這個種類，丟出去的就是牠的專屬食物
+     kind 可以用：'bone' 肉骨頭・'fish' 魚・'grass' 草・'acorn' 橡實・'melon' 西瓜・'peach' 仙桃・'kibble' 一般飼料    */
 export const SPECIES = {
   cat: {
+    food: { kind: 'fish', label: '小魚', emoji: '🐟' },
     label: '貓咪', emoji: '🐱', voice: 'cat', interact: 'rub', free: true, rig: 'toon',
     acts: ['loaf', 'side', 'stretch', 'yawn', 'look'],
     scale: 1, speed: 1, jump: { up: 1.0, down: 1.6, gap: 0.55 }, wander: 0.35, words: '貓|猫|喵|咪',
@@ -55,6 +58,7 @@ export const SPECIES = {
     },
   },
   dog: {
+    food: { kind: 'bone', label: '肉骨頭', emoji: '🍖' },
     label: '小狗', emoji: '🐶', voice: 'dog', interact: 'lick', free: true, rig: 'toon',
     acts: ['wag', 'stretch', 'yawn', 'loaf', 'wag'], belly: true,
     scale: 1, speed: 1, jump: { up: 0.5, down: 0.9, gap: 0.35 }, wander: 0.18, words: '狗|汪',
@@ -66,6 +70,7 @@ export const SPECIES = {
   },
   // 倉鼠：很小、跑得快；真實的倉鼠跳不高，從高處掉下來會受傷，所以只會上下很矮的高度
   hamster: {
+    food: { kind: 'acorn', label: '橡實', emoji: '🌰' },
     label: '倉鼠', emoji: '🐹', voice: 'hamster', interact: 'climb', free: false, productId: 'pet_hamster', price: 64, rig: 'toon',
     desc: '圓滾滾、臉頰鼓鼓的小倉鼠。動作很快，但膽子小，只敢上下很矮的地方。', acts: ['groom', 'stand', 'yawn', 'groom'],
     scale: 0.6, speed: 0.8, jump: { up: 0.12, down: 0.2, gap: 0.12 }, wander: 0.1, words: '倉鼠|仓鼠|鼠',
@@ -78,6 +83,7 @@ export const SPECIES = {
   },
   // 羊駝：脖子長、腿長；不太會跳家具，大概只上得去矮凳、低沙發
   alpaca: {
+    food: { kind: 'grass', label: '牧草', emoji: '🌿' },
     label: '羊駝', emoji: '🦙', voice: 'alpaca', interact: 'hum', free: false, productId: 'pet_alpaca', price: 64, rig: 'toon',
     desc: '毛蓬蓬、脖子長長的羊駝。腿長走得快，會發出「嗯～」的哼哼聲。', acts: ['look', 'loaf', 'yawn', 'stretch'],
     scale: 0.95, speed: 1.15, jump: { up: 0.4, down: 0.6, gap: 0.4 }, wander: 0.12, words: '羊駝|羊驼|草泥馬|草泥马|駝|驼',
@@ -89,6 +95,7 @@ export const SPECIES = {
   },
   // 水豚：身體重、動作慢，很少跳；水豚頭上頂橘子是網路上很紅的樣子
   capybara: {
+    food: { kind: 'melon', label: '西瓜', emoji: '🍉' },
     label: '水豚', emoji: '🦫', voice: 'capybara', interact: 'sleep', free: false, productId: 'pet_capybara', price: 64, rig: 'toon',
     desc: '永遠一臉放鬆的水豚，慢慢走、很少跳。有「頭頂橘子」的版本。', acts: ['loaf', 'doze', 'yawn', 'loaf'],
     scale: 1.05, speed: 0.75, jump: { up: 0.3, down: 0.5, gap: 0.3 }, wander: 0.08, words: '水豚|豚',
@@ -103,6 +110,7 @@ export const SPECIES = {
      鳳凰的飛行高度：手機的水平面 ～ 手機往上 2 公尺之間；也會降落、停在桌子椅子上。
      親密互動 'climb'：飛到你的手上（手掌平放）。以後會加上「自拍模式停在你的肩膀上」。 */
   phoenix: {
+    food: { kind: 'peach', label: '仙桃', emoji: '🍑' },
     label: '鳳凰', emoji: '🔥', series: '幻獸', voice: 'phoenix', interact: 'climb', behavior: 'fly', free: false, productId: 'pet_phoenix', price: 64, rig: 'toon',
     desc: '【幻獸系列】身形修長、拖著飄逸長尾羽的火焰神鳥。會在空中飛翔，也會降落在桌子、椅子上，左右張望、眨眨眼睛。',
     acts: ['look', 'stretch', 'look', 'yawn'],

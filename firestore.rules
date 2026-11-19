@@ -1,0 +1,47 @@
+rules_version = '2';
+// AR 寵物・雲端資料庫的安全規則
+// 重點：飼料只能「吃掉 1 包」或「每 3 天領 1 包免費的」；寵物、空位、付款加的飼料只有伺服器（Cloud Functions）能加。
+// 部署：firebase deploy --only firestore:rules（或複製到 Firebase 主控台 → Firestore → 規則）
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function me(uid) { return request.auth != null && request.auth.uid == uid; }
+    // 手機永遠不能自己改的欄位（只有伺服器能改）
+    function serverOnly() { return ['owned', 'slots', 'lastPurchaseAt']; }
+    function untouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOnly());
+    }
+    function foodOk() {
+      let ch = request.resource.data.diff(resource.data).affectedKeys();
+      let was = resource.data.get('food', null);
+      let now = request.resource.data.get('food', null);
+      return !ch.hasAny(['food', 'freeFoodAt'])
+        // 吃掉一包
+        || (ch.hasOnly(['food']) && was is int && now == was - 1 && now >= 0)
+        // 第一次：送 5 包（js/catalog.js 的 startFood）
+        || (ch.hasOnly(['food', 'pets', 'updatedAt']) && was == null && now == 5)
+        // 第一次開始計算免費飼料的時間
+        || (ch.hasOnly(['freeFoodAt']) && !('freeFoodAt' in resource.data) && request.resource.data.freeFoodAt == request.time)
+        // 每 3 天送 1 包（js/catalog.js 的 freeFoodDays、freeFoodAmount）
+        || (ch.hasOnly(['food', 'freeFoodAt']) && was is int && now == was + 1
+            && request.resource.data.freeFoodAt == request.time
+            && request.time > resource.data.freeFoodAt + duration.value(3, 'd'));
+    }
+
+    match /users/{uid} {
+      allow read, delete: if me(uid);
+      allow create: if me(uid)
+        && request.resource.data.keys().hasOnly(['food', 'pets', 'updatedAt'])
+        && (!('food' in request.resource.data) || request.resource.data.food == 5);
+      allow update: if me(uid) && untouched() && foodOk();
+    }
+
+    // 綠界訂單：自己只能看，建立和改狀態都由伺服器處理
+    match /orders/{id} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+    // Google Play 購買紀錄：只有伺服器用
+    match /playPurchases/{id} { allow read, write: if false; }
+  }
+}

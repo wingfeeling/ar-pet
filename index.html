@@ -493,7 +493,7 @@ const STARVE_AFF  = 1;      // 飽食度 0% 以後，親密度每小時減少多
 // 付款模式：'test'＝測試（按購買不會扣錢，東西只加在這支手機）
 //          'live'＝正式付款：從 Google Play 安裝的 App 用 Google Play 付款，網頁版用綠界 ECPay
 //          （付款伺服器部署好、綠界測試付款成功後，再改成 'live'。綠界是測試環境還是正式收款，在 server/wrangler.toml 的 ECPAY_MODE 切換）
-const SHOP_MODE   = 'test';
+const SHOP_MODE   = 'live';
 // 付款伺服器（Cloudflare Workers）的網址：Cloudflare 第一次自動部署完，把 Worker 頁面上的 https://….workers.dev 網址貼在這裡（結尾不要加 /）
 const PAY_API     = 'https://ar-pet-pay.wingfeeling.workers.dev';
 const PLAY_URL    = 'https://play.google.com/store/apps/details?id=io.github.wingfeeling.arpet';   // 上架後改成正式的商店網址
@@ -686,7 +686,7 @@ async function checkFreeFood(cloudAt) {
    ★ 加東西這一步只在伺服器做，手機不能自己加（firestore.rules 擋住了）。 */
 const inPlayApp = () => 'getDigitalGoodsService' in window;   // 從 Play 商店安裝的 App 裡才有
 const Billing = {
-  mode() { return SHOP_MODE === 'live' ? 'test' : inPlayApp() ? 'play' : 'web'; },
+  mode() { return SHOP_MODE === 'test' ? 'test' : inPlayApp() ? 'play' : 'web'; },
   async buy(prod) {
     const m = this.mode();
     if (m === 'test') {                         // 測試：不扣錢，直接加在這支手機

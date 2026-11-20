@@ -1,7 +1,7 @@
 /* 離線快取：讓 App 可以安裝，沒網路時也打得開。
    自己網站的檔案「先上網拿最新的」，拿不到才用快取，所以你更新 GitHub 後，使用者下次打開就是新版。
    three.js、Firebase 程式庫這些外部檔案版本固定，用快取就好。 */
-const CACHE = 'arpet-v5';
+const CACHE = 'arpet-v6';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'js/config.js', 'js/catalog.js', 'js/sounds.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'privacy.html', 'terms.html', 'delete-account.html'];
 const LIBS = ['cdn.jsdelivr.net', 'www.gstatic.com'];   // www.gstatic.com：Firebase 程式庫、Draco 解碼器
@@ -17,7 +17,12 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin === location.origin) {            // 自己的檔案：先網路，失敗才用快取
+  if (url.origin === location.origin && url.pathname.includes('/vendor/')) {   // vendor/ 裡的檔案資料夾名稱帶版本號，內容不會變：先用快取，不用每次重新下載
+    e.respondWith(caches.match(req).then(r => r || fetch(req).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+      return res;
+    })));
+  } else if (url.origin === location.origin) {     // 自己的檔案：先網路，失敗才用快取
     e.respondWith(fetch(req).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;

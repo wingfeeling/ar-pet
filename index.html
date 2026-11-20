@@ -474,14 +474,16 @@ const SCAN_R      = 5.0;    // 掃描＋活動範圍：以你為中心，前後�
 const CELL        = 0.04;   // 地圖格子大小（公尺）
 const SURF_TOL    = 0.03;   // 同一個平面的高度容許誤差（遠的地方會自動放寬）
 const SURF_N      = 1.5;    // 一格要被看到幾次才算「確定是平面」
-const STEP_H      = 0.045;  // 這個高低差以內，寵物直接走上去／走下來
+const STEP_H      = 0.045;  // （預設）這個高低差以內，寵物直接走上去／走下來；每隻寵物會照自己的腿長調整（stepOf）
+// 真實的貓狗：比手肘低的東西直接跨上去，再高一點就「小跳」一下，跳得上去的高度看 catalog.js 的 jump.up
 const OBST_MIN    = 0.05;   // 比腳下平面高出多少算「障礙物」
 const OBST_MAX    = 0.5;
 const OBST_N      = 3;
 const CARVE       = 0.04;
 const RUN_SPEED   = 0.24;   // 叫牠過去時跑步的速度（公尺/秒）
 const MAX_CELLS   = 120000; // 地圖最多記幾格（手機記憶體）
-const DEPTH_COLS  = 30, DEPTH_ROWS = 40;   // 每次讀取深度的取樣點數
+const DEPTH_COLS  = 30, DEPTH_ROWS = 40;   // 每次讀取深度的取樣點數（手機夠順時自動加密到 40×54）
+const DEPTH_COLS_HI = 40, DEPTH_ROWS_HI = 54;
 const DEPTH_MAX   = 6.0;    // 深度最遠讀到幾公尺
 // 跳躍能力（參考真實動物）：up＝最高往上跳幾公尺、down＝最高往下跳幾公尺、gap＝最遠水平跳幾公尺
 // 貓可以跳上約 1 公尺的桌子、流理台；小型犬大概只上得了椅子、沙發（約 50 公分）
@@ -1391,12 +1393,14 @@ const occ = { on: true, tex: null, w: 0, h: 0, la: true, ok: false };
 const occMat = new THREE.ShaderMaterial({
   uniforms: { uDepth: { value: null }, uUvT: { value: new THREE.Matrix4() }, uRaw: { value: 0.001 }, uProj: { value: new THREE.Vector2(-1, -0.02) }, uLA: { value: 1 }, uTexel: { value: new THREE.Vector2(1, 1) },
     uInvProj: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uG: { value: new THREE.Vector4() }, uGN: { value: 0 },
-    uPB: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uPD: { value: [0, 1, 2, 3].map(() => new THREE.Vector2()) }, uPN: { value: 0 } },
+    uPB: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uPD: { value: [0, 1, 2, 3].map(() => new THREE.Vector2()) }, uPN: { value: 0 },
+    uHB: { value: [0, 1].map(() => new THREE.Vector4()) }, uHD: { value: [0, 1].map(() => new THREE.Vector2()) }, uHN: { value: 0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `
     uniform sampler2D uDepth; uniform mat4 uUvT; uniform float uRaw; uniform vec2 uProj; uniform float uLA; uniform vec2 uTexel;
     uniform mat4 uInvProj; uniform mat4 uCamW; uniform vec4 uG; uniform float uGN;
     uniform vec4 uPB[4]; uniform vec2 uPD[4]; uniform float uPN;   // 每隻寵物在畫面上的範圍、離鏡頭多遠、身體半徑
+    uniform vec4 uHB[2]; uniform vec2 uHD[2]; uniform float uHN;   // AI 認出的手：畫面範圍、離鏡頭的最近／最遠距離
     varying vec2 vUv;
     // 這個點離「寵物腳下的平面」多高（取最近的那個平面）
     float gDist(float y){
@@ -1414,13 +1418,29 @@ const occMat = new THREE.ShaderMaterial({
       float w2 = (1.0 - w.x) * w.y * step(0.05, d2), w3 = w.x * w.y * step(0.05, d3), ws = w0 + w1 + w2 + w3;
       if (ws < 0.2) discard;                                  // 這裡沒有深度資料 → 不遮
       float d = (d0 * w0 + d1 * w1 + d2 * w2 + d3 * w3) / ws;
-      // 物體邊緣（例如手指和後面桌面的交界）：不要把前後兩個深度平均成「半空中」，
-      // 直接用比較近的那個 → 手的輪廓會完整擋住寵物，不會在邊緣漏出來
+      // 物體邊緣（例如手指和後面桌面的交界）：不要把前後兩個深度平均成「半空中」。
+      // 以前直接取比較近的那個，邊緣會往外胖一整格深度（手機上大約 0.5～1 公分）；
+      // 現在把四個點分成「前面」和「後面」兩組，看這個像素比較靠近哪一組 → 輪廓落在真正的交界上
       float big = 9.0;
       float n0 = d0 > 0.05 ? d0 : big, n1 = d1 > 0.05 ? d1 : big, n2 = d2 > 0.05 ? d2 : big, n3 = d3 > 0.05 ? d3 : big;
       float dmin = min(min(n0, n1), min(n2, n3));
       float dmax = max(max(d0 * step(0.05, d0), d1 * step(0.05, d1)), max(d2 * step(0.05, d2), d3 * step(0.05, d3)));
-      if (dmin < big && dmax - dmin > 0.03 + dmin * 0.04) d = dmin;
+      if (dmin < big && dmax - dmin > 0.03 + dmin * 0.04) {
+        float mid = (dmin + dmax) * 0.5;
+        float f0 = w0 * step(d0, mid), f1 = w1 * step(d1, mid), f2 = w2 * step(d2, mid), f3 = w3 * step(d3, mid);
+        float wf = f0 + f1 + f2 + f3, wb = ws - wf;
+        float df = (d0 * f0 + d1 * f1 + d2 * f2 + d3 * f3) / max(wf, 1e-4);
+        float db = (d * ws - df * wf) / max(wb, 1e-4);
+        d = wf >= ws * 0.5 ? df : db;
+      }
+      // AI 認出的手附近：手的輪廓交給「看不見的手」（照 21 個關節做的），
+      // 深度圖在手周圍糊開的那一圈（和手差不多遠的部分）就不要拿來遮 → 手的邊緣不會胖一圈
+      vec2 hn = vUv * 2.0 - 1.0;
+      for (int k = 0; k < 2; k++) {
+        if (float(k) >= uHN) break;
+        vec4 hb = uHB[k]; vec2 hd = uHD[k];
+        if (hn.x > hb.x && hn.x < hb.y && hn.y > hb.z && hn.y < hb.w && d > hd.x - 0.05 && d < hd.y + 0.06) discard;
+      }
       // 算出這個像素在真實世界的高度：
       //   寵物腳下的那個平面 → 多留一點餘量，腳才不會被地面吃掉
       //   其他東西（你的手、杯子、椅背）→ 只留一點點，手伸到寵物前面就會擋住牠
@@ -1481,6 +1501,9 @@ function updateOcclusion(di, view) {
     occMat.uniforms.uPB.value[pn].set(sb.x0, sb.x1, sb.y0, sb.y1); occMat.uniforms.uPD.value[pn].set(sb.d, sb.r); pn++;
   }
   occMat.uniforms.uPN.value = pn;
+  let hn = 0;
+  if (handOcc.visible) for (const hb of VIS.boxes) { if (hn >= 2) break; occMat.uniforms.uHB.value[hn].copy(hb.box); occMat.uniforms.uHD.value[hn].copy(hb.dep); hn++; }
+  occMat.uniforms.uHN.value = hn;
   occMesh.visible = true; occ.ok = true;
 }
 
@@ -1512,10 +1535,10 @@ class FieldMap {
   key(x, z) { return Math.round(x / CELL) * 65536 + Math.round(z / CELL); }
   clear() { this.cells.clear(); }
   // t＝這筆資料的高度誤差（越遠的深度越不準，t 越大）
-  add(x, y, z, w, horiz, t = 0.02) {
+  add(x, y, z, w, horiz, t = 0.02, carve = true) {
     const k = this.key(x, z);
     let L = this.cells.get(k); if (!L) { L = []; this.cells.set(k, L); }
-    if (horiz) {   // 看得到這一格的這個高度＝它上面沒有東西 → 把上面舊的紀錄慢慢清掉（手拿開了、杯子拿走了）
+    if (horiz && carve) {   // 看得到這一格的這個高度＝它上面沒有東西 → 把上面舊的紀錄慢慢清掉（手拿開了、杯子拿走了）
       for (let i = L.length - 1; i >= 0; i--) if (L[i].y > y + CARVE + t) { L[i].n -= w * 0.7; if (L[i].n <= 0) L.splice(i, 1); }
     }
     for (const l of L) if (l.h === horiz && Math.abs(l.y - y) < Math.max(l.t, t)) {
@@ -1531,6 +1554,22 @@ class FieldMap {
     let best = null, bd = Infinity;
     for (const l of L) if (l.h && l.n >= SURF_N) { const d = Math.abs(l.y - y); if (d < step + l.t * 0.6 && d < bd) { bd = d; best = l.y; } }
     return best;
+  }
+  // 跟 surfaceY 一樣，但地圖上還沒掃到的小洞（四周都是同一個平面）也算平面：
+  // 素色、反光的桌面常常有幾格掃不到，以前飼料滾到那裡就當成桌緣掉下去、寵物也以為前面沒路
+  surfaceFill(x, z, y, step) {
+    const s = this.surfaceY(x, z, y, step); if (s !== null) return s;
+    const L = this.cells.get(this.key(x, z));
+    // 這格看得到下面的地板：可能是桌緣外面，也可能只是桌子底下的地板也掃到了 → 只看 8 公分內，不要跨過兩張桌子中間比較寬的縫
+    const rMax = L && L.some(l => l.h && l.n >= SURF_N * 2 && l.y < y - 0.06) ? 2 : 3;
+    let pairs = 0, sum = 0, cnt = 0; const hit = [];
+    for (let d = 0; d < 8; d++) {
+      const ox = [1, 1, 0, -1, -1, -1, 0, 1][d], oz = [0, 1, 1, 1, 0, -1, -1, -1][d];
+      hit[d] = false;
+      for (let r = 1; r <= rMax; r++) { const v = this.surfaceY(x + ox * r * CELL, z + oz * r * CELL, y, step); if (v !== null) { hit[d] = true; sum += v; cnt++; break; } }
+    }
+    for (let d = 0; d < 4; d++) if (hit[d] && hit[d + 4]) pairs++;
+    return pairs >= 2 ? sum / cnt : null;   // 至少兩個方向「兩邊都有平面」才算是洞，不是桌緣
   }
   wall(x, z, lo, hi) { const L = this.cells.get(this.key(x, z)); if (L) for (const l of L) if (!l.h && l.n >= OBST_N && l.y > lo && l.y < hi) return true; return false; }   // 只看直立面
   blocked(x, z, lo, hi) { const L = this.cells.get(this.key(x, z)); if (L) for (const l of L) if (l.n >= OBST_N && l.y > lo + Math.max(0, l.t - 0.02) && l.y < hi) return true; return false; }
@@ -1553,9 +1592,12 @@ class FieldMap {
     const o = ray.origin, d = ray.direction;
     for (let s = 0.1; s < maxD; s += 0.02) {
       const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
-      const L = this.cells.get(this.key(x, z)); if (!L) continue;
-      for (const l of L) if (l.h && l.n >= SURF_N && Math.abs(l.y - y) < 0.03 + l.t) return new THREE.Vector3(x, l.y, z);
-      for (const l of L) if (!l.h && l.n >= OBST_N && Math.abs(l.y - y) < 0.03) return null;   // 先撞到牆／家具側面
+      const L = this.cells.get(this.key(x, z));
+      if (L) {
+        for (const l of L) if (l.h && l.n >= SURF_N && Math.abs(l.y - y) < 0.03 + l.t) return new THREE.Vector3(x, l.y, z);
+        for (const l of L) if (!l.h && l.n >= OBST_N && Math.abs(l.y - y) < 0.03) return null;   // 先撞到牆／家具側面
+      }
+      if (d.y < -0.05) { const fy = this.surfaceFill(x, z, y, 0.015); if (fy !== null && Math.abs(fy - y) < 0.02) return new THREE.Vector3(x, fy, z); }   // 桌面上沒掃到的小洞：不要讓準星穿過去落到地板
     }
     return null;
   }
@@ -2412,17 +2454,18 @@ class Pet {
   goTo(lx, ly, lz, extra = null, quiet = false) {   // 跑到 (lx, ly, lz)（座標相對於牠的家）
     if (this.busy() || this.behavior === 'static' || this.aloft()) return false;
     this.goal = { x: lx, y: ly, z: lz, ...extra }; this.target.set(lx, 0, lz); this.setState('walk');
-    if (Math.abs(ly - this.groundY) > STEP_H * 1.2 && this.a) planGoalJump(this.a, this.goal);   // 目的地在別的高度：先規劃怎麼跳過去
+    if (Math.abs(ly - this.groundY) > stepOf(this) * 1.2 && this.a) planGoalJump(this.a, this.goal);   // 目的地在別的高度：先規劃怎麼跳過去
     if (!quiet) this.voice.tap();
     return true;
   }
   // 跳到 land（座標相對於家）：先蹲一下，再畫一條拋物線跳過去
-  startJump(land) {
+  startJump(land, clearY = -Infinity) {
     const p = this.root.position, y0 = this.groundY, y1 = land.y;
-    const gap = Math.hypot(land.x - p.x, land.z - p.z);
-    const apex = Math.max(y0, y1) + 0.04 + gap * 0.12 + 0.03 * this.sizeK;   // 最高點：比高的那邊再高一點
+    const gap = Math.hypot(land.x - p.x, land.z - p.z), small = Math.abs(y1 - y0) < 0.15 && gap < 0.2;
+    let apex = Math.max(y0, y1) + (small ? 0.025 : 0.04) + gap * (small ? 0.08 : 0.12) + (small ? 0.015 : 0.03) * this.sizeK;   // 最高點：比高的那邊再高一點（小跳就低低的）
+    apex = Math.max(apex, clearY + 0.02 + this.rig.height * 0.15);   // 要越過路上的東西
     const vy = Math.sqrt(2 * GRAVITY * (apex - y0)), T = vy / GRAVITY + Math.sqrt(2 * (apex - y1) / GRAVITY);
-    this.jp = { x0: p.x, z0: p.z, y0, x1: land.x, y1, z1: land.z, vy, T };
+    this.jp = { x0: p.x, z0: p.z, y0, x1: land.x, y1, z1: land.z, vy, T, small };
     this.setState('crouch');
   }
   // 伸手摸（親密度 100%）：pt 是手的位置（相對於家）
@@ -2518,6 +2561,7 @@ class Pet {
           const code = a.check(nx, nz);
           if (code === 0) { p.x = nx; p.z = nz; this.follow(a, dt); }
           else if (code !== 3 && G && !G.via && B !== 'fly' && Math.abs(G.y - this.groundY) > 0.07 && planGoalJump(a, G)) { /* 前面是邊緣或家具 → 改成跳過去 */ }
+          else if (code !== 3 && G && !G.via && B !== 'fly' && hopAhead(a, G)) { /* 前面有矮矮的東西或小台階 → 小跳上去／跳過去 */ }
           else if (G?.intim) this.startIntim(G.intim);                                                                // 過不去：就在這裡
           else if (code === 2 && G?.food) { this.goal = null; this.wantAt(G, a, true); }                              // 想吃但被擋住
           else if (code === 2 && this.goal) { this.goal = null; this.setState('bonk'); this.voice.bonk(); a.onBlocked?.(G); }   // 被東西擋住
@@ -2733,9 +2777,9 @@ class Pet {
       case 'crouch': {                                    // 起跳前蹲低、看著要跳的地方
         const J = this.jp; if (!J) { this.setState('idle'); break; }
         this.turnTo(Math.atan2(J.x1 - p.x, J.z1 - p.z), dt, 8);
-        const k = Math.min(1, this.stateT / 0.32);
-        A.squash = 0.22 * k; A.earPerk = 1; A.tailAmp = dog ? 0.6 : 0.5; A.tailSpeed = dog ? 10 : 7; A.headPitch = J.y1 > J.y0 ? -0.3 : 0.25;
-        if (this.stateT > 0.36) this.setState('jump');
+        const cT = J.small ? 0.16 : 0.32, k = Math.min(1, this.stateT / cT);   // 小跳只蹲一下
+        A.squash = (J.small ? 0.14 : 0.22) * k; A.earPerk = 1; A.tailAmp = dog ? 0.6 : 0.5; A.tailSpeed = dog ? 10 : 7; A.headPitch = J.y1 > J.y0 ? -0.3 : 0.25;
+        if (this.stateT > cT + 0.04) this.setState('jump');
         break;
       }
       case 'jump': {                                      // 在空中：照真實的重力畫拋物線
@@ -2746,7 +2790,7 @@ class Pet {
         p.y = J.y0 + J.vy * tt - 0.5 * GRAVITY * tt * tt + this.hover;
         A.legSwing = k < 0.5 ? -0.6 : 0.7; A.earPerk = 1; A.tailAmp = 0.8; A.tailSpeed = 6; A.headPitch = J.y1 > J.y0 ? -0.2 : 0.3;
         if (this.stateT >= J.T) {
-          p.set(J.x1, J.y1 + this.hover, J.z1); this.groundY = J.y1; this.jp = null;
+          p.set(J.x1, J.y1 + this.hover, J.z1); this.groundY = J.y1; this.jp = null; this.landT = J.small ? 0.3 : 0.7;
           this.setState('land'); this.voice.land(); a.onJumped?.(J.y1 - J.y0);
         }
         break;
@@ -2768,9 +2812,10 @@ class Pet {
         break;
       }
       case 'land': {
-        const k = Math.min(1, this.stateT / 0.45);
+        const lT = this.landT ?? 0.7, k = Math.min(1, this.stateT / (lT * 0.64));
         A.squash = Math.sin(Math.PI * k) * 0.28 * (1 - k * 0.3); A.squint = k < 0.6; A.lookCam = true;
-        if (this.stateT > 0.7) {
+        if (this.stateT > lT) {
+          this.landT = 0.7;
           if (this.goal) { this.target.set(this.goal.x, 0, this.goal.z); this.setState('walk'); }   // 跳下來之後繼續跑過去
           else { this.setState('idle'); this.lookAtCam = true; this.idleDur = 2.5; }
         }
@@ -2831,17 +2876,17 @@ function checkSpot(a, lx, lz, baseY) {
     const bx = worldX(b), bz = worldZ(b), dn = Math.hypot(wx - bx, wz - bz), lim = (pet.radius + b.pet.radius) * 1.15;
     if (dn < lim && dn < Math.hypot(worldX(a) - bx, worldZ(a) - bz)) return 3;
   }
-  const R = pet.radius * 0.85;
-  const lo = pet.behavior === 'fly' ? wy + pet.hover - 0.01 : wy + OBST_MIN, hi = wy + pet.hover + OBST_MAX;
+  const R = pet.radius * 0.85, st = stepOf(pet);
+  const lo = pet.behavior === 'fly' ? wy + pet.hover - 0.01 : wy + Math.max(OBST_MIN, st * 1.15), hi = wy + pet.hover + OBST_MAX;
   for (const [ox, oz] of [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R], [R * .7, R * .7], [-R * .7, R * .7], [R * .7, -R * .7], [-R * .7, -R * .7]])
     if (field.blocked(wx + ox, wz + oz, lo, hi)) return 2;
   if (Math.max(Math.abs(wx - camPos.x), Math.abs(wz - camPos.z)) > SCAN_R) return 1;   // 超出你身邊 5 公尺
   if (pet.behavior === 'fly') { a.spotY = wy - a.home.position.y; return 0; }
-  const cy = field.surfaceY(wx, wz, wy, STEP_H);       // 腳下的地面（小台階可以直接走上走下）
+  const cy = field.surfaceFill(wx, wz, wy, st);       // 腳下的地面（小台階可以直接走上走下；沒掃到的小洞也算）
   if (cy === null) return 1;
   const m = Math.max(0.022, pet.radius * 0.55);
   for (const [ox, oz] of [[m, 0], [-m, 0], [0, m], [0, -m]])
-    if (field.surfaceY(wx + ox, wz + oz, cy, STEP_H) === null) return 1;
+    if (field.surfaceFill(wx + ox, wz + oz, cy, st) === null) return 1;
   a.spotY = cy - a.home.position.y;
   return 0;
 }
@@ -2856,6 +2901,38 @@ function pathOK(a, tx, tz) {
   return true;
 }
 /* ---------- 跳躍：在不同高度的平面之間跳上跳下 ---------- */
+// 不用跳、直接跨上去的高度：大約是腿長（身高的 4 成），貓約 6 公分、倉鼠約 3.5 公分
+function stepOf(pet) { return pet._step ??= clamp((pet.rig?.height || 0.15) * 0.4, 0.03, 0.075); }
+// 走路被擋住（前面有一本書、一個盒子、一個小台階，或桌緣）時：往前看，找一個跳得到的地方小跳過去——
+// 跳上那個東西（上面站得住的話），或直接跳過它落到另一邊，或從台階上跳下來
+function hopAhead(a, G) {
+  const pet = a.pet, J = jumpAbility(pet); if (!J || !G) return false;
+  if ((G.hops = (G.hops || 0) + 1) > 6) return false;            // 一直跳不到就算了，不要原地亂跳
+  const h = a.home.position, px = worldX(a), pz = worldZ(a), y0 = worldGround(a), st = stepOf(pet);
+  let dx = h.x + pet.target.x - px, dz = h.z + pet.target.z - pz; const D = Math.hypot(dx, dz);
+  if (D < 0.015) return false; dx /= D; dz /= D;
+  const gy = h.y + (G.y ?? pet.groundY), maxS = Math.min(D + pet.radius * 0.5, J.gap + pet.radius);
+  const R = pet.radius * 0.8, foot = [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R]];
+  const clear = (x, z, lo, hi) => hi <= lo || foot.every(([ox, oz]) => !field.blocked(x + ox, z + oz, lo, hi));
+  let top = y0;                                                      // 路上最高的東西（跳的時候要越過它）
+  for (let s = CELL * 0.75; s <= maxS; s += CELL * 0.75) {
+    const x = px + dx * s, z = pz + dz * s, L = field.cells.get(field.key(x, z));
+    if (L) for (const l of L) if (l.y > y0 && l.y < y0 + J.up + 0.2 && l.n >= (l.h ? SURF_N : OBST_N)) top = Math.max(top, l.y);
+    if (top - y0 > J.up + 0.02) return false;                       // 太高了，跳不過去
+    if (s < pet.radius * 0.8 || !L) continue;
+    const cands = L.filter(l => l.h && l.n >= SURF_N && l.y - y0 <= J.up && y0 - l.y <= J.down).sort((p, q) => Math.abs(p.y - gy) - Math.abs(q.y - gy));
+    for (const l of cands) {
+      const useful = Math.abs(l.y - y0) > st * 0.6 || top > y0 + st;   // 真的有高低差或越過東西才跳
+      if (!useful) continue;
+      if (l.y < y0 - st && !clear(x, z, l.y + 0.06, y0 + 0.03)) continue;            // 下面那一層上方要是空的（不能穿過桌面跳到桌子底下）
+      if (l.y > y0 + st && !clear(px, pz, y0 + 0.06, l.y + 0.03)) continue;          // 起跳的地方頭上要是空的（不能從桌子底下往上跳）
+      if (checkSpot(a, x - h.x, z - h.z, l.y) !== 0) continue;
+      pet.startJump({ x: x - h.x, y: a.spotY, z: z - h.z }, top - h.y);
+      return true;
+    }
+  }
+  return false;
+}
 function jumpAbility(pet) {
   if (pet.behavior === 'fly' || pet.behavior === 'static') return null;
   if (JUMP[pet.kind]) return JUMP[pet.kind];
@@ -2867,7 +2944,8 @@ function jumpAbility(pet) {
 function planJump(a, tx, ty, tz) {
   const pet = a.pet, J = jumpAbility(pet); if (!J) return null;
   const y0 = worldGround(a), dy = ty - y0, up = dy > 0;
-  if (Math.abs(dy) <= STEP_H * 1.2 || dy > J.up || -dy > J.down) return null;
+  const st = stepOf(pet);
+  if (Math.abs(dy) <= st * 1.2 || dy > J.up || -dy > J.down) return null;
   const hx = a.home.position.x, hy = a.home.position.y, hz = a.home.position.z;
   const px = worldX(a), pz = worldZ(a), D = Math.hypot(tx - px, tz - pz);
   const n = Math.max(2, Math.ceil(D / (CELL * 0.75)));
@@ -2882,7 +2960,7 @@ function planJump(a, tx, ty, tz) {
     const [x, z] = S(k);
     const c = checkSpot(a, x - hx, z - hz, y);
     if (c !== 0) { if (c === 1 || (up && !clear(x, z))) break; return null; }   // 走到邊緣才跳；被別的東西擋住就不跳
-    const sy = a.spotY + hy; if (Math.abs(sy - y0) > STEP_H * 2) break;
+    const sy = a.spotY + hy; if (Math.abs(sy - y0) > st * 2) break;
     if (up && !clear(x, z)) break;
     y = sy; e = k; ly0 = sy;
   }
@@ -2893,7 +2971,7 @@ function planJump(a, tx, ty, tz) {
     const [x, z] = S(k);
     const c = checkSpot(a, x - hx, z - hz, yy);
     if (c !== 0) { if (k < n && (c === 1 || (!up && !clear(x, z)))) break; return null; }
-    const sy = a.spotY + hy; if (Math.abs(sy - ty) > STEP_H * 2) break;
+    const sy = a.spotY + hy; if (Math.abs(sy - ty) > st * 2) break;
     if (!up && !clear(x, z)) break;
     yy = sy; s = k; ly1 = sy;
   }
@@ -3190,7 +3268,9 @@ function throwFood() {
   setRay(innerWidth / 2, innerHeight / 2);
   const T = field.pick(ray);
   if (T) {
-    T.x += (Math.random() - 0.5) * 0.06; T.z += (Math.random() - 0.5) * 0.06;
+    const jx = (Math.random() - 0.5) * 0.06, jz = (Math.random() - 0.5) * 0.06;
+    if (field.surfaceFill(T.x + jx, T.z + jz, T.y, 0.015) !== null) { T.x += jx; T.z += jz; }   // 稍微散開一點，但不要散到桌子外面
+    F.aim = T.clone();                                   // 記住瞄準的落點：那裡確定是平面
     const dx = T.x - F.pos.x, dy = T.y - F.pos.y, dz = T.z - F.pos.z, t = clamp(0.35 + Math.hypot(dx, dz) * 0.22, 0.4, 1.0);
     F.vel.set(dx / t, (dy + 0.5 * GRAVITY * t * t) / t, dz / t);
   } else F.vel.y += 0.8;
@@ -3206,9 +3286,13 @@ function removeFood(F) {
 function clearFoods() { for (const F of [...foods]) removeFood(F); }
 // 從 yTop 掉到 yBot 的途中，穿過的最高的平面
 function crossSurface(x, z, yTop, yBot) {
-  const L = field.cells.get(field.key(x, z)); if (!L) return null;
+  const L = field.cells.get(field.key(x, z));
   let best = null;
-  for (const l of L) if (l.h && l.n >= SURF_N && l.y <= yTop + 0.005 && l.y >= yBot - 0.005 && (best === null || l.y > best)) best = l.y;
+  if (L) for (const l of L) if (l.h && l.n >= SURF_N && l.y <= yTop + 0.005 && l.y >= yBot - 0.005 && (best === null || l.y > best)) best = l.y;
+  if (best === null) {                                   // 這格沒掃到：四周都是平面的話，當成同一個平面（不要從小洞掉下去）
+    const m = (yTop + yBot) / 2, fy = field.surfaceFill(x, z, m, (yTop - yBot) / 2 + 0.006);
+    if (fy !== null && fy <= yTop + 0.006 && fy >= yBot - 0.006) best = fy;
+  }
   return best;
 }
 function stepFood(F, h) {
@@ -3220,11 +3304,12 @@ function stepFood(F, h) {
       v.x *= -0.35; v.z *= -0.35; return;
     }
     if (v.y < 0) {
-      const sy = crossSurface(nx, nz, p.y, ny);
+      let sy = crossSurface(nx, nz, p.y, ny);
+      if (sy === null && F.aim && p.y >= F.aim.y - 0.005 && ny <= F.aim.y + 0.005 && Math.hypot(nx - F.aim.x, nz - F.aim.z) < 0.06) sy = F.aim.y;   // 落在瞄準的地方
       if (sy !== null) {
         p.set(nx, sy, nz);
-        if (v.y < -1.3) { v.y = -v.y * 0.25; v.x *= 0.55; v.z *= 0.55; noiseBurst(2200, 0.05, 0.22, 2); }   // 彈一下
-        else { v.y = 0; v.x *= 0.5; v.z *= 0.5; F.state = 'slide'; noiseBurst(2600, 0.06, 0.25, 2); }
+        if (v.y < -1.3) { v.y = -v.y * 0.22; v.x *= 0.4; v.z *= 0.4; noiseBurst(2200, 0.05, 0.22, 2); }   // 彈一下（飼料包軟軟的，彈不遠）
+        else { v.y = 0; v.x *= 0.35; v.z *= 0.35; F.state = 'slide'; noiseBurst(2600, 0.06, 0.25, 2); }
         return;
       }
     }
@@ -3234,7 +3319,7 @@ function stepFood(F, h) {
     const nx = p.x + v.x * h, nz = p.z + v.z * h;
     if (field.blocked(nx, nz, p.y + 0.01, p.y + 0.05)) { v.x *= -0.3; v.z *= -0.3; }
     else {
-      let sy = field.surfaceY(nx, nz, p.y, 0.012);
+      let sy = field.surfaceFill(nx, nz, p.y, 0.012);
       if (sy === null && field.surfaceY(nx + v.x * 0.04 / (Math.hypot(v.x, v.z) || 1), nz + v.z * 0.04 / (Math.hypot(v.x, v.z) || 1), p.y, 0.012) !== null) sy = p.y;   // 地圖上的小洞，不算邊緣
       if (sy === null) {
         if (field.belowNear(nx, nz, p.y) !== null) { p.x = nx; p.z = nz; F.state = 'fly'; v.y = 0; return; }   // 邊緣下面有地面 → 掉下去
@@ -3242,7 +3327,7 @@ function stepFood(F, h) {
       }
       p.set(nx, sy, nz);
     }
-    const fr = Math.exp(-4.5 * h); v.x *= fr; v.z *= fr;
+    const fr = Math.exp(-6 * h); v.x *= fr; v.z *= fr;
     if (Math.hypot(v.x, v.z) < 0.03) { F.state = 'rest'; v.set(0, 0, 0); onFoodRest(F); }
   }
 }
@@ -3508,7 +3593,7 @@ function updateMapOcc() {
 }
 
 /* ================= 深度感測：每隔一幀讀一次，把看到的東西記到場域地圖 ================= */
-const DN = DEPTH_COLS * DEPTH_ROWS, dP = new Float32Array(DN * 3), dD = new Float32Array(DN), dOK = new Uint8Array(DN);
+const DN = DEPTH_COLS_HI * DEPTH_ROWS_HI, dP = new Float32Array(DN * 3), dD = new Float32Array(DN), dOK = new Uint8Array(DN);
 function readDepth(frame, view) {
   let di;
   try { di = frame.getDepthInformation(view); }
@@ -3520,8 +3605,9 @@ function readDepth(frame, view) {
 function sampleDepth(frame, view, di) {
   di = di || readDepth(frame, view); if (!di) return;
   const jx = 0.15 + Math.random() * 0.7, jy = 0.15 + Math.random() * 0.7;   // 每次取樣位置稍微錯開，地圖才不會有洞
-  for (let j = 0; j < DEPTH_ROWS; j++) for (let i = 0; i < DEPTH_COLS; i++) {
-    const n = j * DEPTH_COLS + i, u = (i + jx) / DEPTH_COLS, v = (j + jy) / DEPTH_ROWS;
+  const hiRes = fps >= 45, C = hiRes ? DEPTH_COLS_HI : DEPTH_COLS, R = hiRes ? DEPTH_ROWS_HI : DEPTH_ROWS, sk = C / DEPTH_COLS;
+  for (let j = 0; j < R; j++) for (let i = 0; i < C; i++) {
+    const n = j * C + i, u = (i + jx) / C, v = (j + jy) / R;
     let d = 0; try { d = di.getDepthInMeters(u, v); } catch {}
     if (!(d > 0.12 && d < DEPTH_MAX)) { dOK[n] = 0; continue; }
     tmpV.set(u * 2 - 1, 1 - v * 2, 0.5).applyMatrix4(camProjInv);     // 相機座標中的方向
@@ -3530,15 +3616,15 @@ function sampleDepth(frame, view, di) {
     if (active.length && nearPetSpace(tmpV.x, tmpV.y, tmpV.z)) { dOK[n] = 0; continue; }
     dP[n * 3] = tmpV.x; dP[n * 3 + 1] = tmpV.y; dP[n * 3 + 2] = tmpV.z; dD[n] = d; dOK[n] = 1;
   }
-  for (let j = 0; j < DEPTH_ROWS; j++) for (let i = 0; i < DEPTH_COLS; i++) {
-    const n = j * DEPTH_COLS + i; if (!dOK[n]) continue;
+  for (let j = 0; j < R; j++) for (let i = 0; i < C; i++) {
+    const n = j * C + i; if (!dOK[n]) continue;
     const d = dD[n], w = clamp(1.3 - d * 0.25, 0.3, 1), tol = clamp(0.015 + 0.0035 * d * d, 0.02, 0.1);
-    const st = d < 2 ? 2 : 3;   // 遠的地方用比較遠的鄰居算方向，比較不會被雜訊騙
-    const nr = i + st < DEPTH_COLS ? n + st : n - st, nd = j + st < DEPTH_ROWS ? n + st * DEPTH_COLS : n - st * DEPTH_COLS;
+    const st = Math.round((d < 2 ? 2 : 3) * sk);   // 遠的地方用比較遠的鄰居算方向，比較不會被雜訊騙
+    const nr = i + st < C ? n + st : n - st, nd = j + st < R ? n + st * C : n - st * C;
     if (!(dOK[nr] && dOK[nd])) continue;   // 邊緣不確定的點不要
     const ax = dP[nr * 3] - dP[n * 3], ay = dP[nr * 3 + 1] - dP[n * 3 + 1], az = dP[nr * 3 + 2] - dP[n * 3 + 2];
     const bx = dP[nd * 3] - dP[n * 3], by = dP[nd * 3 + 1] - dP[n * 3 + 1], bz = dP[nd * 3 + 2] - dP[n * 3 + 2];
-    const la = Math.hypot(ax, ay, az), lb = Math.hypot(bx, by, bz), gap = 0.06 + d * 0.12 * st / 2;
+    const la = Math.hypot(ax, ay, az), lb = Math.hypot(bx, by, bz), gap = 0.06 + d * 0.12 * st / sk / 2;
     let horiz;
     if (la > gap * 2.5 || lb > gap * 2.5) {          // 鄰居差很遠＝物體邊緣：前面那一點是障礙物的邊，後面的不要
       if (dD[nr] < d - 0.1 || dD[nd] < d - 0.1) continue;
@@ -3549,6 +3635,47 @@ function sampleDepth(frame, view, di) {
       horiz = Math.abs(cy) / cl > 0.82;
     }
     field.add(dP[n * 3], dP[n * 3 + 1], dP[n * 3 + 2], w, horiz, tol);
+  }
+}
+
+/* ---------- 手機自己偵測到的平面（ARCore）：整片桌面、地板直接填進地圖 ----------
+   深度圖在素色、反光、太暗的桌面上常常量不到，平面偵測靠的是畫面上的特徵點，兩個互相補洞。
+   這支手機或瀏覽器沒有開平面偵測的話，這段不會做任何事。 */
+const planeSeen = new WeakMap(); let planeT = 0, planeN = 0;
+const _pv = new THREE.Vector3(), _pq = new THREE.Quaternion(), _pm = new THREE.Matrix4(), _pu = new THREE.Vector3();
+function ingestPlanes(frame) {
+  const planes = frame.detectedPlanes; if (!planes || !planes.size) return;
+  let budget = 9000; planeN = planes.size;                       // 每次最多填幾格（手機效能）
+  for (const pl of planes) {
+    if (budget <= 0) break;
+    if (pl.orientation && pl.orientation !== 'horizontal') continue;
+    const seen = planeSeen.get(pl);
+    if (seen && seen.t === pl.lastChangedTime && performance.now() - seen.at < 2500) continue;   // 沒變就隔一陣子再補一次
+    let pose = null; try { pose = frame.getPose(pl.planeSpace, refSpace); } catch {}
+    if (!pose || !pl.polygon || pl.polygon.length < 3) continue;
+    const o = pose.transform.orientation; _pq.set(o.x, o.y, o.z, o.w);
+    if (_pu.set(0, 1, 0).applyQuaternion(_pq).y < 0.93) continue;   // 只要水平的（朝上）
+    const t = pose.transform.position; _pm.compose(_pv.set(t.x, t.y, t.z), _pq, _pu.set(1, 1, 1));
+    const poly = pl.polygon.map(q => _pv.set(q.x, q.y, q.z).applyMatrix4(_pm).clone());
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, y = 0;
+    for (const q of poly) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); y += q.y; }
+    y /= poly.length;
+    x0 = Math.max(x0, camPos.x - SCAN_R); x1 = Math.min(x1, camPos.x + SCAN_R); z0 = Math.max(z0, camPos.z - SCAN_R); z1 = Math.min(z1, camPos.z + SCAN_R);
+    if (Math.abs(y - camPos.y) > SCAN_R) continue;
+    for (let x = Math.ceil(x0 / CELL) * CELL; x <= x1; x += CELL) {
+      // 這一排跟多邊形的交點（掃描線填色）
+      const xs = [];
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.x > x) !== (b.x > x)) xs.push(a.z + (x - a.x) / (b.x - a.x) * (b.z - a.z));
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2)
+        for (let z = Math.ceil(Math.max(xs[k] + CELL * 0.5, z0) / CELL) * CELL; z <= Math.min(xs[k + 1] - CELL * 0.5, z1); z += CELL) {   // 邊緣往內縮半格，不要超出真的桌緣
+          field.add(x, y, z, 1.6, true, 0.012, false); budget--;   // 平面偵測很可靠，一次就算數
+        }
+    }
+    planeSeen.set(pl, { t: pl.lastChangedTime, at: performance.now() });
   }
 }
 
@@ -3588,14 +3715,16 @@ function loop(time, frame) {
         const di = readDepth(frame, v);
         if (di) {
           frameDI = di;
-          updateOcclusion(di, v); if (++depthFrame & 1) sampleDepth(frame, v, di);
+          if (++depthFrame & 1) sampleDepth(frame, v, di);
           if (active.length) detectHands(di);   // 手每一幀都檢查，反應才快
         }
       } else occMesh.visible = false;
-      if (camOn && active.length) visionHands(frame, v, frameDI, now);
+      if (camOn && active.length) { const t0 = VIS.detT; visionHands(frame, v, frameDI, now); if (VIS.detT === t0) predictHands(now); }
       handOcc.visible = occ.on && now - VIS.seenT < 220;
+      if (frameDI) updateOcclusion(frameDI, v);
       if (photoReq) { const r = photoReq; photoReq = null; let c = null; try { c = xrPhoto(v); } catch (e) { console.warn('photo', e); } r(c); }
     }
+    if (now - planeT > 300) { planeT = now; try { ingestPlanes(frame); } catch (e) { console.warn('planes', e); } }
     if (hitSource) {
       const res = frame.getHitTestResults(hitSource);
       if (res.length) {
@@ -3625,7 +3754,8 @@ function loop(time, frame) {
           reticle.material.color.set(horizontal ? 0x7dffb0 : 0xffffff);
           reticle.material.opacity = active.length ? 0.45 : 0.9;
           if (horizontal) {
-            if (hit) field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
+            if (hit && flat) { for (let ox = -2; ox <= 2; ox++) for (let oz = -2; oz <= 2; oz++) if (ox * ox + oz * oz <= 5) field.add(hitPos.x + ox * CELL, hitPos.y, hitPos.z + oz * CELL, 0.4, true, 0.015, false); }   // 平面偵測對準的地方：周圍 8 公分一起記
+            else if (hit) field.add(hitPos.x, hitPos.y, hitPos.z, 0.4, true);
             if (!sawPlane) { sawPlane = true; if (!active.length) hint(`對準桌面，按住 🎤 說「召喚${pets[0]?.name || ''}」，或按 ☰ →「召喚」`); }
           }
         }
@@ -3674,7 +3804,7 @@ function loop(time, frame) {
     if (k >= 1) goalMark.visible = false;
   }
   if (showMap && now - mapT > 300) { mapT = now; updateMapMesh(); }
-  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・深度：${depthState}・遮擋：${!occ.on ? '關' : occMesh.visible ? '開' : '等深度'}・地圖 ${field.cells.size} 格（半徑 ${SCAN_R} 公尺）・場上 ${active.length} 隻・手部辨識：${({ off: '關', loading: '載入中', on: VIS.hands.length ? `看到 ${VIS.hands.length} 隻手` : '開', fail: '失敗' })[VIS.state]}${camOn ? '' : '（沒有相機畫面）'}`;
+  if (mode === 'xr') dbgEl.textContent = `${fps} fps・對準：${hitKind}・深度：${depthState}・遮擋：${!occ.on ? '關' : occMesh.visible ? '開' : '等深度'}・地圖 ${field.cells.size} 格（半徑 ${SCAN_R} 公尺）・場上 ${active.length} 隻・手部辨識：${({ off: '關', loading: '載入中', on: (VIS.hands.length ? `看到 ${VIS.hands.length} 隻手` : '開') + (VIS.src === '外部' ? '（外部）' : ''), fail: '失敗' })[VIS.state]}${camOn ? '' : '（沒有相機畫面）'}`;
   if (mode !== 'none') renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(loop);
@@ -3899,20 +4029,34 @@ const pxCanvas = (px, W, H, c) => { c = c || document.createElement('canvas'); i
    深度感測對「突然伸進來、一直在動的手」反應很慢，所以另外用 AI 直接在畫面上找手：
    找到手的 21 個關節 → 用手的大小估計離手機多遠 → 在那裡放一隻看不見的「手」擋住寵物，
    倉鼠也可以站上去、被你拿起來。 */
-const VIS = { state: 'off', lm: null, hands: [], t: 0, seenT: 0, canvas: document.createElement('canvas') };
+const VIS = { state: 'off', lm: null, hands: [], t: 0, seenT: 0, detT: 0, boxes: [], canvas: document.createElement('canvas') };
 const MP_VER = '1.2.3';
+// 手部辨識的程式和模型放在自己網站的 vendor/ 資料夾裡，不用依賴外部網站；
+// 萬一自己網站那份拿不到（例如忘了上傳），才改從公開網站下載。
+const MP_SRC = [
+  { lib: new URL(`vendor/mediapipe-${MP_VER}/vision_bundle.mjs`, location.href).href,
+    wasm: new URL(`vendor/mediapipe-${MP_VER}/wasm`, location.href).href,
+    model: new URL(`vendor/mediapipe-${MP_VER}/hand_landmarker.task`, location.href).href, where: '本站' },
+  { lib: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`,
+    wasm: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`,
+    model: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', where: '外部' },
+];
 async function loadHandAI() {
   if (VIS.state !== 'off') return;
   VIS.state = 'loading';
   if (typeof globalThis.dbg !== 'function') globalThis.dbg = () => {};   // 某些版本的 MediaPipe 會呼叫這個除錯函式
-  try {
-    const mp = await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
-    const fs = await mp.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`);
-    const opt = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: d },
-      runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
-    try { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('GPU')); } catch { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('CPU')); }
-    VIS.state = 'on';
-  } catch (e) { console.warn('hand ai', e); VIS.state = 'fail'; }
+  for (const src of MP_SRC) {
+    try {
+      const mp = await import(src.lib);
+      const fs = await mp.FilesetResolver.forVisionTasks(src.wasm);
+      const opt = d => ({ baseOptions: { modelAssetPath: src.model, delegate: d },
+        runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+      try { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('GPU')); } catch { VIS.lm = await mp.HandLandmarker.createFromOptions(fs, opt('CPU')); }
+      VIS.src = src.where; VIS.state = 'on';
+      return;
+    } catch (e) { console.warn('hand ai (' + src.where + ')', e); }
+  }
+  VIS.state = 'fail';
 }
 const HAND_BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
 const SIZE_PAIRS = [[0,5],[0,9],[0,13],[0,17],[5,17],[5,9],[9,13],[13,17],[5,13],[9,17]];
@@ -3983,28 +4127,50 @@ function handLayer(h) {
   }
   return Math.max(0.3, k);
 }
+// 手指、手掌的粗細（公尺，參考成人的手）：以前每顆球再放大 12%，手的邊緣會胖一圈；現在照真實尺寸，只留 1 公釐誤差
+const HAND_R = { thumb: 0.0095, finger: 0.0085, tip: 0.0075, knuckle: 0.0105, palm: 0.0125 };
+const _hbx = new THREE.Vector3();
 function buildHandOcc(hands) {
   camView.copy(camWorld).invert();
-  let i = 0;
-  const put = (p, r) => { if (i >= HOCC_MAX) return; _hm.position.copy(p); _hm.scale.setScalar(r * 1.12); _hm.updateMatrix(); handOcc.setMatrixAt(i++, _hm.matrix); };
+  _hf.set(0, 0, -1).transformDirection(camWorld);
+  let i = 0; VIS.boxes = [];
+  const put = (p, r) => { if (i >= HOCC_MAX) return; _hm.position.copy(p); _hm.scale.setScalar(r + 0.001); _hm.updateMatrix(); handOcc.setMatrixAt(i++, _hm.matrix); };
   for (const h of hands) {
     const K = handLayer(h);
     const P = K < 1 ? h.pts.map(p => p.clone().sub(camPos).multiplyScalar(K).add(camPos)) : h.pts;
     const putK = (p, r) => put(p, r * K);                     // 拉近了，球也要等比例縮小，畫面上的大小才會一樣
     for (const [a, b] of HAND_BONES) {
-      const r = a <= 4 && b <= 4 ? 0.011 : (a === 0 || b === 0 || (a % 4 === 1 && b % 4 === 1)) ? 0.013 : 0.0095;
-      const n = Math.max(1, Math.ceil(P[a].distanceTo(P[b]) / (0.007 * K)));
-      for (let k = 0; k <= n; k++) putK(_hc.copy(P[a]).lerp(P[b], k / n), r);
+      const tip = b === 4 || b === 8 || b === 12 || b === 16 || b === 20;
+      const r0 = a <= 4 && b <= 4 ? HAND_R.thumb : (a === 0 || b === 0 || (a % 4 === 1 && b % 4 === 1)) ? HAND_R.knuckle : HAND_R.finger;
+      const r1 = tip ? HAND_R.tip : r0;                       // 指尖比較細
+      const n = Math.max(1, Math.ceil(P[a].distanceTo(P[b]) / (0.005 * K)));
+      for (let k = 0; k <= n; k++) putK(_hc.copy(P[a]).lerp(P[b], k / n), r0 + (r1 - r0) * k / n);
     }
-    for (let u = 0; u <= 1.001; u += 0.2) for (let v = 0.15; v <= 1.001; v += 0.2) putK(_hc.copy(P[5]).lerp(P[17], u).sub(P[0]).multiplyScalar(v).add(P[0]), 0.017);   // 手掌
+    // 手掌：在手腕和四個指根圍起來的範圍裡面填滿，邊緣往內縮一點，不會超出手掌
+    for (let u = 0.08; u <= 0.93; u += 0.17) for (let v = 0.18; v <= 0.9; v += 0.18) putK(_hc.copy(P[5]).lerp(P[17], u).sub(P[0]).multiplyScalar(v).add(P[0]), HAND_R.palm);
     _ha.copy(P[0]).sub(P[9]).normalize();                                                                                         // 手腕和手臂（往手指的反方向延伸）
-    for (let s = 0; s <= 0.32; s += 0.022) putK(_hc.copy(P[0]).addScaledVector(_ha, s * K), 0.024 + s * 0.03);
+    for (let s = 0; s <= 0.26; s += 0.012) putK(_hc.copy(P[0]).addScaledVector(_ha, s * K), 0.02 + s * 0.035);
+    // 給遮擋 shader 用：這隻手在畫面上的範圍（含手臂、外擴一點）和前後距離
+    let u0 = 9, u1 = -9, v0 = 9, v1 = -9, z0 = 9, z1 = 0;
+    const box = p => { _hbx.copy(p).applyMatrix4(camView).applyMatrix4(camProj); u0 = Math.min(u0, _hbx.x); u1 = Math.max(u1, _hbx.x); v0 = Math.min(v0, _hbx.y); v1 = Math.max(v1, _hbx.y);
+      const z = _hk.copy(p).sub(camPos).dot(_hf); z0 = Math.min(z0, z); z1 = Math.max(z1, z); };
+    for (const p of h.pts) box(p);
+    box(_hc.copy(h.pts[0]).addScaledVector(_ha.copy(h.pts[0]).sub(h.pts[9]).normalize(), 0.26));
+    const mx = (u1 - u0) * 0.12 + 0.03, my = (v1 - v0) * 0.12 + 0.03;
+    if (z0 > 0.05) VIS.boxes.push({ box: new THREE.Vector4(u0 - mx, u1 + mx, v0 - my, v1 + my), dep: new THREE.Vector2(z0, z1) });
   }
   handOcc.count = i; handOcc.instanceMatrix.needsUpdate = true;
 }
+// 手的 AI 一秒只跑 14～20 次，中間的畫面用手移動的速度往前推，手快速移動時遮擋才不會落後、拖出一圈
+function predictHands(now) {
+  if (!VIS.hands.length || !VIS.hands.some(h => h.vel)) return;
+  const k = Math.min(now - VIS.detT, 110) / 1000;
+  if (k <= 0.004) return;
+  buildHandOcc(VIS.hands.map(h => h.vel ? { ...h, pts: h.pts.map((p, i) => p.clone().addScaledVector(h.vel[i], k)) } : h));
+}
 function visionHands(frame, view, di, now) {
   if (VIS.state !== 'on' || !glBinding || !view.camera) return;
-  if (now - VIS.t < 70) return;                       // 一秒大約辨識 14 次（太慢的話，手移動時遮擋會跟不上）
+  if (now - VIS.t < (fps >= 45 ? 50 : 70)) return;    // 手機順的時候一秒辨識 20 次，比較吃力時 14 次（中間的畫面用速度往前推）
   VIS.t = now;
   let tex = null; try { tex = glBinding.getCameraImage(view.camera); } catch {}
   if (!tex) return;
@@ -4013,8 +4179,17 @@ function visionHands(frame, view, di, now) {
   try { pxCanvas(grabCam(tex, W, H), W, H, VIS.canvas); res = VIS.lm.detectForVideo(VIS.canvas, now); } catch (e) { console.warn('hand detect', e); return; }
   const hands = [];
   for (let n = 0; n < (res?.landmarks?.length || 0); n++) { const h = handWorld(res.landmarks[n], res.worldLandmarks[n], di); if (h) hands.push(h); }
-  VIS.hands = hands;
+  // 跟上一次比，算出每個關節移動的速度（找手掌最近的那隻當同一隻手）
+  const pdt = (now - VIS.detT) / 1000;
+  for (const h of hands) {
+    if (!(pdt > 0.02 && pdt < 0.25)) break;
+    let o = null, od = 0.12; for (const q of VIS.hands) { const dd = q.palm.distanceTo(h.palm); if (dd < od) { od = dd; o = q; } }
+    if (!o) continue;
+    h.vel = h.pts.map((p, i) => { const v = p.clone().sub(o.pts[i]).divideScalar(pdt); if (v.length() > 1.5) v.setLength(1.5); return o.vel ? v.lerp(o.vel[i], 0.35) : v; });
+  }
+  VIS.hands = hands; VIS.detT = now;
   if (hands.length) { VIS.seenT = now; buildHandOcc(hands); handPlay(hands, now); }
+  else VIS.boxes = [];
 }
 // 辨識到的手 → 摸寵物、親密互動、倉鼠站上來
 function handPlay(hands, now) {
@@ -4285,7 +4460,7 @@ initFirebase();
 if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
-window.__ar = { camera, active, VIS, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
+window.__ar = { camera, active, VIS, hopAhead, stepOf, ingestPlanes, predictHands, crossSurface, foods_: () => foods, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
   foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, owns, slotFree, slotTotal, renderShop, openEditor, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>

@@ -498,6 +498,8 @@ const STARVE_AFF  = 1;      // 飽食度 0% 以後，親密度每小時減少多
 const SHOP_MODE   = 'live';
 // 付款伺服器（Cloudflare Workers）的網址：Cloudflare 第一次自動部署完，把 Worker 頁面上的 https://….workers.dev 網址貼在這裡（結尾不要加 /）
 const PAY_API     = 'https://ar-pet-pay.wingfeeling.workers.dev';
+// 要不要用 Google Play 付款：還沒上架 Play 商店前維持 false，所有購買都走綠界；上架後改成 true
+const PLAY_BILLING = false;
 const PLAY_URL    = 'https://play.google.com/store/apps/details?id=io.github.wingfeeling.arpet';   // 上架後改成正式的商店網址
 
 const $ = id => document.getElementById(id);
@@ -686,7 +688,16 @@ async function checkFreeFood(cloudAt) {
    Google Play：付款 → 拿到付款憑證 → 交給伺服器跟 Google 確認 → 伺服器把東西加進帳號 → App 重新讀取
    綠界：伺服器建立訂單 → 跳到綠界付款頁 → 綠界通知伺服器付款成功 → 伺服器把東西加進帳號 → 回到 App 等訂單變成「已付款」
    ★ 加東西這一步只在伺服器做，手機不能自己加（firestore.rules 擋住了）。 */
-const inPlayApp = () => 'getDigitalGoodsService' in window;   // 從 Play 商店安裝的 App 裡才有
+// 只有「從 Play 商店安裝的 App」才算在 App 裡。手機版 Chrome 一般網頁也有 getDigitalGoodsService，不能只看它，
+// 要再看 App 開啟時帶來的 android-app:// 來源（記在這次瀏覽裡，換頁後還認得）
+const inPlayApp = (() => {
+  let twa = false;
+  try {
+    twa = document.referrer.startsWith('android-app://') || sessionStorage.getItem('arpet.twa') === '1';
+    if (twa) sessionStorage.setItem('arpet.twa', '1');
+  } catch {}
+  return () => PLAY_BILLING && twa && 'getDigitalGoodsService' in window;
+})();
 const Billing = {
   mode() { return SHOP_MODE === 'test' ? 'test' : inPlayApp() ? 'play' : 'web'; },
   async buy(prod) {

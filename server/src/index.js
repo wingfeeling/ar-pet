@@ -274,8 +274,8 @@ async function ecpayCreate(request, env, url) {
     OrderResultURL: origin + '/ecpay/result',                   // 付款完把使用者送回來
     ClientBackURL: siteUrl(env) + '?order=' + tradeNo,          // 付款頁上的「返回商店」
     ChoosePayment: 'ALL',
-    // 小額商品不開 ATM／超商（那些方式有固定手續費，而且要等使用者去繳費）；依你綠界後台實際開通的方式調整
-    IgnorePayment: amount < 100 ? 'ATM#CVS#BARCODE#WebATM' : 'BARCODE#WebATM',
+    // 小額商品只開信用卡（ATM／超商有比較高的固定手續費，而且要等使用者去繳費）；依你綠界後台實際開通的方式調整
+    IgnorePayment: amount < 600 ? 'ATM#CVS#BARCODE#WebATM' : 'CVS#BARCODE#WebATM',   // ATM 每筆最低 15 元手續費，600 元以下用信用卡比較省
     EncryptType: '1',
     CustomField1: uid.slice(0, 50),
     NeedExtraPaidInfo: 'N',
@@ -302,7 +302,11 @@ async function ecpayNotify(request, env) {
       if (o.status === 'paid') return {};                        // 綠界可能重送通知：已經處理過就不要再加一次
       const info = { ecpayTradeNo: b.TradeNo || '', paymentType: b.PaymentType || '', rtnCode: String(b.RtnCode), rtnMsg: b.RtnMsg || '' };
       const upd = (status, more = []) => patchWrite(env, `orders/${no}`, { ...info, status }, { times: ['notifiedAt', ...more] });
-      if (!paid) return { writes: [upd(o.status === 'pending' ? 'pending' : o.status)] };   // 例如 ATM 取號通知，還沒付錢
+      if (!paid) {
+        // ATM／超商取號成功（RtnCode 2／10100073）＝還沒付錢，繼續等；其他代碼＝這次付款失敗（例如信用卡 3D 驗證沒過），沒有扣款
+        const waiting = ['2', '10100073'].includes(String(b.RtnCode));
+        return { writes: [upd(o.status !== 'pending' ? o.status : waiting ? 'pending' : 'failed')] };
+      }
       if (Number(b.TradeAmt) !== o.amount) return { writes: [upd('amount_mismatch')] };
       if (simulated && isProd(env)) return { writes: [upd('simulated')] };
       const p = productOf(o.productId);

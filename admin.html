@@ -43,7 +43,7 @@
   td.n{text-align:right;font-variant-numeric:tabular-nums}
   td .mono{font-family:ui-monospace,Menlo,monospace;font-size:.82rem}
   .st{font-weight:700}
-  .st.paid{color:var(--ok)} .st.pending{color:var(--mute)} .st.bad{color:var(--bad)}
+  .st.paid{color:var(--ok)} .st.pending{color:var(--mute)} .st.fail{color:#b7791f} .st.bad{color:var(--bad)}
   .who{background:none;border:0;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media (max-width:720px){.grid2{grid-template-columns:1fr}}
@@ -96,7 +96,7 @@
     <h2>訂單</h2>
     <div class="bar">
       <select id="fMode"><option value="cur">目前環境的訂單</option><option value="all">全部（含測試）</option></select>
-      <select id="fStatus"><option value="">全部狀態</option><option value="paid">已付款</option><option value="pending">待付款</option><option value="bad">異常</option></select>
+      <select id="fStatus"><option value="">全部狀態</option><option value="paid">已付款</option><option value="pending">待付款</option><option value="failed">付款失敗</option><option value="bad">異常</option></select>
       <button id="reload" class="ghost">重新整理</button>
       <span class="muted" id="ordersNote"></span>
     </div>
@@ -138,10 +138,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const money = n => 'NT$' + Math.round(n || 0).toLocaleString('zh-TW');
 const twDate = iso => iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 const twDay = iso => iso ? new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString().slice(0, 10) : '';
-const STATUS = { paid: ['已付款', 'paid'], pending: ['待付款', 'pending'], amount_mismatch: ['金額不符', 'bad'], simulated: ['模擬付款（不出貨）', 'bad'], unknown_product: ['商品不存在', 'bad'] };
+const STATUS = { paid: ['已付款', 'paid'], pending: ['待付款', 'pending'], failed: ['付款失敗・沒有扣款', 'fail'], amount_mismatch: ['金額不符', 'bad'], simulated: ['模擬付款（不出貨）', 'bad'], unknown_product: ['商品不存在', 'bad'] };
 const PAYTYPE = t => !t ? '' : /^Credit/.test(t) ? '信用卡' : /^ATM/.test(t) ? 'ATM' : /^CVS/.test(t) ? '超商代碼' : /^BARCODE/.test(t) ? '超商條碼' : /^TWQR|^ApplePay|^Google/.test(t) ? t : t;
 
 let fb, data = null;
+// 舊版伺服器把付款失敗的訂單留在「待付款」：有綠界回傳的失敗代碼（不是 ATM／超商取號）就當成付款失敗
+const normOrders = os => { for (const o of os || []) if (o.status === 'pending' && o.rtnCode && o.rtnCode !== '1' && !['2', '10100073'].includes(o.rtnCode)) o.status = 'failed'; };
 function gate(msg, { login = false, logout = false } = {}) {
   $('app').hidden = true; $('gate').hidden = false;
   $('gateMsg').innerHTML = msg; $('login').hidden = !login; $('logout1').hidden = !logout;
@@ -158,6 +160,7 @@ async function load() {
   $('reload').disabled = true;
   try {
     data = await api('summary');
+    normOrders(data.orders);
     $('gate').hidden = true; $('app').hidden = false;
     $('modeBadge').innerHTML = data.mode === 'production' ? '<span class="badge production">正式收款</span>' : '<span class="badge stage">綠界測試環境・不會真的扣款</span>';
     renderTiles(); renderOrders(); loadTickets();
@@ -205,7 +208,7 @@ async function findUser() {
   const q = $('q').value.trim(); if (!q) return;
   const box = $('userBox'); box.innerHTML = '<p class="muted">查詢中…</p>';
   try {
-    const d = await api('user', q.includes('@') ? { email: q } : { uid: q });
+    const d = await api('user', q.includes('@') ? { email: q } : { uid: q }); normOrders(d.orders);
     const u = d.user, c = d.checkin;
     const paid = d.orders.filter(o => o.status === 'paid');
     box.innerHTML = `<div class="grid2">

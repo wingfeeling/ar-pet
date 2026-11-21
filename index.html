@@ -146,6 +146,40 @@
   /* 說明視窗（AR 裡用） */
   #helpModal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.45);padding:calc(18px + env(safe-area-inset-top)) 12px 18px}
   #helpModal.show{display:block}
+  /* 💬 客服・🌠 許願池 */
+  .helpline{display:flex;gap:10px;margin:-4px 0 14px}
+  .helpline button{flex:1;position:relative;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:11px 8px;font-size:.98rem;font-weight:700;color:var(--ink);cursor:pointer}
+  .helpline button .nd,.tk .nd{display:none;position:absolute;top:-6px;right:-4px;background:var(--bad);color:#fff;border-radius:999px;font-size:.72rem;padding:1px 7px;font-weight:700}
+  .helpline button .nd.on,.tk .nd.on{display:inline-block}
+  .tkintro{background:#fff3e6;border:1px solid #f3d6b6;border-radius:14px;padding:12px 14px;font-size:.95rem}
+  .tkintro .pn{display:block;margin-top:6px;font-size:.84rem;color:var(--mute)}
+  textarea.tkta{width:100%;min-height:120px;font:inherit;font-size:1rem;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none;resize:vertical}
+  textarea.tkta:focus,.tkprice input:focus{border-color:var(--accent)}
+  .tkcount{text-align:right;font-size:.78rem;color:var(--mute)}
+  .tkprice{display:flex;align-items:center;gap:8px}
+  .tkprice span{font-weight:700}
+  .tkprice input{width:9em;font-size:1.05rem;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+  .tkimgs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .tkimgs .im{position:relative;width:84px;height:84px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f6eee5}
+  .tkimgs .im img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+  .tkimgs .im button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:24px;padding:0;cursor:pointer}
+  .tkimgs .im.ph{display:grid;place-items:center;font-size:.75rem;color:var(--mute);cursor:pointer;text-align:center;padding:4px}
+  .tk{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0}
+  .tk .hd{display:flex;justify-content:space-between;gap:8px;font-size:.8rem;color:var(--mute)}
+  .tk .stt{font-weight:700;border-radius:999px;padding:0 9px}
+  .tk .stt.open{background:#f3ebe2;color:var(--mute)} .tk .stt.replied{background:#e1f6e8;color:#14603a} .tk .stt.closed{background:#eee;color:#666}
+  .tk .tx{white-space:pre-wrap;word-break:break-word;margin:6px 0 4px}
+  .tk .pr{font-size:.88rem;color:var(--accent2);font-weight:700}
+  .tk .msg{white-space:pre-wrap;word-break:break-word;border-radius:12px;padding:8px 12px;margin:8px 0 0;font-size:.94rem}
+  .tk .msg small{display:block;font-size:.74rem;color:var(--mute);margin-bottom:2px}
+  .tk .msg.admin{background:#fff1e3;border-left:4px solid var(--accent)}
+  .tk .msg.user{background:#f7f3ee;margin-left:18px}
+  .tk .fu{display:flex;gap:6px;margin-top:8px}
+  .tk .fu input{flex:1;min-width:0;font-size:.95rem;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+  .tk .fu button{border:0;border-radius:10px;padding:8px 12px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer}
+  #imgView{display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:16px}
+  #imgView.show{display:flex}
+  #imgView img{max-width:100%;max-height:100%;border-radius:8px}
   #buyModal{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);padding:calc(40px + env(safe-area-inset-top)) 14px 20px;overflow:auto}
   #buyModal.show{display:block}
   #buyModal .box{background:var(--bg);color:var(--ink);border-radius:18px;max-width:440px;margin:0 auto;padding:18px 20px 20px;line-height:1.65;font-size:15px;box-shadow:0 18px 50px rgba(0,0,0,.25)}
@@ -235,6 +269,7 @@
   <div class="card checkin" id="checkinCard"></div>
 
   <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><span class="foodbtns"><button class="mini" id="toFood">＋ 買飼料</button><button class="mini ghost" id="toShop">🛒 商店</button></span><span class="freefood" id="freeFood"></span><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
+  <div class="helpline"><button id="toBug">💬 客服・錯誤回報<span class="nd" id="ndBug">新回覆</span></button><button id="toWish">🌠 許願池<span class="nd" id="ndWish">新回覆</span></button></div>
 
   <h2>我的寵物</h2>
   <div class="slotline" id="slotLine"></div>
@@ -425,6 +460,35 @@
     </div>
   </div>
 </section>
+
+<!-- ============ 客服（錯誤回報）・許願池（同一個畫面，換文字） ============ -->
+<section id="tkScr" class="screen">
+  <div class="topbar"><button class="link" id="tkBack">← 返回</button><span></span></div>
+  <h1 style="margin-top:10px" id="tkTitle"></h1>
+  <div class="tkintro" id="tkIntro"></div>
+  <div id="tkLogin" style="display:none"><p>要先登入，才能送出訊息，也才看得到開發者的回覆。</p><button class="big primary" id="tkLoginBtn">登入</button></div>
+  <div id="tkForm">
+    <label for="tkText" id="tkTextLbl"></label>
+    <textarea id="tkText" class="tkta" maxlength="2000"></textarea>
+    <div class="tkcount" id="tkCount">0 / 2000</div>
+    <div id="tkPriceBox">
+      <label for="tkPrice">如果這個願望實現，您會想花多少錢購買這項服務？</label>
+      <div class="tkprice"><span>NT$</span><input id="tkPrice" type="number" inputmode="numeric" min="0" max="100000" step="1" placeholder="例如 30"></div>
+      <p class="note" style="margin:4px 0 0">可以不填；填 0 代表免費才會用。這只是讓開發者參考，不會向您收費。</p>
+    </div>
+    <div id="tkShotBox">
+      <span class="lbl">錯誤畫面的截圖（最多 3 張，可以不附）</span>
+      <div class="tkimgs" id="tkImgs"></div>
+      <label class="filebtn" style="margin:0">📎 附上截圖<input type="file" id="tkFile" accept="image/*" multiple></label>
+      <p class="note" style="margin:6px 0 0">會一併送出手機型號和瀏覽器版本，方便查問題。</p>
+    </div>
+    <button class="big primary" id="tkSend">送出</button>
+    <div class="err" id="tkErr"></div>
+  </div>
+  <h2 id="tkHistTitle"></h2>
+  <div id="tkList"></div>
+</section>
+<div id="imgView"><img alt="截圖"></div>
 
 <!-- ============ 帳號與資料 ============ -->
 <section id="acctScr" class="screen">
@@ -753,6 +817,140 @@ async function doCheckin() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && account && checkin) doCheckin(); });   // 開著 App 過了午夜
 renderCheckin();
 
+/* ================= 客服（錯誤回報）和許願池 =================
+   兩個功能共用同一個畫面 tkScr，只換文字。訊息送到付款伺服器（server/src/index.js 的 support），存在 Firestore 的 tickets；
+   截圖先在手機上縮小、壓成 JPG，再一起送出（ticketImages）。經營者在 admin.html 的「留言板」看和回覆。 */
+const TK = {
+  bug: { title: '💬 客服・錯誤回報', intro: '遇到問題、畫面怪怪的，或付款沒收到東西，都可以在這裡告訴開發者。寫得越詳細（在哪個畫面、按了什麼、發生什麼事），越快找到原因。',
+         label: '請描述遇到的問題', ph: '例如：在 AR 畫面按「召喚」之後，寵物沒有出現，畫面一直轉圈…', hist: '我送出的回報', empty: '還沒有送出過回報。' },
+  wish: { title: '🌠 許願池', intro: '請寫下您的願望，開發者會盡力完成。',
+          label: '您的願望', ph: '例如：希望可以幫寵物換衣服、加一隻兔子…', hist: '我許過的願望', empty: '還沒有許過願望。' },
+};
+const TK_NOTE = '備註：網站為個人開發，如願望太多，回覆較慢請您見諒。';
+let tkType = 'bug', tickets = null, tkImgs = [], tkBusy = false;
+const tkEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tkTime = iso => iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const TK_ST = { open: ['等待回覆', 'open'], replied: ['開發者已回覆', 'replied'], closed: ['已結案', 'closed'] };
+function renderTkDots() {
+  for (const [t, id] of [['bug', 'ndBug'], ['wish', 'ndWish']]) $(id).classList.toggle('on', !!tickets?.some(k => k.type === t && k.userUnread));
+}
+async function loadTickets() {
+  if (!account || !fb) { tickets = null; renderTkDots(); return; }
+  const uidNow = account.uid;
+  try { const r = await payApi('/support/mine', {}); if (account?.uid !== uidNow) return; tickets = r.tickets; }
+  catch (e) { console.warn('tickets', e); if (account?.uid === uidNow && !tickets) tickets = null; throw e; }
+  finally { renderTkDots(); }
+}
+function openTickets(type) {
+  tkType = type; const c = TK[type];
+  $('tkTitle').textContent = c.title;
+  $('tkIntro').innerHTML = tkEsc(c.intro) + (type === 'wish' ? `<span class="pn">${tkEsc(TK_NOTE)}</span>` : '');
+  $('tkTextLbl').textContent = c.label; $('tkText').placeholder = c.ph; $('tkHistTitle').textContent = c.hist;
+  $('tkPriceBox').style.display = type === 'wish' ? '' : 'none';
+  $('tkShotBox').style.display = type === 'bug' ? '' : 'none';
+  $('tkSend').textContent = type === 'wish' ? '🌠 送出願望' : '送出回報';
+  $('tkErr').textContent = '';
+  show('tkScr'); renderTkScr();
+  if (account) loadTickets().then(renderTkScr, e => { if (!tickets) $('tkList').innerHTML = `<p class="err">讀不到之前的訊息（${tkEsc(e.message)}）</p>`; });
+}
+function renderTkScr() {
+  if (!$('tkScr').classList.contains('show')) return;
+  $('tkLogin').style.display = account ? 'none' : '';
+  $('tkForm').style.display = account ? '' : 'none';
+  $('tkCount').textContent = $('tkText').value.length + ' / 2000';
+  $('tkImgs').innerHTML = tkImgs.map((d, i) => `<div class="im"><img src="${d}" alt="截圖 ${i + 1}" data-full="${i}"><button data-rm="${i}" aria-label="移除">×</button></div>`).join('');
+  for (const b of $('tkImgs').querySelectorAll('[data-rm]')) b.onclick = () => { tkImgs.splice(+b.dataset.rm, 1); renderTkScr(); };
+  for (const im of $('tkImgs').querySelectorAll('img')) im.onclick = () => viewImg(im.src);
+  $('tkFile').parentElement.style.display = tkImgs.length >= 3 ? 'none' : '';
+  const list = $('tkList');
+  if (!account) { list.innerHTML = '<p class="note">登入後就會看到你送出過的訊息和開發者的回覆。</p>'; return; }
+  if (!tickets) { list.innerHTML = '<p class="note">讀取中…</p>'; return; }
+  const mine = tickets.filter(t => t.type === tkType);
+  if (!mine.length) { list.innerHTML = `<p class="note">${TK[tkType].empty}</p>`; return; }
+  list.innerHTML = mine.map(t => {
+    const [lab, cls] = TK_ST[t.status] || TK_ST.open;
+    const shots = t.imageCount ? `<div class="tkimgs">${Array.from({ length: t.imageCount }, (_, n) => `<div class="im ph" data-tk="${tkEsc(t.id)}" data-n="${n}">截圖 ${n + 1}<br>載入中…</div>`).join('')}</div>` : '';
+    const thread = (t.thread || []).map(m => `<div class="msg ${m.by === 'admin' ? 'admin' : 'user'}"><small>${m.by === 'admin' ? '🧑‍💻 開發者回覆' : '我補充'}・${tkTime(m.at)}</small>${tkEsc(m.text)}</div>`).join('');
+    const fu = t.status === 'closed' ? '<p class="note" style="margin:8px 0 0">這則已經結案。有新的問題請重新送出一則。</p>'
+      : `<div class="fu"><input maxlength="1000" placeholder="補充說明…" data-fu="${tkEsc(t.id)}"><button data-fub="${tkEsc(t.id)}">送出</button></div>`;
+    return `<div class="tk"><span class="nd${t.userUnread ? ' on' : ''}">新回覆</span><div class="hd"><span>${tkTime(t.createdAt)}</span><span class="stt ${cls}">${lab}</span></div>
+      <div class="tx">${tkEsc(t.text)}</div>${t.type === 'wish' && t.price != null ? `<div class="pr">願意花 NT$${tkEsc(t.price)}</div>` : ''}${shots}${thread}${fu}</div>`;
+  }).join('');
+  for (const ph of list.querySelectorAll('.im.ph')) loadShot(ph);
+  for (const b of list.querySelectorAll('[data-fub]')) b.onclick = () => followUp(b.dataset.fub, b);
+  for (const i of list.querySelectorAll('[data-fu]')) i.onkeydown = e => { if (e.key === 'Enter') followUp(i.dataset.fu, list.querySelector(`[data-fub="${i.dataset.fu}"]`)); };
+  // 看到開發者的回覆了 → 拿掉紅點
+  const unread = mine.filter(t => t.userUnread).map(t => t.id);
+  if (unread.length) payApi('/support/read', { ids: unread }).then(() => { for (const t of tickets || []) if (unread.includes(t.id)) t.userUnread = false; renderTkDots(); }).catch(() => {});
+}
+const shotCache = new Map();
+async function loadShot(el) {
+  const key = el.dataset.tk + '_' + el.dataset.n;
+  try {
+    let d = shotCache.get(key);
+    if (!d) { d = (await payApi('/support/image', { id: el.dataset.tk, n: +el.dataset.n })).data; shotCache.set(key, d); }
+    el.className = 'im'; el.innerHTML = ''; const im = document.createElement('img'); im.src = d; im.alt = '截圖'; im.onclick = () => viewImg(d); el.append(im);
+  } catch { el.innerHTML = '截圖<br>讀取失敗'; }
+}
+function viewImg(src) { const v = $('imgView'); v.querySelector('img').src = src; v.classList.add('show'); }
+$('imgView').onclick = () => $('imgView').classList.remove('show');
+async function followUp(id, btn) {
+  const inp = $('tkList').querySelector(`[data-fu="${id}"]`), text = inp?.value.trim();
+  if (!text || btn.disabled) return;
+  btn.disabled = true;
+  try { await payApi('/support/followup', { id, text }); await loadTickets(); renderTkScr(); }
+  catch (e) { btn.disabled = false; alert('送出失敗：' + e.message); }
+}
+// 截圖：最長邊縮到 1280px、壓成 JPG，太大就再縮（伺服器每張上限約 650KB）
+function shrinkImage(file) {
+  return new Promise((ok, bad) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      for (const [side, q] of [[1280, .72], [1080, .6], [860, .55], [640, .5]]) {
+        const k = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        const d = c.toDataURL('image/jpeg', q);
+        if (d.length < 880000) return ok(d);
+      }
+      bad(new Error('圖片太大'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('不是圖片檔')); };
+    img.src = url;
+  });
+}
+$('tkFile').onchange = async e => {
+  const files = [...e.target.files].slice(0, 3 - tkImgs.length); e.target.value = '';
+  $('tkErr').textContent = '';
+  for (const f of files) {
+    try { tkImgs.push(await shrinkImage(f)); } catch (err) { $('tkErr').textContent = `「${f.name}」沒辦法附上：${err.message}`; }
+  }
+  renderTkScr();
+};
+$('tkText').oninput = () => { $('tkCount').textContent = $('tkText').value.length + ' / 2000'; };
+$('tkSend').onclick = async () => {
+  if (tkBusy) return;
+  const text = $('tkText').value.trim(), err = $('tkErr');
+  if (text.length < 2) { err.textContent = tkType === 'wish' ? '請寫下你的願望' : '請描述遇到的問題'; $('tkText').focus(); return; }
+  const pv = $('tkPrice').value.trim();
+  if (tkType === 'wish' && pv && !(+pv >= 0 && +pv <= 100000)) { err.textContent = '金額請填 0～100000 之間的數字'; return; }
+  tkBusy = true; $('tkSend').disabled = true; err.textContent = ''; $('tkSend').textContent = '送出中…';
+  const device = `${navigator.userAgent}・螢幕 ${screen.width}×${screen.height}・${Billing.mode()}`.slice(0, 300);
+  try {
+    await payApi('/support/create', { type: tkType, text, price: tkType === 'wish' && pv ? Math.round(+pv) : null, images: tkType === 'bug' ? tkImgs : [], device });
+    $('tkText').value = ''; $('tkPrice').value = ''; tkImgs = [];
+    await loadTickets().catch(() => {});
+    renderTkScr();
+    err.innerHTML = `<span style="color:var(--ok)">✅ 已送出！${tkType === 'wish' ? '謝謝你的願望，' : ''}開發者回覆後，會顯示在下面。</span>`;
+  } catch (e) { err.textContent = '送出失敗：' + e.message; }
+  finally { tkBusy = false; $('tkSend').disabled = false; $('tkSend').textContent = tkType === 'wish' ? '🌠 送出願望' : '送出回報'; }
+};
+$('toBug').onclick = () => openTickets('bug');
+$('toWish').onclick = () => openTickets('wish');
+$('tkBack').onclick = () => { renderHome(); show('homeScr'); };
+$('tkLoginBtn').onclick = () => { $('loginErr').textContent = ''; afterLogin = 'tkScr'; show('loginScr'); };
+
 /* ================= 商店 =================
    付款這一步做成可以替換的：'test' 測試・'play' Google Play（App）・'web' 綠界 ECPay（網頁版）。付款伺服器放在 Cloudflare Workers（server 資料夾）。
    Google Play：付款 → 拿到付款憑證 → 交給伺服器跟 Google 確認 → 伺服器把東西加進帳號 → App 重新讀取
@@ -1025,12 +1223,12 @@ async function initFirebase() {
 async function onAuth(u) {
   if (!u) {
     account = null; pets = markFixed(readLocal(LS_GUEST) || oldVersionPets() || defaultPets());
-    loadFoodLocal(); loadTestShop(); cloudOwned = []; cloudSlots = 0; checkin = null;
+    loadFoodLocal(); loadTestShop(); cloudOwned = []; cloudSlots = 0; checkin = null; tickets = null; tkImgs = []; renderTkDots();
     renderHome(); checkFreeFood(); renderCheckin(); return;
   }
   account = { uid: u.uid, name: u.displayName || u.email || '我', email: u.email || '', photo: u.photoURL || '' };
   const cached = readLocal(lsKey());
-  loadFoodLocal(); loadTestShop(); freeAt = 0; checkin = null; renderCheckin();
+  loadFoodLocal(); loadTestShop(); freeAt = 0; checkin = null; renderCheckin(); tickets = null; renderTkDots();
   if (cached) { pets = markFixed(cached); renderHome(); }
   syncNote('☁️ 讀取雲端資料中…');
   try {
@@ -1054,10 +1252,11 @@ async function onAuth(u) {
     renderHome();
     checkFreeFood(data?.freeFoodAt?.toMillis?.() || 0);
     doCheckin();
+    loadTickets().catch(() => {});
     if (Billing.mode() === 'web') setTimeout(watchReturnedOrder, 0);   // 剛從綠界付款頁回來
   } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = markFixed(readLocal(LS_GUEST) || defaultPets()); }
   renderHome();
-  if ($('loginScr').classList.contains('show')) { if (afterLogin === 'shopScr') renderShop(); show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); afterLogin = 'homeScr'; }
+  if ($('loginScr').classList.contains('show')) { if (afterLogin === 'shopScr') renderShop(); show(afterLogin); if (afterLogin === 'acctScr') renderAcct(); if (afterLogin === 'tkScr') openTickets(tkType); afterLogin = 'homeScr'; }
 }
 let deleting = false;
 function cloudSave() {
@@ -1216,6 +1415,7 @@ $('delAccount').onclick = async () => {
   delMsg('刪除中…'); deleting = true; clearTimeout(cloudTimer);
   const uidNow = u.uid, ids = pets.map(p => p.id);
   try {
+    await payApi('/support/deleteMine', {}).catch(e => console.warn('deleteMine', e));   // 客服和許願池的訊息、截圖
     await fb.fs.deleteDoc(fb.fs.doc(fb.db, 'users', uidNow));   // 雲端資料
     await fb.au.deleteUser(u);                                     // 登入帳號
   } catch (e) { deleting = false; delMsg('刪除失敗：' + (e.code || e.message) + '。請稍後再試一次。'); return; }
@@ -4562,7 +4762,7 @@ initFirebase();
 if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
-window.__ar = { askBuyConsent, setCheckin_: (v, acc) => { checkin = v; if (acc !== undefined) account = acc; renderCheckin(); }, payMode_: m => { payMode = m; }, camera, active, VIS, hopAhead, stepOf, ingestPlanes, predictHands, crossSurface, foods_: () => foods, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
+window.__ar = { askBuyConsent, setFb_: v => { fb = v; }, openTickets, setCheckin_: (v, acc) => { checkin = v; if (acc !== undefined) account = acc; renderCheckin(); }, payMode_: m => { payMode = m; }, camera, active, VIS, hopAhead, stepOf, ingestPlanes, predictHands, crossSurface, foods_: () => foods, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
   foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, owns, slotFree, slotTotal, renderShop, openEditor, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>

@@ -10,6 +10,7 @@
      POST /play/verify    Google Play App：向 Google 確認購買 → 把東西加進帳號
      POST /daily/checkin  每日簽到：連續第 3 天送 5 包、第 7 天送 10 包（7 天一輪，斷掉就從第 1 天重來）
      GET  /status         商店用：現在是綠界測試環境還是正式收款
+     POST /support/*      客服（錯誤回報＋截圖）和許願池：玩家送出訊息、看自己的紀錄和開發者的回覆
      POST /admin/*        經營者管理後台（admin.html）：只有 ADMIN_EMAILS 裡的 Google 帳號能用
      GET  /               健康檢查，打開看到 ok 就代表部署成功
 
@@ -37,6 +38,7 @@ export default {
       if (path === '/play/verify' && request.method === 'POST') return json(await playVerify(request, env), 200, cors);
       if (path === '/status' && request.method === 'GET') return json({ mode: isProd(env) ? 'production' : 'stage', checkin: CHECKIN }, 200, cors);
       if (path === '/daily/checkin' && request.method === 'POST') return json(await dailyCheckin(request, env), 200, cors);
+      if (path.startsWith('/support/') && request.method === 'POST') return json(await support(path.slice(9), request, env), 200, cors);
       if (path.startsWith('/admin/') && request.method === 'POST') return json(await admin(path.slice(7), request, env), 200, cors);
       if (path === '/ecpay/notify' && request.method === 'POST') return await ecpayNotify(request, env);
       if (path === '/ecpay/result') return await ecpayResult(request, env, url);
@@ -388,6 +390,108 @@ async function dailyCheckin(request, env) {
   });
 }
 
+/* ---------- 7. 客服（錯誤回報）和許願池 ----------
+   每一則訊息存在 tickets/{id}：type 'bug' 錯誤回報・'wish' 許願池；thread 是之後的來回對話（玩家補充、開發者回覆）。
+   截圖另外存在 ticketImages/{id}_{n}（每張是壓縮過的 JPG，放在 Firestore，不用開 Firebase 付費的儲存空間）。
+   這兩個集合手機讀不到也改不了（firestore.rules 沒開放），只有這裡能讀寫；玩家只拿得到自己的訊息。 */
+export const SUPPORT = { maxText: 2000, maxReply: 1000, maxImages: 3, maxImageChars: 900000, perDay: 10, maxThread: 40 };
+const TICKET_TYPES = ['bug', 'wish'];
+const cleanText = (s, max) => String(s ?? '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max);
+const IMG_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
+const ticketIdOk = id => /^T[\w-]{6,40}$/.test(String(id || ''));
+// 給前端看的樣子（不含截圖本體）
+const ticketOut = t => ({ id: t.id, type: t.type, text: t.text, price: t.price ?? null, imageCount: t.imageCount || 0, status: t.status,
+  thread: t.thread || [], userUnread: !!t.userUnread, createdAt: t.createdAt, updatedAt: t.updatedAt });
+async function myTicket(env, uid, id) {
+  if (!ticketIdOk(id)) throw new ApiError(400, 'invalid-argument', '找不到這則訊息');
+  const t = await getDoc(env, `tickets/${id}`);
+  if (!t || t.uid !== uid) throw new ApiError(404, 'not-found', '找不到這則訊息');
+  return { id, ...t };
+}
+async function getImage(env, id, n) {
+  n = Math.floor(Number(n));
+  if (!ticketIdOk(id) || !(n >= 0 && n < SUPPORT.maxImages)) throw new ApiError(400, 'invalid-argument', '找不到這張截圖');
+  const img = await getDoc(env, `ticketImages/${id}_${n}`);
+  if (!img) throw new ApiError(404, 'not-found', '找不到這張截圖');
+  return img;
+}
+async function support(action, request, env) {
+  const claims = await requireClaims(request, env), uid = claims.sub;
+  const body = await readJson(request).catch(() => ({})) || {};
+  if (action === 'create') {
+    const type = String(body.type || '');
+    if (!TICKET_TYPES.includes(type)) throw new ApiError(400, 'invalid-argument', '訊息種類不對');
+    const text = cleanText(body.text, SUPPORT.maxText);
+    if (text.length < 2) throw new ApiError(400, 'invalid-argument', type === 'wish' ? '請寫下你的願望' : '請描述遇到的問題');
+    let price = null;
+    if (type === 'wish' && body.price !== null && body.price !== undefined && body.price !== '') {
+      price = Math.round(Number(body.price));
+      if (!(price >= 0 && price <= 100000)) throw new ApiError(400, 'invalid-argument', '金額請填 0～100000 之間的數字');
+    }
+    const images = type === 'bug' && Array.isArray(body.images) ? body.images : [];
+    if (images.length > SUPPORT.maxImages) throw new ApiError(400, 'invalid-argument', `截圖最多 ${SUPPORT.maxImages} 張`);
+    for (const im of images)
+      if (typeof im !== 'string' || im.length > SUPPORT.maxImageChars || !IMG_RE.test(im)) throw new ApiError(400, 'invalid-argument', '截圖格式不對或太大，請換一張');
+    // 防洗版：每人 24 小時內最多送 SUPPORT.perDay 則
+    const mine = await query(env, { from: [{ collectionId: 'tickets' }], where: fieldEq('uid', uid), limit: 300 });
+    const since = Date.now() - 86400e3;
+    if (mine.filter(t => Date.parse(t.createdAt) > since).length >= SUPPORT.perDay)
+      throw new ApiError(429, 'too-many', `24 小時內最多送出 ${SUPPORT.perDay} 則訊息，請明天再試，或在之前的訊息裡補充`);
+    const id = 'T' + twDay().replace(/-/g, '') + '-' + hex(crypto.getRandomValues(new Uint8Array(5)));
+    const t = { uid, email: String(claims.email || '').toLowerCase().slice(0, 200), name: cleanText(claims.name, 60), type, text, price,
+      device: cleanText(body.device, 300), imageCount: images.length, status: 'open', thread: [], userUnread: false, adminUnread: true };
+    await fs(env, 'POST', docBase(env) + ':commit', { writes: [
+      patchWrite(env, `tickets/${id}`, t, { times: ['createdAt', 'updatedAt'], precondition: { exists: false } }),
+      ...images.map((data, n) => patchWrite(env, `ticketImages/${id}_${n}`, { ticketId: id, uid, n, data }, { times: ['createdAt'] })),
+    ] });
+    return { ok: true, id };
+  }
+  if (action === 'mine') {
+    const rows = await query(env, { from: [{ collectionId: 'tickets' }], where: fieldEq('uid', uid), limit: 200 });
+    return { tickets: rows.map(ticketOut).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) };
+  }
+  if (action === 'image') {
+    const img = await getImage(env, body.id, body.n);
+    if (img.uid !== uid) throw new ApiError(404, 'not-found', '找不到這張截圖');
+    return { data: img.data };
+  }
+  if (action === 'followup') {   // 玩家在自己的訊息下面補充
+    const text = cleanText(body.text, SUPPORT.maxReply);
+    if (text.length < 1) throw new ApiError(400, 'invalid-argument', '請輸入內容');
+    if (!ticketIdOk(body.id)) throw new ApiError(404, 'not-found', '找不到這則訊息');
+    return runTx(env, async tx => {
+      const t = await getDoc(env, `tickets/${body.id}`, tx);
+      if (!t || t.uid !== uid) throw new ApiError(404, 'not-found', '找不到這則訊息');
+      if (t.status === 'closed') throw new ApiError(400, 'closed', '這則訊息已經結案了，有新的問題請重新送出一則');
+      const thread = t.thread || [];
+      if (thread.length >= SUPPORT.maxThread) throw new ApiError(400, 'too-long', '這則訊息的對話太長了，請重新送出一則');
+      thread.push({ by: 'user', text, at: new Date().toISOString() });
+      return { result: { ok: true }, writes: [patchWrite(env, `tickets/${body.id}`, { thread, status: 'open', adminUnread: true }, { times: ['updatedAt'] })] };
+    });
+  }
+  if (action === 'read') {        // 玩家看過開發者的回覆了 → 拿掉「新回覆」紅點
+    const ids = (Array.isArray(body.ids) ? body.ids : []).slice(0, 50).filter(ticketIdOk);
+    const writes = [];
+    for (const id of ids) {
+      const t = await getDoc(env, `tickets/${id}`);
+      if (t && t.uid === uid && t.userUnread) writes.push(patchWrite(env, `tickets/${id}`, { userUnread: false }));
+    }
+    if (writes.length) await fs(env, 'POST', docBase(env) + ':commit', { writes });
+    return { ok: true, n: writes.length };
+  }
+  if (action === 'deleteMine') {  // 刪除帳號時一起刪掉自己的訊息和截圖
+    const rows = await query(env, { from: [{ collectionId: 'tickets' }], where: fieldEq('uid', uid), limit: 300 });
+    const del = [];
+    for (const t of rows) {
+      del.push({ delete: docName(env, `tickets/${t.id}`) });
+      for (let n = 0; n < (t.imageCount || 0); n++) del.push({ delete: docName(env, `ticketImages/${t.id}_${n}`) });
+    }
+    for (let i = 0; i < del.length; i += 400) await fs(env, 'POST', docBase(env) + ':commit', { writes: del.slice(i, i + 400) });
+    return { ok: true, n: rows.length };
+  }
+  throw new ApiError(404, 'not-found', '沒有這個功能');
+}
+
 /* ---------- 6. 經營者管理後台（admin.html） ----------
    只有 ADMIN_EMAILS（Cloudflare 祕密）裡的 Google 帳號、而且 Email 已驗證，才能呼叫。 */
 async function requireAdmin(request, env) {
@@ -413,19 +517,21 @@ async function admin(action, request, env) {
   const body = await readJson(request).catch(() => ({})) || {};
   if (action === 'summary') {
     const today = twDay();
-    const [orders, users, checkinsToday] = await Promise.all([
+    const [orders, users, checkinsToday, ticketsUnread] = await Promise.all([
       query(env, { from: [{ collectionId: 'orders' }], orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 300 }),
       countOf(env, { from: [{ collectionId: 'users' }] }),
       countOf(env, { from: [{ collectionId: 'checkins' }], where: fieldEq('lastDay', today) }),
+      countOf(env, { from: [{ collectionId: 'tickets' }], where: fieldEq('adminUnread', true) }),
     ]);
-    return { me: me.email, mode: isProd(env) ? 'production' : 'stage', today, users, checkinsToday, orders };
+    return { me: me.email, mode: isProd(env) ? 'production' : 'stage', today, users, checkinsToday, ticketsUnread, orders };
   }
   if (action === 'user') {
     let uid = String(body.uid || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     if (!uid && email) {
       const hit = (await query(env, { from: [{ collectionId: 'checkins' }], where: fieldEq('email', email), limit: 1 }))[0]
-        || (await query(env, { from: [{ collectionId: 'orders' }], where: fieldEq('email', email), limit: 1 }))[0];
+        || (await query(env, { from: [{ collectionId: 'orders' }], where: fieldEq('email', email), limit: 1 }))[0]
+        || (await query(env, { from: [{ collectionId: 'tickets' }], where: fieldEq('email', email), limit: 1 }))[0];
       if (!hit) throw new ApiError(404, 'not-found', '找不到這個 Email。玩家要在這次更新後登入過（每日簽到）或買過東西，才查得到 Email');
       uid = hit.uid;
     }
@@ -449,6 +555,37 @@ async function admin(action, request, env) {
       patchWrite(env, `adminLog/${logId}`, { by: me.email, action: 'grant_food', uid, food: n, note }, { times: ['at'] }),
     ] });
     return { ok: true };
+  }
+  if (action === 'tickets') {      // 留言板：錯誤回報＋許願池，最近有動靜的排前面
+    const rows = await query(env, { from: [{ collectionId: 'tickets' }], orderBy: [{ field: { fieldPath: 'updatedAt' }, direction: 'DESCENDING' }], limit: 500 });
+    return { tickets: rows.map(t => ({ ...ticketOut(t), uid: t.uid, email: t.email, name: t.name, device: t.device, adminUnread: !!t.adminUnread })) };
+  }
+  if (action === 'ticketImage') {
+    const img = await getImage(env, body.id, body.n);
+    return { data: img.data };
+  }
+  if (action === 'ticketSeen') {
+    if (!ticketIdOk(body.id)) throw new ApiError(400, 'invalid-argument', '找不到這則訊息');
+    if (!await getDoc(env, `tickets/${body.id}`)) throw new ApiError(404, 'not-found', '找不到這則訊息');
+    await fs(env, 'POST', docBase(env) + ':commit', { writes: [patchWrite(env, `tickets/${body.id}`, { adminUnread: false })] });
+    return { ok: true };
+  }
+  if (action === 'reply' || action === 'ticketStatus') {
+    const text = action === 'reply' ? cleanText(body.text, SUPPORT.maxReply) : '';
+    if (action === 'reply' && !text) throw new ApiError(400, 'invalid-argument', '請輸入回覆內容');
+    const status = action === 'reply' ? (body.close ? 'closed' : 'replied') : String(body.status || '');
+    if (!['open', 'replied', 'closed'].includes(status)) throw new ApiError(400, 'invalid-argument', '狀態不對');
+    if (!ticketIdOk(body.id)) throw new ApiError(400, 'invalid-argument', '找不到這則訊息');
+    return runTx(env, async tx => {
+      const t = await getDoc(env, `tickets/${body.id}`, tx);
+      if (!t) throw new ApiError(404, 'not-found', '找不到這則訊息');
+      const f = { status, adminUnread: false };
+      if (text) { f.thread = [...(t.thread || []), { by: 'admin', text, at: new Date().toISOString() }]; f.userUnread = true; }
+      return { result: { ok: true }, writes: [
+        patchWrite(env, `tickets/${body.id}`, f, { times: ['updatedAt'] }),
+        patchWrite(env, `adminLog/L${Date.now()}${hex(crypto.getRandomValues(new Uint8Array(3)))}`, { by: me.email, action: text ? 'reply' : 'ticket_' + status, ticket: body.id, uid: t.uid }, { times: ['at'] }),
+      ] };
+    });
   }
   throw new ApiError(404, 'not-found', '沒有這個功能');
 }

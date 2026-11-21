@@ -51,6 +51,29 @@
   dt{color:var(--mute)} dd{margin:0;font-weight:600;word-break:break-all}
   .err{color:var(--bad);font-weight:600}
   .okmsg{color:var(--ok);font-weight:600}
+  /* 留言板 */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tabs .cnt{display:inline-block;min-width:1.4em;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--bad);color:#fff;font-size:.75rem}
+  .tks{display:grid;gap:10px}
+  .tkc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+  .tkc.unread{border-left:5px solid var(--bad)}
+  .tkc .hd{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:.84rem;color:var(--mute)}
+  .tkc .hd b{color:var(--ink)}
+  .tkc .tx{white-space:pre-wrap;word-break:break-word;margin:8px 0 4px;font-size:.98rem}
+  .tkc .pr{display:inline-block;font-weight:800;color:var(--accent);margin-top:2px}
+  .tkc .dev{font-size:.76rem;color:var(--mute);word-break:break-all;margin-top:4px}
+  .tkc .msg{white-space:pre-wrap;word-break:break-word;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:.92rem;background:var(--bg)}
+  .tkc .msg.admin{border-left:4px solid var(--accent)}
+  .tkc .msg small{display:block;font-size:.74rem;color:var(--mute)}
+  .tkc textarea{width:100%;min-height:70px;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-top:10px;resize:vertical}
+  .shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .shots a{display:block;width:110px;height:110px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
+  .shots img{width:100%;height:100%;object-fit:cover}
+  .shots span{display:grid;place-items:center;width:110px;height:110px;border-radius:10px;border:1px dashed var(--line);font-size:.8rem;color:var(--mute)}
+  .stt{font-weight:700;border-radius:999px;padding:0 9px;font-size:.8rem}
+  .stt.open{background:#fdeee0;color:#9a4a10} .stt.replied{background:#e1f6e8;color:#14603a} .stt.closed{background:#eee;color:#555}
   #app[hidden],#gate[hidden]{display:none}
 </style>
 </head>
@@ -81,6 +104,15 @@
       <thead><tr><th>建立時間</th><th>訂單編號</th><th>商品</th><th>金額</th><th>狀態</th><th>付款方式</th><th>玩家</th><th>環境</th></tr></thead>
       <tbody id="orders"></tbody>
     </table></div>
+
+    <h2>留言板 <span class="muted" style="font-weight:400">玩家的錯誤回報和許願</span></h2>
+    <div class="bar">
+      <div class="tabs" id="tkTabs"><button data-t="bug" class="on">💬 錯誤回報</button><button data-t="wish">🌠 許願池</button></div>
+      <select id="tkF"><option value="todo">待處理（沒回覆或玩家有補充）</option><option value="">全部</option><option value="replied">已回覆</option><option value="closed">已結案</option></select>
+      <button id="tkReload" class="ghost">重新整理</button>
+      <span class="muted" id="tkNote"></span>
+    </div>
+    <div class="tks" id="tks"><p class="muted">讀取中…</p></div>
 
     <h2>查玩家・補發飼料</h2>
     <div class="card">
@@ -128,7 +160,7 @@ async function load() {
     data = await api('summary');
     $('gate').hidden = true; $('app').hidden = false;
     $('modeBadge').innerHTML = data.mode === 'production' ? '<span class="badge production">正式收款</span>' : '<span class="badge stage">綠界測試環境・不會真的扣款</span>';
-    renderTiles(); renderOrders();
+    renderTiles(); renderOrders(); loadTickets();
   } catch (e) {
     if (e.status === 403) gate('🔒 ' + esc(e.message), { logout: true });
     else gate('⚠️ 讀取失敗：' + esc(e.message), { logout: true });
@@ -148,6 +180,7 @@ function renderTiles() {
     ['玩家總數', data.users.toLocaleString('zh-TW'), '有雲端帳號的玩家'],
     ['今天簽到', data.checkinsToday.toLocaleString('zh-TW'), data.users ? '約 ' + Math.round(data.checkinsToday / data.users * 100) + '% 的玩家' : ''],
     ['待付款', os.filter(o => o.status === 'pending').length, '建立訂單但還沒付'],
+    ['未讀留言', data.ticketsUnread ?? 0, '錯誤回報和許願池'],
   ];
   $('tiles').innerHTML = t.map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
   $('ordersNote').textContent = data.mode === 'stage' && $('fMode').value === 'cur' ? '現在是測試環境，這裡列的都是測試訂單' : '';
@@ -204,6 +237,75 @@ async function findUser() {
     };
   } catch (e) { box.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; }
 }
+
+/* ---------- 留言板：錯誤回報＋許願池 ---------- */
+let tks = [], tkTab = 'bug';
+const ST = { open: '等待回覆', replied: '已回覆', closed: '已結案' };
+async function loadTickets() {
+  $('tkReload').disabled = true;
+  try { tks = (await api('tickets')).tickets; renderTickets(); }
+  catch (e) { $('tks').innerHTML = '<p class="err">' + esc(e.message) + '</p>'; }
+  finally { $('tkReload').disabled = false; }
+}
+function renderTickets() {
+  for (const b of $('tkTabs').children) {
+    const n = tks.filter(t => t.type === b.dataset.t && t.status === 'open').length;
+    b.classList.toggle('on', b.dataset.t === tkTab);
+    b.innerHTML = (b.dataset.t === 'bug' ? '💬 錯誤回報' : '🌠 許願池') + (n ? `<span class="cnt">${n}</span>` : '');
+  }
+  const f = $('tkF').value;
+  const list = tks.filter(t => t.type === tkTab && (!f || (f === 'todo' ? t.status === 'open' : t.status === f)));
+  const wishes = tks.filter(t => t.type === 'wish' && t.price != null);
+  $('tkNote').textContent = tkTab === 'wish' && wishes.length ? `${wishes.length} 個願望有填金額，平均 NT$${Math.round(wishes.reduce((a, t) => a + t.price, 0) / wishes.length)}` : '';
+  $('tks').innerHTML = list.length ? list.map(t => {
+    const shots = t.imageCount ? `<div class="shots">${Array.from({ length: t.imageCount }, (_, n) => `<span data-img="${esc(t.id)}" data-n="${n}">截圖 ${n + 1} 載入中…</span>`).join('')}</div>` : '';
+    const thread = (t.thread || []).map(m => `<div class="msg ${m.by}"><small>${m.by === 'admin' ? '我回覆' : '玩家補充'}・${esc(twDate(m.at))}</small>${esc(m.text)}</div>`).join('');
+    return `<div class="tkc${t.adminUnread ? ' unread' : ''}" data-id="${esc(t.id)}">
+      <div class="hd"><span class="stt ${esc(t.status)}">${esc(ST[t.status] || t.status)}</span><b>${esc(t.name || '')}</b>
+        <button class="who" data-uid="${esc(t.uid)}">${esc(t.email || t.uid.slice(0, 10) + '…')}</button><span>${esc(twDate(t.createdAt))}</span>${t.adminUnread ? '<b style="color:var(--bad)">● 新</b>' : ''}</div>
+      <div class="tx">${esc(t.text)}</div>
+      ${t.type === 'wish' ? `<div class="pr">${t.price != null ? '願意花 NT$' + esc(t.price) : '沒有填金額'}</div>` : ''}
+      ${shots}${t.device ? `<div class="dev">📱 ${esc(t.device)}</div>` : ''}${thread}
+      <textarea placeholder="回覆給玩家（玩家打開${t.type === 'wish' ? '許願池' : '客服'}就會看到）" maxlength="1000"></textarea>
+      <div class="bar" style="margin:8px 0 0">
+        <button data-act="reply">回覆</button><button data-act="replyClose" class="ghost">回覆並結案</button>
+        ${t.status === 'closed' ? '<button data-act="open" class="ghost">重新開啟</button>' : '<button data-act="close" class="ghost">直接結案</button>'}
+        ${t.adminUnread ? '<button data-act="seen" class="ghost">標示為已讀</button>' : ''}
+        <span class="m"></span>
+      </div></div>`;
+  }).join('') : `<p class="muted">${f === 'todo' ? '沒有待處理的訊息 🎉' : '沒有訊息'}</p>`;
+  for (const el of $('tks').querySelectorAll('[data-img]')) loadShot(el);
+  for (const b of $('tks').querySelectorAll('.who')) b.onclick = () => { $('q').value = b.dataset.uid; findUser(); $('userBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  for (const b of $('tks').querySelectorAll('[data-act]')) b.onclick = () => ticketAct(b.closest('.tkc'), b.dataset.act, b);
+}
+const shots = new Map();
+async function loadShot(el) {
+  const key = el.dataset.img + '_' + el.dataset.n;
+  try {
+    let d = shots.get(key);
+    if (!d) { d = (await api('ticketImage', { id: el.dataset.img, n: +el.dataset.n })).data; shots.set(key, d); }
+    const a = document.createElement('a'); a.href = '#'; a.title = '點一下看大圖';
+    a.onclick = e => { e.preventDefault(); const w = open(); if (w) { w.document.title = '截圖'; w.document.body.style.cssText = 'margin:0;background:#111;display:grid;place-items:center;min-height:100vh'; const im = w.document.createElement('img'); im.src = d; im.style.maxWidth = '100%'; w.document.body.append(im); } };
+    const im = document.createElement('img'); im.src = d; im.alt = '截圖'; a.append(im); el.replaceWith(a);
+  } catch (e) { el.textContent = '截圖讀取失敗'; }
+}
+async function ticketAct(card, act, btn) {
+  const id = card.dataset.id, ta = card.querySelector('textarea'), m = card.querySelector('.m');
+  const text = ta.value.trim();
+  if ((act === 'reply' || act === 'replyClose') && !text) { m.innerHTML = '<span class="err">請先輸入回覆內容</span>'; ta.focus(); return; }
+  for (const b of card.querySelectorAll('button[data-act]')) b.disabled = true;
+  try {
+    if (act === 'reply' || act === 'replyClose') await api('reply', { id, text, close: act === 'replyClose' });
+    else if (act === 'seen') await api('ticketSeen', { id });
+    else await api('ticketStatus', { id, status: act === 'open' ? 'open' : 'closed' });
+    await loadTickets();
+    if (data) { data.ticketsUnread = tks.filter(t => t.adminUnread).length; renderTiles(); }
+  } catch (e) { m.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; for (const b of card.querySelectorAll('button[data-act]')) b.disabled = false; }
+}
+for (const b of $('tkTabs').children) b.onclick = () => { tkTab = b.dataset.t; renderTickets(); };
+$('tkF').onchange = renderTickets;
+$('tkReload').onclick = loadTickets;
+
 $('find').onclick = findUser;
 $('q').onkeydown = e => { if (e.key === 'Enter') findUser(); };
 

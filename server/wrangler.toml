@@ -18,6 +18,7 @@ PLAY_PACKAGE = "io.github.wingfeeling.arpet"
 
 # 祕密不要寫在這裡！到 Cloudflare 主控台 → Workers & Pages → ar-pet-pay → 設定 → 變數和祕密 → 新增，類型選「祕密」：
 #   ECPAY_MERCHANT_ID、ECPAY_HASH_KEY、ECPAY_HASH_IV、GOOGLE_SERVICE_ACCOUNT（整份服務帳戶金鑰 JSON 的內容）
+#   ADMIN_EMAILS：經營者後台（admin.html）可以登入的 Google 帳號 Email，多個用逗號分開，例如 you@gmail.com
 # 祕密存在 Cloudflare 上，自動部署不會清掉它們。
 
 [observability]

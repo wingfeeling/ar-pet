@@ -8,13 +8,17 @@
      POST /ecpay/notify   綠界付款成功後「伺服器對伺服器」通知這裡 → 驗證 → 把東西加進帳號
      POST /ecpay/result   付款完，使用者的瀏覽器被綠界送回這裡 → 轉回 App
      POST /play/verify    Google Play App：向 Google 確認購買 → 把東西加進帳號
+     POST /daily/checkin  每日簽到：連續第 3 天送 5 包、第 7 天送 10 包（7 天一輪，斷掉就從第 1 天重來）
+     GET  /status         商店用：現在是綠界測試環境還是正式收款
+     POST /admin/*        經營者管理後台（admin.html）：只有 ADMIN_EMAILS 裡的 Google 帳號能用
      GET  /               健康檢查，打開看到 ok 就代表部署成功
 
    ★ 價格一律以 js/catalog.js 為準（部署時直接打包進來），不相信手機傳來的金額。
    ★ 只有這裡可以加飼料、空位、寵物；firestore.rules 已經禁止手機自己改這些欄位。
 
    設定（wrangler.toml 的 [vars]）：FIREBASE_PROJECT_ID、SITE_URL、ALLOWED_ORIGINS、ECPAY_MODE、PLAY_PACKAGE
-   祕密（Cloudflare 主控台 → ar-pet-pay → 設定 → 變數和祕密，類型選「祕密」）：ECPAY_MERCHANT_ID、ECPAY_HASH_KEY、ECPAY_HASH_IV、GOOGLE_SERVICE_ACCOUNT
+   祕密（Cloudflare 主控台 → ar-pet-pay → 設定 → 變數和祕密，類型選「祕密」）：ECPAY_MERCHANT_ID、ECPAY_HASH_KEY、ECPAY_HASH_IV、GOOGLE_SERVICE_ACCOUNT、
+         ADMIN_EMAILS（管理後台可以登入的 Google 帳號 Email，多個用逗號分開）
    ================================================================ */
 import { PRODUCTS } from '../../js/catalog.js';
 
@@ -31,6 +35,9 @@ export default {
       if (path === '/' && request.method === 'GET') return text('ok　AR 寵物付款伺服器（' + (isProd(env) ? '正式收款' : '綠界測試環境') + '）');
       if (path === '/ecpay/create' && request.method === 'POST') return json(await ecpayCreate(request, env, url), 200, cors);
       if (path === '/play/verify' && request.method === 'POST') return json(await playVerify(request, env), 200, cors);
+      if (path === '/status' && request.method === 'GET') return json({ mode: isProd(env) ? 'production' : 'stage', checkin: CHECKIN }, 200, cors);
+      if (path === '/daily/checkin' && request.method === 'POST') return json(await dailyCheckin(request, env), 200, cors);
+      if (path.startsWith('/admin/') && request.method === 'POST') return json(await admin(path.slice(7), request, env), 200, cors);
       if (path === '/ecpay/notify' && request.method === 'POST') return await ecpayNotify(request, env);
       if (path === '/ecpay/result') return await ecpayResult(request, env, url);
       return text('not found', 404);
@@ -54,7 +61,7 @@ function corsHeaders(request, env) {
   const origin = request.headers.get('origin') || '';
   const allow = (env.ALLOWED_ORIGINS || 'https://wingfeeling.github.io').split(',').map(s => s.trim()).filter(Boolean);
   if (!allow.includes(origin)) return {};
-  return { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'POST, OPTIONS',
+  return { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS',
            'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '86400', vary: 'origin' };
 }
 async function readJson(request) {
@@ -85,7 +92,8 @@ async function googleKeys() {
   jwks = (await r.json()).keys; jwksExp = Date.now() + age * 1000;
   return jwks;
 }
-async function requireUser(request, env) {
+async function requireUser(request, env) { return (await requireClaims(request, env)).sub; }
+async function requireClaims(request, env) {
   const m = (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i);
   if (!m) throw new ApiError(401, 'unauthenticated', '請先登入');
   const parts = m[1].split('.');
@@ -101,7 +109,7 @@ async function requireUser(request, env) {
   if (!good || claims.aud !== pid || claims.iss !== 'https://securetoken.google.com/' + pid
       || !(claims.exp > now) || !(claims.iat < now + 300) || typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 128)
     throw new ApiError(401, 'unauthenticated', '登入已過期，請重新登入');
-  return claims.sub;
+  return claims;
 }
 
 /* ---------------- 服務帳戶 → Google 存取權杖（Firestore、Google Play 共用） ---------------- */
@@ -147,6 +155,7 @@ function toVal(v) {
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toVal) } };
+  if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
   return { stringValue: String(v) };
 }
 function fromVal(v) {
@@ -236,7 +245,7 @@ function ecpayKeys(env) {
 
 /* ---------- 1. 建立訂單（App 呼叫） ---------- */
 async function ecpayCreate(request, env, url) {
-  const uid = await requireUser(request, env);
+  const claims = await requireClaims(request, env), uid = claims.sub;
   const data = await readJson(request);
   const p = productOf(data?.productId);
   if (!p) throw new ApiError(404, 'not-found', '沒有這個商品');
@@ -247,7 +256,7 @@ async function ecpayCreate(request, env, url) {
   const tradeNo = newTradeNo();
   const amount = Math.round(p.price);
   await fs(env, 'POST', docBase(env) + ':commit', { writes: [patchWrite(env, `orders/${tradeNo}`, {
-    uid, productId: p.id, kind: p.kind, amount, label: p.label, status: 'pending', provider: 'ecpay', mode: isProd(env) ? 'production' : 'stage',
+    uid, email: String(claims.email || '').toLowerCase().slice(0, 200), productId: p.id, kind: p.kind, amount, label: p.label, status: 'pending', provider: 'ecpay', mode: isProd(env) ? 'production' : 'stage',
   }, { times: ['createdAt'], precondition: { exists: false } })] });
 
   const origin = url.origin;
@@ -345,4 +354,101 @@ async function playVerify(request, env) {
     else if (data.acknowledgementState !== 1) await fetch(api + ':acknowledge', { method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: '{}' });
   } catch (e) { console.warn('play consume/ack', e.message); }
   return { ok: true, fresh };
+}
+
+/* ---------- 5. 每日簽到 ----------
+   一天＝台灣時間 00:00～23:59。昨天有簽到 → 連續天數 +1；隔了一天以上 → 從第 1 天重來。
+   7 天一輪：每一輪的第 3 天送 5 包、第 7 天送 10 包，第 8 天又是新一輪的第 1 天。
+   簽到紀錄存在 checkins/{uid}，手機讀不到也改不了（firestore.rules 沒開放這個集合），只有這裡能改。 */
+export const CHECKIN = { cycle: 7, rewards: { 3: 5, 7: 10 } };
+const twDay = (ms = Date.now()) => new Date(ms + 8 * 3600e3).toISOString().slice(0, 10);   // 'YYYY-MM-DD'
+const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400e3);
+export function nextStreak(last, streak, today) {
+  if (last === today) return { streak: streak || 1, already: true };
+  return { streak: last && dayDiff(last, today) === 1 ? (streak || 0) + 1 : 1, already: false };
+}
+export const cycleDay = streak => ((streak - 1) % CHECKIN.cycle) + 1;
+async function dailyCheckin(request, env) {
+  const claims = await requireClaims(request, env), uid = claims.sub;
+  const today = twDay();
+  return runTx(env, async tx => {
+    const c = await getDoc(env, `checkins/${uid}`, tx) || {};
+    const u = await getDoc(env, `users/${uid}`, tx) || {};
+    const { streak, already } = nextStreak(c.lastDay, c.streak, today);
+    const day = cycleDay(streak), reward = already ? 0 : (CHECKIN.rewards[day] || 0);
+    const food = (typeof u.food === 'number' ? u.food : 0) + reward;
+    const result = { today, streak, day, reward, already, food: typeof u.food === 'number' || reward ? food : null, ...CHECKIN };
+    if (already) return { result };
+    const writes = [patchWrite(env, `checkins/${uid}`, {
+      uid, email: String(claims.email || '').toLowerCase().slice(0, 200), lastDay: today, streak,
+      best: Math.max(c.best || 0, streak), total: (c.total || 0) + 1, foodGiven: (c.foodGiven || 0) + reward,
+    }, { times: ['updatedAt'] })];
+    if (reward) writes.push(patchWrite(env, `users/${uid}`, {}, { transforms: [{ fieldPath: 'food', increment: { integerValue: String(reward) } }] }));
+    return { result, writes };
+  });
+}
+
+/* ---------- 6. 經營者管理後台（admin.html） ----------
+   只有 ADMIN_EMAILS（Cloudflare 祕密）裡的 Google 帳號、而且 Email 已驗證，才能呼叫。 */
+async function requireAdmin(request, env) {
+  const claims = await requireClaims(request, env);
+  const list = String(env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  if (!list.length) throw new ApiError(403, 'no-admin', '還沒設定管理員：請到 Cloudflare 的 ar-pet-pay 新增祕密 ADMIN_EMAILS，填你的 Google 帳號 Email');
+  const email = String(claims.email || '').toLowerCase();
+  if (!email || claims.email_verified !== true || !list.includes(email)) throw new ApiError(403, 'forbidden', '這個帳號沒有管理權限');
+  return claims;
+}
+const docId = d => d.name.split('/').pop();
+async function query(env, q) {
+  const rows = await fs(env, 'POST', docBase(env) + ':runQuery', { structuredQuery: q });
+  return rows.filter(r => r.document).map(r => ({ id: docId(r.document), ...fromFields(r.document.fields) }));
+}
+async function countOf(env, q) {
+  const r = await fs(env, 'POST', docBase(env) + ':runAggregationQuery', { structuredAggregationQuery: { structuredQuery: q, aggregations: [{ alias: 'n', count: {} }] } });
+  return Number(r?.[0]?.result?.aggregateFields?.n?.integerValue || 0);
+}
+const fieldEq = (f, v) => ({ fieldFilter: { field: { fieldPath: f }, op: 'EQUAL', value: toVal(v) } });
+async function admin(action, request, env) {
+  const me = await requireAdmin(request, env);
+  const body = await readJson(request).catch(() => ({})) || {};
+  if (action === 'summary') {
+    const today = twDay();
+    const [orders, users, checkinsToday] = await Promise.all([
+      query(env, { from: [{ collectionId: 'orders' }], orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 300 }),
+      countOf(env, { from: [{ collectionId: 'users' }] }),
+      countOf(env, { from: [{ collectionId: 'checkins' }], where: fieldEq('lastDay', today) }),
+    ]);
+    return { me: me.email, mode: isProd(env) ? 'production' : 'stage', today, users, checkinsToday, orders };
+  }
+  if (action === 'user') {
+    let uid = String(body.uid || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!uid && email) {
+      const hit = (await query(env, { from: [{ collectionId: 'checkins' }], where: fieldEq('email', email), limit: 1 }))[0]
+        || (await query(env, { from: [{ collectionId: 'orders' }], where: fieldEq('email', email), limit: 1 }))[0];
+      if (!hit) throw new ApiError(404, 'not-found', '找不到這個 Email。玩家要在這次更新後登入過（每日簽到）或買過東西，才查得到 Email');
+      uid = hit.uid;
+    }
+    if (!/^[\w-]{1,128}$/.test(uid)) throw new ApiError(400, 'invalid-argument', '請輸入玩家 ID 或 Email');
+    const [user, checkin, orders] = await Promise.all([
+      getDoc(env, `users/${uid}`), getDoc(env, `checkins/${uid}`),
+      query(env, { from: [{ collectionId: 'orders' }], where: fieldEq('uid', uid), limit: 100 }),
+    ]);
+    if (!user) throw new ApiError(404, 'not-found', '找不到這個玩家');
+    return { uid, user: { food: user.food, slots: user.slots || 0, owned: user.owned || [], pets: (user.pets || []).length, freeFoodAt: user.freeFoodAt || null, lastPurchaseAt: user.lastPurchaseAt || null },
+             checkin, orders: orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) };
+  }
+  if (action === 'grant') {
+    const uid = String(body.uid || ''), n = Math.round(Number(body.food));
+    const note = String(body.note || '').slice(0, 200);
+    if (!/^[\w-]{1,128}$/.test(uid) || !(n >= 1 && n <= 1000)) throw new ApiError(400, 'invalid-argument', '飼料數量要在 1～1000 之間');
+    if (!await getDoc(env, `users/${uid}`)) throw new ApiError(404, 'not-found', '找不到這個玩家');
+    const logId = 'G' + Date.now() + hex(crypto.getRandomValues(new Uint8Array(3)));
+    await fs(env, 'POST', docBase(env) + ':commit', { writes: [
+      patchWrite(env, `users/${uid}`, {}, { transforms: [{ fieldPath: 'food', increment: { integerValue: String(n) } }] }),
+      patchWrite(env, `adminLog/${logId}`, { by: me.email, action: 'grant_food', uid, food: n, note }, { times: ['at'] }),
+    ] });
+    return { ok: true };
+  }
+  throw new ApiError(404, 'not-found', '沒有這個功能');
 }

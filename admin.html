@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#2b2118">
+<title>經營者後台｜AR 寵物召喚</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<!-- 經營者管理後台：只有 Cloudflare 祕密 ADMIN_EMAILS 裡的 Google 帳號能看到資料。
+     權限是在付款伺服器（server/src/index.js 的 requireAdmin）檢查的，這個頁面本身被別人打開也拿不到任何資料。 -->
+<script src="js/config.js"></script>
+<style>
+  :root{--accent:#e0832f;--ink:#2b2118;--bg:#f7f1ea;--card:#fff;--line:#eadccb;--mute:#7a5d43;--ok:#1f8a4c;--bad:#c0392b;--stage:#1d64a8}
+  @media (prefers-color-scheme:dark){:root{--ink:#f3e9df;--bg:#17130f;--card:#241e18;--line:#3e3328;--mute:#bba48c;--ok:#52c27e;--bad:#ff7a6b;--stage:#7ab8f0}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Noto Sans TC","PingFang TC",system-ui,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:22px 16px 70px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{font-size:1.45rem;margin:0}
+  h2{font-size:1.08rem;margin:28px 0 10px}
+  a{color:var(--accent)}
+  .badge{display:inline-block;border-radius:999px;padding:3px 12px;font-size:.85rem;font-weight:700;vertical-align:3px;margin-left:8px}
+  .badge.stage{background:#e3f0fc;color:#164a7a}
+  .badge.production{background:#e1f6e8;color:#14603a}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .muted{color:var(--mute);font-size:.88rem}
+  button{font:inherit;border:0;border-radius:10px;padding:9px 16px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+  input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 11px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .tile .k{font-size:.82rem;color:var(--mute)}
+  .tile .v{font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.3}
+  .tile .s{font-size:.78rem;color:var(--mute)}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:760px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:.78rem;color:var(--mute);font-weight:600;position:sticky;top:0;background:var(--card)}
+  tr:last-child td{border-bottom:0}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  td .mono{font-family:ui-monospace,Menlo,monospace;font-size:.82rem}
+  .st{font-weight:700}
+  .st.paid{color:var(--ok)} .st.pending{color:var(--mute)} .st.bad{color:var(--bad)}
+  .who{background:none;border:0;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr}}
+  dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0}
+  dt{color:var(--mute)} dd{margin:0;font-weight:600;word-break:break-all}
+  .err{color:var(--bad);font-weight:600}
+  .okmsg{color:var(--ok);font-weight:600}
+  #app[hidden],#gate[hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🐾 經營者後台 <span id="modeBadge"></span></h1>
+    <div id="who" class="muted"></div>
+  </header>
+
+  <section id="gate" class="card" style="margin-top:18px">
+    <p id="gateMsg">載入中…</p>
+    <div class="bar"><button id="login" hidden>用 Google 帳號登入</button><button id="logout1" class="ghost" hidden>換一個帳號</button></div>
+    <p class="muted">只有你設定為管理員的 Google 帳號能看到資料。<a href="./">← 回到遊戲</a></p>
+  </section>
+
+  <div id="app" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <h2>訂單</h2>
+    <div class="bar">
+      <select id="fMode"><option value="cur">目前環境的訂單</option><option value="all">全部（含測試）</option></select>
+      <select id="fStatus"><option value="">全部狀態</option><option value="paid">已付款</option><option value="pending">待付款</option><option value="bad">異常</option></select>
+      <button id="reload" class="ghost">重新整理</button>
+      <span class="muted" id="ordersNote"></span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>建立時間</th><th>訂單編號</th><th>商品</th><th>金額</th><th>狀態</th><th>付款方式</th><th>玩家</th><th>環境</th></tr></thead>
+      <tbody id="orders"></tbody>
+    </table></div>
+
+    <h2>查玩家・補發飼料</h2>
+    <div class="card">
+      <div class="bar">
+        <input id="q" placeholder="玩家 Email 或玩家 ID" style="flex:1;min-width:220px">
+        <button id="find">查詢</button>
+      </div>
+      <p class="muted" style="margin:0">Email 查詢：玩家要在這次更新後登入過（每日簽到），或買過東西，才查得到。點上面訂單的「玩家」也可以直接查。</p>
+      <div id="userBox" style="margin-top:14px"></div>
+    </div>
+
+    <p class="muted" style="margin-top:28px">
+      切換正式收款：在 GitHub 把 <code>server/wrangler.toml</code> 的 <code>ECPAY_MODE</code> 改成 <code>"production"</code>，
+      並把 Cloudflare 祕密換成綠界正式的商店代號和金鑰。上面的標籤會從「測試環境」變成「正式收款」。
+    </p>
+  </div>
+</main>
+
+<script type="module">
+const PAY_API = 'https://ar-pet-pay.wingfeeling.workers.dev';   // 和 index.html 的 PAY_API 一樣
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => 'NT$' + Math.round(n || 0).toLocaleString('zh-TW');
+const twDate = iso => iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const twDay = iso => iso ? new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString().slice(0, 10) : '';
+const STATUS = { paid: ['已付款', 'paid'], pending: ['待付款', 'pending'], amount_mismatch: ['金額不符', 'bad'], simulated: ['模擬付款（不出貨）', 'bad'], unknown_product: ['商品不存在', 'bad'] };
+const PAYTYPE = t => !t ? '' : /^Credit/.test(t) ? '信用卡' : /^ATM/.test(t) ? 'ATM' : /^CVS/.test(t) ? '超商代碼' : /^BARCODE/.test(t) ? '超商條碼' : /^TWQR|^ApplePay|^Google/.test(t) ? t : t;
+
+let fb, data = null;
+function gate(msg, { login = false, logout = false } = {}) {
+  $('app').hidden = true; $('gate').hidden = false;
+  $('gateMsg').innerHTML = msg; $('login').hidden = !login; $('logout1').hidden = !logout;
+}
+async function api(path, body = {}) {
+  const token = await fb.auth.currentUser.getIdToken();
+  const r = await fetch(PAY_API + '/admin/' + path, { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.message || 'HTTP ' + r.status), { code: d.error, status: r.status });
+  return d;
+}
+
+async function load() {
+  $('reload').disabled = true;
+  try {
+    data = await api('summary');
+    $('gate').hidden = true; $('app').hidden = false;
+    $('modeBadge').innerHTML = data.mode === 'production' ? '<span class="badge production">正式收款</span>' : '<span class="badge stage">綠界測試環境・不會真的扣款</span>';
+    renderTiles(); renderOrders();
+  } catch (e) {
+    if (e.status === 403) gate('🔒 ' + esc(e.message), { logout: true });
+    else gate('⚠️ 讀取失敗：' + esc(e.message), { logout: true });
+  } finally { $('reload').disabled = false; }
+}
+function ordersInMode() { return data.orders.filter(o => $('fMode').value === 'all' || (o.mode || 'stage') === data.mode); }
+function renderTiles() {
+  const os = ordersInMode(), paid = os.filter(o => o.status === 'paid');
+  const today = data.today, month = today.slice(0, 7);
+  const sum = list => list.reduce((a, o) => a + (o.amount || 0), 0);
+  const pToday = paid.filter(o => twDay(o.paidAt || o.createdAt) === today), pMonth = paid.filter(o => twDay(o.paidAt || o.createdAt).startsWith(month));
+  const payers = new Set(paid.map(o => o.uid)).size;
+  const t = [
+    ['今天收入', money(sum(pToday)), pToday.length + ' 筆'],
+    ['本月收入', money(sum(pMonth)), pMonth.length + ' 筆'],
+    ['累計收入', money(sum(paid)), paid.length + ' 筆・' + payers + ' 位付費玩家'],
+    ['玩家總數', data.users.toLocaleString('zh-TW'), '有雲端帳號的玩家'],
+    ['今天簽到', data.checkinsToday.toLocaleString('zh-TW'), data.users ? '約 ' + Math.round(data.checkinsToday / data.users * 100) + '% 的玩家' : ''],
+    ['待付款', os.filter(o => o.status === 'pending').length, '建立訂單但還沒付'],
+  ];
+  $('tiles').innerHTML = t.map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+  $('ordersNote').textContent = data.mode === 'stage' && $('fMode').value === 'cur' ? '現在是測試環境，這裡列的都是測試訂單' : '';
+}
+function renderOrders() {
+  const f = $('fStatus').value;
+  const os = ordersInMode().filter(o => !f || (f === 'bad' ? (STATUS[o.status]?.[1] || 'bad') === 'bad' : o.status === f));
+  $('orders').innerHTML = os.length ? os.map(o => {
+    const [lab, cls] = STATUS[o.status] || [o.status, 'bad'];
+    return `<tr><td>${esc(twDate(o.createdAt))}</td><td><span class="mono">${esc(o.id)}</span></td><td>${esc(o.label)}</td><td class="n">${money(o.amount)}</td>
+      <td><span class="st ${cls}">${esc(lab)}</span>${o.rtnMsg && o.status !== 'paid' ? '<br><span class="muted">' + esc(o.rtnMsg) + '</span>' : ''}</td>
+      <td>${esc(PAYTYPE(o.paymentType))}</td><td><button class="who" data-uid="${esc(o.uid)}">${esc(o.email || o.uid.slice(0, 10) + '…')}</button></td>
+      <td>${o.mode === 'production' ? '正式' : '測試'}</td></tr>`;
+  }).join('') : '<tr><td colspan="8" class="muted">還沒有訂單</td></tr>';
+  for (const b of document.querySelectorAll('.who')) b.onclick = () => { $('q').value = b.dataset.uid; findUser(); $('userBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+}
+$('fMode').onchange = () => { renderTiles(); renderOrders(); };
+$('fStatus').onchange = renderOrders;
+$('reload').onclick = load;
+
+async function findUser() {
+  const q = $('q').value.trim(); if (!q) return;
+  const box = $('userBox'); box.innerHTML = '<p class="muted">查詢中…</p>';
+  try {
+    const d = await api('user', q.includes('@') ? { email: q } : { uid: q });
+    const u = d.user, c = d.checkin;
+    const paid = d.orders.filter(o => o.status === 'paid');
+    box.innerHTML = `<div class="grid2">
+      <div class="card"><dl>
+        <dt>玩家 ID</dt><dd class="mono">${esc(d.uid)}</dd>
+        <dt>Email</dt><dd>${esc(c?.email || d.orders.find(o => o.email)?.email || '（還沒記錄）')}</dd>
+        <dt>飼料</dt><dd>${esc(u.food ?? 0)} 包</dd>
+        <dt>寵物</dt><dd>${esc(u.pets)} 隻・空位 +${esc(u.slots)}</dd>
+        <dt>買過的寵物</dt><dd>${esc(u.owned.join('、') || '無')}</dd>
+        <dt>付費</dt><dd>${paid.length} 筆・${money(paid.reduce((a, o) => a + o.amount, 0))}</dd>
+      </dl></div>
+      <div class="card"><dl>
+        <dt>連續簽到</dt><dd>${c ? esc(c.streak) + ' 天（最高 ' + esc(c.best) + ' 天）' : '還沒簽到過'}</dd>
+        <dt>最後簽到</dt><dd>${esc(c?.lastDay || '')}</dd>
+        <dt>累計簽到</dt><dd>${esc(c?.total || 0)} 天・送出 ${esc(c?.foodGiven || 0)} 包</dd>
+      </dl>
+      <h3 style="font-size:.95rem;margin:16px 0 8px">補發飼料</h3>
+      <div class="bar"><input id="gN" type="number" min="1" max="1000" value="5" style="width:90px"> 包
+        <input id="gNote" placeholder="原因（例如：付款成功但沒收到）" style="flex:1;min-width:160px"><button id="gGo">補發</button></div>
+      <div id="gMsg"></div></div>
+    </div>`;
+    $('gGo').onclick = async () => {
+      const n = Math.round(+$('gN').value);
+      if (!(n >= 1 && n <= 1000)) { $('gMsg').innerHTML = '<span class="err">數量要在 1～1000 之間</span>'; return; }
+      if (!confirm(`確定要送 ${n} 包飼料給這位玩家嗎？`)) return;
+      $('gGo').disabled = true;
+      try { await api('grant', { uid: d.uid, food: n, note: $('gNote').value }); await findUser(); $('userBox').insertAdjacentHTML('afterbegin', `<p class="okmsg">✅ 已補發 ${n} 包飼料</p>`); }
+      catch (e) { $('gMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; $('gGo').disabled = false; }
+    };
+  } catch (e) { box.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; }
+}
+$('find').onclick = findUser;
+$('q').onkeydown = e => { if (e.key === 'Enter') findUser(); };
+
+// Firebase 登入（和遊戲同一個專案；在同一個網站，遊戲裡登入過就不用再登入）
+try {
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [app, au] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js')]);
+  const a = app.initializeApp(firebaseConfig);
+  const auth = au.getAuth(a); auth.languageCode = 'zh-TW';
+  fb = { au, auth };
+  const signIn = async () => {
+    try { const p = new au.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); await au.signInWithPopup(auth, p); }
+    catch (e) { gate('登入失敗：' + esc(e.code || e.message), { login: true }); }
+  };
+  $('login').onclick = signIn;
+  $('logout1').onclick = async () => { await au.signOut(auth); signIn(); };
+  au.onAuthStateChanged(auth, u => {
+    $('who').innerHTML = u ? esc(u.email || u.uid) + '　<button class="ghost" id="logout2" style="padding:4px 10px">登出</button>' : '';
+    if ($('logout2')) $('logout2').onclick = () => au.signOut(auth);
+    if (!u) gate('請用管理員的 Google 帳號登入。', { login: true });
+    else { gate('讀取中…'); load(); }
+  });
+} catch (e) { gate('⚠️ 登入功能載入失敗：' + esc(e.message)); }
+</script>
+</body>
+</html>

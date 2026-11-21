@@ -1,7 +1,7 @@
 /* 離線快取：讓 App 可以安裝，沒網路時也打得開。
    自己網站的檔案「先上網拿最新的」，拿不到才用快取，所以你更新 GitHub 後，使用者下次打開就是新版。
    three.js、Firebase 程式庫這些外部檔案版本固定，用快取就好。 */
-const CACHE = 'arpet-v6';
+const CACHE = 'arpet-v7';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'js/config.js', 'js/catalog.js', 'js/sounds.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'privacy.html', 'terms.html', 'delete-account.html'];
 const LIBS = ['cdn.jsdelivr.net', 'www.gstatic.com'];   // www.gstatic.com：Firebase 程式庫、Draco 解碼器

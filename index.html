@@ -157,6 +157,7 @@
   #buyModal .buybtns{display:flex;gap:10px}
   #buyModal .buybtns .big{flex:1;margin:0}
   #buyModal .buybtns .big:disabled{opacity:.45}
+  #buyModal .stagebanner{margin:10px 0 0}
   #helpModal .box{background:var(--bg);color:var(--ink);border-radius:18px;max-width:520px;margin:0 auto;max-height:100%;overflow:auto;padding:16px 18px 20px;line-height:1.65;font-size:15px}
   .helpdoc h2:first-child{margin-top:.2em}
   .helpdoc table{width:100%;border-collapse:collapse;font-size:.92rem;margin:.4em 0}
@@ -175,6 +176,26 @@
   .prod button{flex:none;border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:#fff;cursor:pointer;font-size:.95rem}
   .prod button:disabled{background:#d9cbbd}
   #shopMsg:empty{display:none}
+  .testbanner:empty{display:none}
+  .stagebanner{background:#e8f4ff;border:1px solid #9cc8f0;color:#164a7a;border-radius:12px;padding:10px 12px;font-size:.88rem;margin:10px 0}
+  .stagebanner:empty{display:none}
+  .stagebanner code{background:#fff;border-radius:6px;padding:1px 6px;font-size:.95em;letter-spacing:.03em;user-select:all}
+  .paynote{font-size:.8rem;color:var(--mute);margin:14px 0 4px;line-height:1.6}
+  .foodbtns{display:flex;gap:8px}
+  .foodline .mini.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+  /* 每日簽到 */
+  .checkin{padding:12px 14px}
+  .checkin .ct{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700}
+  .checkin .ct small{font-weight:400;color:var(--mute);font-size:.8rem}
+  .checkin .days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:9px}
+  .checkin .d{border-radius:10px;background:#f4ebe1;text-align:center;padding:5px 0 4px;font-size:.72rem;color:var(--mute);line-height:1.3}
+  .checkin .d b{display:block;font-size:1rem;color:var(--ink)}
+  .checkin .d.gift{background:#fff1d6;outline:1.5px dashed #e8a33b}
+  .checkin .d.done{background:var(--accent);color:#fff}
+  .checkin .d.done b{color:#fff}
+  .checkin .d.today{box-shadow:0 0 0 2.5px #c2185b}
+  .checkin .cm{font-size:.84rem;margin-top:8px;color:var(--mute)}
+  .checkin .cm.win{color:#c2185b;font-weight:700}
   #shopMsg{min-height:1.4em;font-size:.92rem;color:var(--ok);margin:6px 0;position:sticky;bottom:8px;background:var(--bg);border-radius:10px;padding:2px 6px}
   .prod .tag{display:inline-block;font-size:.72rem;font-weight:700;color:#fff;background:#e8743b;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:2px}
   .prod .secret{font-size:.85rem;margin-top:3px;color:#b0453a;font-weight:700;letter-spacing:.02em}
@@ -211,8 +232,9 @@
     <div class="row2"><span>登入帳號後，換手機，寵物也還在。</span><button class="mini" id="toLogin">登入</button></div>
   </div>
   <div id="syncNote" class="note"></div>
+  <div class="card checkin" id="checkinCard"></div>
 
-  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><button class="mini" id="toShop">🛒 商店</button><span class="freefood" id="freeFood"></span><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
+  <div class="card foodline"><span>🍖 飼料：<b id="foodCount">5</b> 包</span><span class="foodbtns"><button class="mini" id="toFood">＋ 買飼料</button><button class="mini ghost" id="toShop">🛒 商店</button></span><span class="freefood" id="freeFood"></span><button class="link" id="toHelp" style="flex-basis:100%;text-align:left;padding-left:0">親密度和飽食度是什麼？</button></div>
 
   <h2>我的寵物</h2>
   <div class="slotline" id="slotLine"></div>
@@ -379,24 +401,27 @@
   <div class="topbar"><button class="link" id="shopBack">← 返回</button><span></span></div>
   <h1 style="margin-top:10px">🛒 商店</h1>
   <div class="testbanner" id="shopBanner"></div>
+  <div class="stagebanner" id="stageBanner"></div>
+  <h2 id="shop_food">🍖 飼料</h2>
+  <p>現在有 <b id="shopFood">0</b> 包飼料・選一包按價格就能購買</p>
+  <div id="shopList"></div>
   <h2>🐾 寵物</h2>
   <p class="note">買一次就永遠擁有，換手機登入同一個帳號也還在。<b>寵物套餐</b>＝寵物＋1 個空位＋10 包飼料。</p>
   <div id="shopPets"></div>
   <h2>🏠 寵物空位</h2>
   <p class="note" id="shopSlotNote"></p>
   <div id="shopSlots"></div>
-  <h2>🍖 飼料</h2>
-  <p>現在有 <b id="shopFood">0</b> 包飼料</p>
-  <div id="shopList"></div>
   <div id="shopMsg"></div>
+  <p class="paynote" id="payNote"></p>
   <p class="note"><a href="terms.html">購買須知與退款政策</a>・<a href="privacy.html">隱私權政策</a></p>
   <div id="buyModal" role="dialog" aria-modal="true" aria-labelledby="buyTitle">
     <div class="box">
       <h3 id="buyTitle">確認購買</h3>
       <div class="buyline"><span id="buyItem"></span><b id="buyPrice"></b></div>
+      <div class="stagebanner" id="buyStage"></div>
       <p class="note">這是線上數位內容，付款成功後會<b>馬上加進你的帳號</b>。依《通訊交易解除權合理例外情事適用準則》，數位內容一經提供即<b>不適用七天鑑賞期</b>。</p>
       <label class="agree"><input type="checkbox" id="buyAgree"> 我已閱讀並同意<a href="terms.html" target="_blank" rel="noopener">購買須知與退款政策</a></label>
-      <div class="buybtns"><button id="buyCancel" class="big ghost">取消</button><button id="buyOk" class="big primary" disabled>前往付款</button></div>
+      <div class="buybtns"><button id="buyCancel" class="big ghost">取消</button><button id="buyOk" class="big primary" disabled>前往綠界付款</button></div>
     </div>
   </div>
 </section>
@@ -683,6 +708,51 @@ async function checkFreeFood(cloudAt) {
   renderFree();
 }
 
+/* ================= 每日簽到 =================
+   登入後每天第一次打開就自動簽到（台灣時間 00:00 換日）。7 天一輪：第 3 天送 5 包、第 7 天送 10 包；斷一天就從第 1 天重來。
+   天數和送飼料都由付款伺服器算（server/src/index.js 的 CHECKIN），手機不能自己改。 */
+let checkin = null, checkinBusy = false;
+const CHECKIN_GIFTS = { 3: 5, 7: 10 }, CHECKIN_CYCLE = 7;   // 只是畫面顯示用；實際送多少以伺服器為準
+const twToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+function renderCheckin(msg) {
+  const el = $('checkinCard'); if (!el) return;
+  const gifts = checkin?.rewards || CHECKIN_GIFTS, cyc = checkin?.cycle || CHECKIN_CYCLE;
+  const day = checkin?.day || 0;
+  let cells = '';
+  for (let i = 1; i <= cyc; i++) {
+    const g = gifts[i];
+    cells += `<div class="d${g ? ' gift' : ''}${i <= day ? ' done' : ''}${i === day ? ' today' : ''}"><b>${i <= day ? '✓' : g ? '🎁' : i}</b>${g ? '+' + g + ' 包' : '第 ' + i + ' 天'}</div>`;
+  }
+  let note, win = false;
+  if (!account) note = '登入後，每天打開就會自動簽到。斷一天就從第 1 天重來。';
+  else if (!checkin) note = msg || '簽到中…';
+  else if (checkin.reward) { note = `🎉 連續簽到第 ${checkin.streak} 天，送你 ${checkin.reward} 包飼料！`; win = true; }
+  else {
+    let k = 1; while (k <= cyc && !gifts[((day - 1 + k) % cyc) + 1]) k++;
+    const next = gifts[((day - 1 + k) % cyc) + 1];
+    note = `今天簽到完成，已連續 ${checkin.streak} 天。` + (next ? `再 ${k} 天送 ${next} 包飼料，明天記得回來！` : '');
+  }
+  el.innerHTML = `<div class="ct"><span>📅 每日簽到</span><small>第 3 天送 5 包・第 7 天送 10 包</small></div><div class="days">${cells}</div><div class="cm${win ? ' win' : ''}">${note}</div>`
+    + (account ? '' : '<button class="mini" id="checkinLogin" style="margin-top:8px">登入開始簽到</button>');
+  const b = $('checkinLogin'); if (b) b.onclick = () => { $('loginErr').textContent = ''; show('loginScr'); };
+}
+async function doCheckin() {
+  if (!account || !fb || checkinBusy || /YOUR-SUBDOMAIN/.test(PAY_API)) { renderCheckin(); return; }
+  if (checkin && checkin.today === twToday()) return;
+  checkinBusy = true; const uidNow = account.uid;
+  if (!checkin) renderCheckin();
+  try {
+    const r = await payApi('/daily/checkin', {});
+    if (account?.uid !== uidNow) return;
+    checkin = r;
+    if (r.reward) { food += r.reward; saveFoodLocal(); renderFood(); }
+    renderCheckin();
+  } catch (e) { console.warn('checkin', e); if (account?.uid === uidNow) renderCheckin('⚠️ 簽到失敗（' + (e.message || e) + '），重新整理頁面再試一次'); }
+  finally { checkinBusy = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && account && checkin) doCheckin(); });   // 開著 App 過了午夜
+renderCheckin();
+
 /* ================= 商店 =================
    付款這一步做成可以替換的：'test' 測試・'play' Google Play（App）・'web' 綠界 ECPay（網頁版）。付款伺服器放在 Cloudflare Workers（server 資料夾）。
    Google Play：付款 → 拿到付款憑證 → 交給伺服器跟 Google 確認 → 伺服器把東西加進帳號 → App 重新讀取
@@ -746,7 +816,7 @@ async function verifyOnServer(productId, token) {
   } catch (e) { console.warn('verify', e); return false; }
 }
 /* ---------- 綠界 ECPay（網頁版） ---------- */
-const ORDER_KEY = 'arpet.pendingOrder';
+const ORDER_KEY = 'arpet.pendingOrder', AGREE_KEY = 'arpet.buyAgreed';
 async function ecpayBuy(prod) {
   if (!fb) return { ok: false, msg: '登入功能還沒載入，請重新整理頁面再試一次' };
   if (!account) { afterLogin = 'shopScr'; show('loginScr'); return { ok: false, msg: '請先登入，買的東西會存在你的帳號裡' }; }
@@ -770,14 +840,18 @@ async function ecpayBuy(prod) {
 function askBuyConsent(prod) {
   return new Promise(res => {
     const M = $('buyModal'), ok = $('buyOk'), chk = $('buyAgree');
+    $('buyTitle').textContent = '購買' + (prod.kind === 'food' ? '飼料' : '');
     $('buyItem').textContent = prod.label;
     $('buyPrice').textContent = priceOf(prod);
-    chk.checked = false; ok.disabled = true;
-    chk.onchange = () => { ok.disabled = !chk.checked; };
-    const done = v => { M.classList.remove('show'); ok.onclick = $('buyCancel').onclick = null; res(v); };
+    $('buyStage').innerHTML = stageHtml();
+    let agreed = false; try { agreed = localStorage.getItem(AGREE_KEY) === '1'; } catch {}   // 同意過一次，下次就先幫你勾好
+    chk.checked = agreed;
+    const sync = () => { ok.disabled = !chk.checked; ok.textContent = '前往綠界付款 ' + priceOf(prod); };
+    chk.onchange = sync; sync();
+    const done = v => { M.classList.remove('show'); ok.onclick = $('buyCancel').onclick = null; if (v) try { localStorage.setItem(AGREE_KEY, '1'); } catch {} res(v); };
     ok.onclick = () => done(chk.checked);
     $('buyCancel').onclick = () => done(false);
-    M.classList.add('show'); chk.focus();
+    M.classList.add('show'); (chk.checked ? ok : chk).focus();
   });
 }
 // 從綠界回來（網址帶 ?order=…）：等伺服器收到付款通知，東西加進帳號
@@ -851,7 +925,7 @@ function buyBtn(p, cls) {
   const m = Billing.mode(), b = document.createElement('button');
   if (cls) b.className = cls;
   const why = canBuy(p);
-  b.textContent = (p.kind === 'set' ? '套餐 ' : '') + priceOf(p);
+  b.textContent = (p.kind === 'set' ? '套餐 ' : p.kind === 'food' ? '購買 ' : '') + priceOf(p);
   b.disabled = !!why;
   b.onclick = async () => {
     b.disabled = true; shopMsg('處理中…', true);
@@ -875,8 +949,11 @@ function renderShop(focus) {
   const m = Billing.mode();
   $('shopBanner').innerHTML = m === 'test'
     ? '🧪 <b>測試模式</b>：按購買不會真的付款，東西直接加進來。測試買的東西只存在這支手機，不會存到雲端。'
-    : m === 'web' ? `付款由<b>綠界科技 ECPay</b> 處理，我們拿不到你的卡號。買的東西會存在你的帳號，網頁和 App 都能用。${account ? '' : '<br>購買前要先登入。'}　<a href="terms.html">購買須知與退款政策</a>`
-    : '付款由 Google Play 處理。買的東西會存在你的帳號，換手機也還在。';
+    : m === 'web' && !account ? '購買前要先登入，買的東西會存在你的帳號裡。' : '';
+  $('stageBanner').innerHTML = m === 'web' ? stageHtml() : '';
+  $('payNote').innerHTML = m === 'web' ? '🔒 付款由<b>綠界科技 ECPay</b> 處理，我們拿不到你的卡號。買的東西會存在你的帳號，換手機登入也還在。'
+    : m === 'play' ? '付款由 Google Play 處理。買的東西會存在你的帳號，換手機也還在。' : '';
+  loadPayStatus();
   $('shopMsg').textContent = '';
   // 寵物
   const pb = $('shopPets'); pb.textContent = '';
@@ -913,8 +990,21 @@ function renderShop(focus) {
     if (el) { el.classList.add('focus'); requestAnimationFrame(() => el.scrollIntoView({ block: 'center' })); setTimeout(() => el.classList.remove('focus'), 2500); }
   }
 }
-function openShop(focus, msg) { renderShop(focus); show('shopScr'); if (focus) { const el = $(focus); if (el) setTimeout(() => el.scrollIntoView({ block: 'center' }), 30); } if (msg) shopMsg(msg, false); }
+function openShop(focus, msg) { renderShop(focus); show('shopScr'); if (focus) { const el = $(focus); if (el) setTimeout(() => el.scrollIntoView({ block: focus === 'shop_food' ? 'start' : 'center' }), 30); } if (msg) shopMsg(msg, false); }
 $('toShop').onclick = () => openShop();
+$('toFood').onclick = () => openShop('shop_food');
+/* 綠界現在是測試環境還是正式收款（問付款伺服器，server/wrangler.toml 的 ECPAY_MODE） */
+let payMode = null, payModeBusy = false;
+async function loadPayStatus() {
+  if (payMode || payModeBusy || Billing.mode() !== 'web' || /YOUR-SUBDOMAIN/.test(PAY_API)) return;
+  payModeBusy = true;
+  try { const r = await fetch(PAY_API + '/status'); if (r.ok) { payMode = (await r.json()).mode; $('stageBanner').innerHTML = stageHtml(); } }
+  catch (e) { console.warn('pay status', e); }
+  finally { payModeBusy = false; }
+}
+const stageHtml = () => payMode === 'stage'
+  ? '🧪 <b>綠界測試環境：不會真的扣款。</b>付款頁請用測試卡號 <code>4311-9522-2222-2222</code>，安全碼 <code>222</code>，有效期限填今天以後的月份。'
+  : '';
 $('shopBack').onclick = () => { renderHome(); show('homeScr'); };
 
 /* ================= Firebase 登入與雲端同步 ================= */
@@ -935,12 +1025,12 @@ async function initFirebase() {
 async function onAuth(u) {
   if (!u) {
     account = null; pets = markFixed(readLocal(LS_GUEST) || oldVersionPets() || defaultPets());
-    loadFoodLocal(); loadTestShop(); cloudOwned = []; cloudSlots = 0;
-    renderHome(); checkFreeFood(); return;
+    loadFoodLocal(); loadTestShop(); cloudOwned = []; cloudSlots = 0; checkin = null;
+    renderHome(); checkFreeFood(); renderCheckin(); return;
   }
   account = { uid: u.uid, name: u.displayName || u.email || '我', email: u.email || '', photo: u.photoURL || '' };
   const cached = readLocal(lsKey());
-  loadFoodLocal(); loadTestShop(); freeAt = 0;
+  loadFoodLocal(); loadTestShop(); freeAt = 0; checkin = null; renderCheckin();
   if (cached) { pets = markFixed(cached); renderHome(); }
   syncNote('☁️ 讀取雲端資料中…');
   try {
@@ -963,6 +1053,7 @@ async function onAuth(u) {
     readOwned(data);
     renderHome();
     checkFreeFood(data?.freeFoodAt?.toMillis?.() || 0);
+    doCheckin();
     if (Billing.mode() === 'web') setTimeout(watchReturnedOrder, 0);   // 剛從綠界付款頁回來
   } catch (e) { console.warn(e); syncNote('⚠️ 讀不到雲端資料（' + (e.code || e.message) + '），先顯示這支手機上的資料。'); if (!cached) pets = markFixed(readLocal(LS_GUEST) || defaultPets()); }
   renderHome();
@@ -4471,7 +4562,7 @@ initFirebase();
 if (/[?&#]action=delete-account|#delete-account/.test(location.href)) openAcct();
 // 可以安裝成 App（離線快取）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
-window.__ar = { camera, active, VIS, hopAhead, stepOf, ingestPlanes, predictHands, crossSurface, foods_: () => foods, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
+window.__ar = { askBuyConsent, setCheckin_: (v, acc) => { checkin = v; if (acc !== undefined) account = acc; renderCheckin(); }, payMode_: m => { payMode = m; }, camera, active, VIS, hopAhead, stepOf, ingestPlanes, predictHands, crossSurface, foods_: () => foods, loadHandAI, handWorld, buildHandOcc, handOcc, handPlay, takePhoto, field, sampleDepth, occ, occMesh, pathOK, callPetTo, camWorld, camProjInv, THREE, petAt, matchCommand, requestSummon, pets: () => pets, sndBuf, checkSpot,
   foods, throwFood, callByName, statsOf, fullNow, affNow, food: () => totalFood(), planJump, wanderJump, planGoalJump, Billing, owns, slotFree, slotTotal, renderShop, openEditor, updateOcclusion, detectHands, camProj, occMat, renderer, scene, mapOcc, setOrbit: (o, h) => { orbit = o; orbitH = h; placePreviewCamera(); } };
 addEventListener('error', e => { if (mode !== 'none') hint('程式錯誤：' + e.message); else syncNote('程式錯誤：' + e.message); });
 </script>

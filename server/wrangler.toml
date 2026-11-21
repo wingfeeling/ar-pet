@@ -13,7 +13,7 @@ SITE_URL = "https://wingfeeling.github.io/ar-pet/"
 # 哪些網站可以呼叫這個伺服器，用逗號分開
 ALLOWED_ORIGINS = "https://wingfeeling.github.io"
 # 'stage' 綠界測試環境・'production' 正式收款
-ECPAY_MODE = "stage"
+ECPAY_MODE = "production"
 PLAY_PACKAGE = "io.github.wingfeeling.arpet"
 
 # 祕密不要寫在這裡！到 Cloudflare 主控台 → Workers & Pages → ar-pet-pay → 設定 → 變數和祕密 → 新增，類型選「祕密」：

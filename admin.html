@@ -91,6 +91,7 @@
   </section>
 
   <div id="app" hidden>
+    <div id="ecpayCheck" class="card" style="margin:14px 0" hidden></div>
     <div class="tiles" id="tiles"></div>
 
     <h2>訂單</h2>
@@ -163,11 +164,34 @@ async function load() {
     normOrders(data.orders);
     $('gate').hidden = true; $('app').hidden = false;
     $('modeBadge').innerHTML = data.mode === 'production' ? '<span class="badge production">正式收款</span>' : '<span class="badge stage">綠界測試環境・不會真的扣款</span>';
-    renderTiles(); renderOrders(); loadTickets();
+    renderTiles(); renderOrders(); loadTickets(); checkEcpay();
   } catch (e) {
     if (e.status === 403) gate('🔒 ' + esc(e.message), { logout: true });
     else gate('⚠️ 讀取失敗：' + esc(e.message), { logout: true });
   } finally { $('reload').disabled = false; }
+}
+// 檢查綠界金鑰：用綠界的查詢 API 試一次，不會建立訂單、不會扣款
+async function checkEcpay() {
+  const box = $('ecpayCheck');
+  box.hidden = false; box.style.borderLeft = '4px solid #9aa3ad';
+  box.innerHTML = '🔑 正在檢查綠界金鑰…';
+  try {
+    const r = await api('ecpaycheck');
+    const env = r.mode === 'production' ? '正式' : '測試';
+    const MSG = {
+      ok: ['#2e9e5b', `✅ 綠界${env}環境的商店代號和金鑰都對得上，可以正常付款。`],
+      badkey: ['#d64545', `❌ 綠界${env}環境回報「金鑰不符」（10200073 CheckMacValue Error），玩家現在付不了款。<br>請到綠界廠商後台 → 系統開發管理 → 系統介接設定，重新複製 <b>HashKey</b> 和 <b>HashIV</b>，到 Cloudflare 的 ar-pet-pay → 設定 → 變數和祕密，把 <code>ECPAY_HASH_KEY</code>、<code>ECPAY_HASH_IV</code> 刪掉重新新增（注意這兩個不要對調）。改完回來按「重新檢查」。`],
+      badmerchant: ['#d64545', `❌ 綠界${env}環境不認得這個商店代號。請確認 Cloudflare 的 <code>ECPAY_MERCHANT_ID</code> 是綠界<b>正式</b>廠商後台上的「特店編號」，不是測試用的 2000132／3002607。`],
+      missing: ['#d64545', '❌ Cloudflare 上還沒設定綠界的商店代號或金鑰。'],
+      unreachable: ['#d89a1e', '⚠️ 暫時連不到綠界，等一下再按「重新檢查」。'],
+      unknown: ['#d89a1e', `⚠️ 綠界回了看不懂的結果（${esc(r.code)}），等一下再按「重新檢查」。`],
+    }[r.result] || ['#d89a1e', '⚠️ 檢查失敗'];
+    box.style.borderLeft = '4px solid ' + MSG[0];
+    box.innerHTML = MSG[1] + ' <button class="ghost" id="ecpayRecheck" style="margin-left:6px">重新檢查</button>';
+  } catch (e) {
+    box.innerHTML = '⚠️ 沒辦法檢查綠界金鑰：' + esc(e.message) + '（付款伺服器可能還是舊版）<button class="ghost" id="ecpayRecheck" style="margin-left:6px">重新檢查</button>';
+  }
+  $('ecpayRecheck').onclick = checkEcpay;
 }
 function ordersInMode() { return data.orders.filter(o => $('fMode').value === 'all' || (o.mode || 'stage') === data.mode); }
 function renderTiles() {

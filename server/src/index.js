@@ -239,10 +239,27 @@ function newTradeNo() {
   const r = hex(crypto.getRandomValues(new Uint8Array(3))).toUpperCase();
   return 'AP' + twNow().replace(/\D/g, '').slice(2) + r;          // AP + yyMMddHHmmss + 6 碼亂數 = 20 碼
 }
+// 從綠界後台複製貼上時，常會多帶空白、換行、全形空白或引號，這些都會讓檢查碼對不上（10200073 CheckMacValue Error）
+const cleanSecret = v => String(v ?? '').replace(/[\s\u200b-\u200d\ufeff\u3000"'「」]/g, '');
 function ecpayKeys(env) {
-  const id = env.ECPAY_MERCHANT_ID, key = env.ECPAY_HASH_KEY, iv = env.ECPAY_HASH_IV;
+  const id = cleanSecret(env.ECPAY_MERCHANT_ID), key = cleanSecret(env.ECPAY_HASH_KEY), iv = cleanSecret(env.ECPAY_HASH_IV);
   if (!id || !key || !iv) throw new Error('綠界金鑰（ECPAY_MERCHANT_ID／ECPAY_HASH_KEY／ECPAY_HASH_IV）沒有設定');
   return { id, key, iv };
+}
+
+export async function ecpayCheck(env) {
+  // 用綠界的「查詢訂單」API 查一筆不存在的訂單：金鑰對 → 綠界回「查無訂單」；金鑰錯 → 綠界回 10200073。不會建立訂單也不會扣款
+  let keys;
+  try { keys = ecpayKeys(env); } catch { return { mode: isProd(env) ? 'production' : 'stage', result: 'missing' }; }
+  const p = { MerchantID: keys.id, MerchantTradeNo: 'CHK' + Date.now(), TimeStamp: String(Math.floor(Date.now() / 1000)) };
+  p.CheckMacValue = await checkMac(p, keys.key, keys.iv);
+  let t = '';
+  try { t = await (await fetch(ecpayHost(env) + '/Cashier/QueryTradeInfo/V5', { method: 'POST', body: new URLSearchParams(p) })).text(); }
+  catch { return { mode: isProd(env) ? 'production' : 'stage', result: 'unreachable' }; }
+  const st = (new URLSearchParams(t.replace(/^&/, '')).get('TradeStatus')) || '';
+  // 10200047 查無訂單＝金鑰正確；10200073 檢查碼錯＝金鑰不符；10200074／10200094 商店代號不對或這個環境沒有這個商店
+  const result = { '10200047': 'ok', '10200073': 'badkey', '10200074': 'badmerchant', '10200094': 'badmerchant' }[st] || 'unknown';
+  return { mode: isProd(env) ? 'production' : 'stage', result, code: st || t.replace(/CheckMacValue=\w+/, '').slice(0, 80) };
 }
 
 /* ---------- 1. 建立訂單（App 呼叫） ---------- */
@@ -529,6 +546,7 @@ async function admin(action, request, env) {
     ]);
     return { me: me.email, mode: isProd(env) ? 'production' : 'stage', today, users, checkinsToday, ticketsUnread, orders };
   }
+  if (action === 'ecpaycheck') return await ecpayCheck(env);
   if (action === 'user') {
     let uid = String(body.uid || '').trim();
     const email = String(body.email || '').trim().toLowerCase();

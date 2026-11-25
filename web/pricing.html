@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>方案與價格｜凌的萬用pdf編輯器</title><link rel="stylesheet" href="css/site.css">
+<style>
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.plans .card{display:flex;flex-direction:column}
+.plans .card p{flex:1}
+.tag{align-self:flex-start;display:inline-block;font-size:12px;background:#eef2ff;color:#4338ca;border-radius:99px;padding:2px 10px;margin-bottom:6px}
+.per{font-size:13px;color:#6b7280;margin:-4px 0 8px}
+table.cmp td,table.cmp th{text-align:left}
+</style></head>
+<body>
+<div id="siteHeader"></div>
+<div class="wrap">
+  <h1>方案與價格</h1>
+  <p class="sub">不用月費也能用：編輯器、文字辨識、Word／Excel／PPT 轉檔都免費、不限次數；批次線上簽名用多少買多少，而且<b>有簽名才算份數</b>。付款由綠界科技處理，本站不會經手你的信用卡資料。</p>
+  <div class="notice info">本站為個人經營，價格比國外同類網站（例如 iLovePDF、Smallpdf、Sejda 的付費方案）都便宜很多。</div>
+
+  <h2>免費就能用</h2>
+  <div class="card">
+    <table class="t cmp"><tbody>
+      <tr><th style="width:34%">PDF 編輯（改字、簽名、印章、表單、合併、拆分、轉正、轉圖片）</th><td>永久免費、不限次數</td></tr>
+      <tr><th>掃描檔文字辨識、Word／Excel／PPT 轉檔</th><td>永久免費、不限次數</td></tr>
+      <tr><th>批次轉檔</th><td>一次最多 <b id="fb"></b> 個檔案（進階版不限）</td></tr>
+      <tr><th>批次線上簽名</th><td>每個帳號免費試用 <b id="fd"></b> 份（有簽名才算），試用的檔案保存 <b id="fr"></b> 天</td></tr>
+    </tbody></table>
+  </div>
+
+  <h2>批次線上簽名（按份數）</h2>
+  <div class="card small" style="margin-bottom:12px"><b>有簽名才算份數</b>
+    <ul style="margin:6px 0 0">
+      <li>上傳一份文件時先<b>預留</b> 1 份，學生簽好回傳才真正算掉。</li>
+      <li>學生沒簽，你刪除這份文件、或批次到期自動刪除時，預留的份數會<b>自動退回</b>。</li>
+      <li>退回重簽、學生重新簽名，都不會再多算。</li>
+      <li>例：上傳 300 份，最後 280 人簽名 → 只算 280 份，另外 20 份退回。</li>
+    </ul></div>
+  <div id="signPlans" class="plans"></div>
+
+  <h2>進階版</h2>
+  <p class="small muted">批次轉檔不限檔案數；批次簽名的檔案不限保存天數（進階版到期 <b id="gd"></b> 天後才刪除，續約就繼續保存）。</p>
+  <div id="proPlans" class="plans"></div>
+
+  <div class="card small muted" style="margin-top:18px">
+    <b style="color:var(--text)">購買說明</b>
+    <ul>
+      <li>份數從付款完成起算，期限內用完。再買一次會加上新份數，舊份數的期限也一起延長。</li>
+      <li>進階版從付款完成起算；已經是進階版時再購買會往後延長。</li>
+      <li>進階版 1 個月、批次簽名 300 份只收信用卡；其他方案可用信用卡或 ATM 轉帳（ATM 轉帳完成後才會開通）。</li>
+      <li><b>學校採購、需要報價單／收據、要用匯款：</b>請來信 <span id="sup"></span>，付款後手動開通。本站為個人經營，沒有統一編號、無法開立統一發票。</li>
+      <li>屬於數位服務，退款規定請看<a href="terms.html">服務條款與退款</a>。</li>
+    </ul>
+  </div>
+</div>
+<footer><a href="privacy.html">隱私權政策</a><a href="terms.html">服務條款與退款</a></footer>
+<div id="toast"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/config.js"></script><script src="js/app.js"></script>
+<script>
+App.header('pricing.html');
+const esc = App.esc; document.getElementById('sup').textContent = App.config.supportEmail || '';
+function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 5000); }
+const money = n => 'NT$ ' + Number(n).toLocaleString('zh-TW');
+App.api('/api/config').then(c => {
+  gd.textContent = c.pro_grace_days || 30; fb.textContent = c.free_batch_files || 10; fd.textContent = c.free_doc_credits; fr.textContent = c.free_retain_days;
+  const all = Object.entries(c.plans);
+  const card = ([k, p]) => {
+    const per = p.credits ? `<div class="per">每份約 ${(p.price / p.credits).toFixed(2)} 元・${p.credit_days || 365} 天內用完${p.pro_days ? '・含進階版' : ''}</div>` : `<div class="per">${p.pro_days >= 360 ? `平均每月約 ${Math.round(p.price / 12)} 元` : `${p.pro_days} 天`}</div>`;
+    const desc = p.credits ? `${p.credits.toLocaleString()} 份文件的線上簽名：指定人員、多人依序簽同一份（算 1 份）、連署（每人算 1 份）、退回重簽、打包下載；有簽名才算份數。${p.pro_days ? '另含進階版 1 年：檔案不限保存天數、批次轉檔不限檔案數。' : `檔案最長保存 ${c.max_retain_days} 天。`}`
+      : `批次轉檔一次不限檔案數（免費版一次 ${c.free_batch_files || 10} 個）；批次簽名的檔案不限保存天數（免費試用 ${c.free_retain_days} 天、只買份數 ${c.max_retain_days} 天）。`;
+    const best = k === 'sign1000' ? '<span class="tag">學校最常選</span><br>' : '';
+    return `<div class="card">${best}<h3 style="margin:0 0 4px">${esc(p.name)}</h3><div class="price">${money(p.price)}</div>${per}<p class="small muted">${desc}</p>
+      <button class="btn primary" data-plan="${k}" style="width:100%">購買</button></div>`;
+  };
+  signPlans.innerHTML = all.filter(([, p]) => p.credits).map(card).join('');
+  proPlans.innerHTML = all.filter(([, p]) => !p.credits).map(card).join('');
+  document.querySelectorAll('[data-plan]').forEach(b => b.onclick = () => buy(b.dataset.plan, b));
+}).catch(e => toast(e.message));
+async function buy(plan, btn) {
+  await App.ready; if (!App.user) { try { await App.signIn(); } catch (e) { return; } if (!App.user) return; }
+  btn.disabled = true; btn.textContent = '前往付款頁…';
+  try {
+    const r = await App.api('/api/pay/create', { body: { plan } });
+    const f = document.createElement('form'); f.method = 'POST'; f.action = r.action;
+    for (const [k, v] of Object.entries(r.fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); }
+    document.body.appendChild(f); f.submit();
+  } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '購買'; }
+}
+</script>
+</body></html>

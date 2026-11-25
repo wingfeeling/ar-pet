@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>我的帳號｜凌的萬用pdf編輯器</title><link rel="stylesheet" href="css/site.css"></head>
+<body>
+<div id="siteHeader"></div>
+<div class="wrap narrow">
+  <h1>我的帳號</h1>
+  <div id="box" class="card muted">載入中…</div>
+  <h2>購買紀錄</h2>
+  <div class="card"><table class="t"><thead><tr><th>訂單編號</th><th>方案</th><th>金額</th><th>狀態</th><th>時間</th></tr></thead><tbody id="orders"></tbody></table></div>
+  <div class="row"><a class="btn" id="ops" href="ops.html" style="display:none">管理後台</a><a class="btn" href="wish.html?t=bug">客服・問題回報</a><button class="btn" id="out">登出</button></div>
+</div>
+<footer><a href="privacy.html">隱私權政策</a><a href="terms.html">服務條款與退款</a></footer>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/config.js"></script><script src="js/app.js"></script>
+<script>
+App.header('account.html'); const esc = App.esc;
+const NAMES = { ocr: '掃描文字辨識', convert: 'Word／Excel／PPT 轉檔' };
+const STS = { created: '尚未付款', paid: '付款成功', failed: '付款失敗', refunded: '已退款' };
+const order = new URLSearchParams(location.search).get('order');
+async function load(tries = 0) {
+  await App.ready;
+  if (!App.user) { box.innerHTML = '請先登入。<br><br><button class="btn primary" id="lg">用 Google 登入</button>'; lg.onclick = () => App.signIn().then(() => location.reload()); return; }
+  const me = await App.api('/api/me'); const os = (await App.api('/api/pay/orders')).orders;
+  const pending = order && os.find(o => o.trade_no === order && o.status === 'created');
+  box.classList.remove('muted');
+  box.innerHTML = `${pending ? `<div class="notice info">付款結果確認中，請稍候…（選 ATM 轉帳的話，轉帳完成後才會開通）</div>` : order && os.find(o => o.trade_no === order && o.status === 'paid') ? '<div class="notice ok">付款成功，已經開通！</div>' : ''}
+    <p><b>${esc(me.email)}</b></p>
+    <h3>批次線上簽名</h3>
+    <p>${me.credits.paid || me.credits.held_paid ? `還能上傳 <b>${me.credits.paid.toLocaleString()}</b> 份，請在 <b>${App.fmtDate(me.credits.paid_until)}</b> 前用完` : '目前沒有購買的份數'}${me.credits.expired ? `（有 ${me.credits.expired} 份已過期）` : ''}<br>
+    免費試用：還剩 <b>${me.credits.trial}</b> / ${me.credits.trial_limit} 份　<a href="pricing.html">購買份數</a>
+    ${(me.credits.held_paid || 0) + (me.credits.held_trial || 0) ? `<br>另有 <b>${(me.credits.held_paid || 0) + (me.credits.held_trial || 0)}</b> 份已上傳、等學生簽名中（沒簽就會退回）` : ''}
+    <br><span class="small muted">有簽名才算份數。${me.keep.forever ? `檔案不限保存天數（進階版到期 ${me.keep.grace_days} 天後才刪除）` : `檔案最長保存 ${me.keep.max_days} 天`}</span></p>
+    <h3>進階版</h3>
+    <p>${me.paid ? `<b>進階版</b>，到期日 <b>${App.fmtDate(me.paid_until)}</b>：批次轉檔不限檔案數、簽名檔案不限保存天數` : `免費版：文字辨識、Word／Excel／PPT 轉檔不限次數；批次轉檔一次 ${me.batch_files} 個以內　<a href="pricing.html">開通進階版</a>`}</p>
+    ${me.paid ? '' : (() => { const lim = Object.entries(me.quota).filter(([, q]) => !q.unlimited); return lim.length ? `<table class="t"><thead><tr><th>項目（本月）</th><th>已用</th><th>剩下</th></tr></thead><tbody>${lim.map(([k, q]) => `<tr><td>${NAMES[k] || k}</td><td>${q.used} / ${q.limit}</td><td>${q.remaining}</td></tr>`).join('')}</tbody></table>` : ''; })()}`;
+  orders.innerHTML = os.map(o => `<tr><td>${o.trade_no}</td><td>${esc(o.plan_name || o.plan)}</td><td>NT$ ${o.amount}</td><td>${STS[o.status] || o.status}</td><td>${App.fmtDate(o.paid_at || o.created_at, 1)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">沒有紀錄</td></tr>';
+  if (me.site_admin) document.getElementById('ops').style.display = '';
+  if (pending && tries < 10) setTimeout(() => load(tries + 1), 3000);
+}
+document.getElementById('out').onclick = () => App.signOut();
+load().catch(e => box.textContent = e.message);
+</script>
+</body></html>
